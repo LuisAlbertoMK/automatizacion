@@ -35,6 +35,12 @@ try:
 except ImportError:
     MAIL_AVAILABLE = False
 
+try:
+    from utils.free_captcha import FreeCaptchaSolver
+    FREE_SOLVER_AVAILABLE = True
+except ImportError:
+    FREE_SOLVER_AVAILABLE = False
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 BANNER = f"""
@@ -71,12 +77,25 @@ class Agente:
                 print(f"{Fore.GREEN}  ✓ 2captcha conectado{Style.RESET_ALL}")
             except CaptchaError as e:
                 print(f"{Fore.YELLOW}  ⚠ 2captcha: {e}{Style.RESET_ALL}")
-        else:
-            print(f"{Fore.YELLOW}  ⚠ Sin clave 2captcha — CAPTCHAs serán manuales{Style.RESET_ALL}")
+
+        # Fallback al solver gratuito si no hay 2captcha configurado
+        if not self.solver and FREE_SOLVER_AVAILABLE:
+            try:
+                self.solver = FreeCaptchaSolver()
+                print(f"{Fore.CYAN}  ✓ FreeCaptchaSolver activo (OCR + Whisper){Style.RESET_ALL}")
+            except Exception as e:
+                print(f"{Fore.YELLOW}  ⚠ FreeCaptchaSolver: {e}{Style.RESET_ALL}")
+
+        if not self.solver:
+            print(f"{Fore.YELLOW}  ⚠ Sin solver de CAPTCHA — serán manuales{Style.RESET_ALL}")
 
         if MAIL_AVAILABLE:
             imap_email = os.getenv("IMAP_EMAIL", "")
-            if imap_email and "@" in imap_email:
+            imap_pass  = os.getenv("IMAP_PASSWORD", "")
+            # Placeholder emails conocidos — saltar MailReader
+            placeholders = ("tucorreo", "your-email", "placeholder", "@example.com")
+            is_placeholder = any(p in imap_email.lower() for p in placeholders)
+            if imap_email and "@" in imap_email and not is_placeholder and imap_pass:
                 try:
                     self.mail_reader = MailReader()
                     print(f"{Fore.GREEN}  ✓ IMAP configurado ({imap_email}){Style.RESET_ALL}")
@@ -104,6 +123,9 @@ class Agente:
     async def tramite_nss(self, perfil: dict = None) -> dict:
         """Ejecuta el trámite de NSS."""
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: NSS IMSS ━━━{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}  Usando CNN solver local (85% char accuracy, ~50ms){Style.RESET_ALL}")
+        if not self.mail_reader:
+            print(f"{Fore.YELLOW}  ⚠ Sin lector de correo — el NSS se envía por email{Style.RESET_ALL}")
 
         if perfil and perfil.get("curp"):
             curp = perfil["curp"]
@@ -122,7 +144,23 @@ class Agente:
         modulo = NSSModule(captcha_solver=self.solver, mail_reader=self.mail_reader)
         resultado = await modulo.consultar(curp=curp, correo=correo)
 
-        self._mostrar_resultado("NSS", resultado)
+        # Si el NSS fue enviado al correo, mostrar instrucciones claras
+        if resultado.get("nss") == "ENVIADO_AL_CORREO":
+            print(f"\n{Fore.GREEN}{'━'*50}")
+            print(f"  SOLICITUD ENVIADA CON ÉXITO")
+            print(f"{'━'*50}{Style.RESET_ALL}")
+            print(f"  El IMSS envió el NSS al correo: {correo}")
+            print()
+            print(f"  {Fore.YELLOW}Para obtenerlo automáticamente la próxima vez:{Style.RESET_ALL}")
+            print(f"  1. Configurá IMAP en config.env:")
+            print(f"     IMAP_EMAIL={correo}")
+            print(f"     IMAP_PASSWORD=tu_contraseña_de_aplicación")
+            print()
+            print(f"  {Fore.CYAN}O revisá manualmente tu bandeja de entrada.{Style.RESET_ALL}")
+            print(f"{Fore.GREEN}{'━'*50}{Style.RESET_ALL}\n")
+        else:
+            self._mostrar_resultado("NSS", resultado)
+
         return resultado
 
     # ── AMBOS ─────────────────────────────────────────────────────────────────

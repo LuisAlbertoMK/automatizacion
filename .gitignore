@@ -1,3 +1,29 @@
 node_modules
 .env
 __pycache__
+
+# Logs
+logs/
+
+# Debug screenshots
+debug_*.png
+captcha_*.png
+curp_*.png
+nss_*.png
+resultado_*.png
+
+# Model weights (too heavy for git)
+*.pt
+*.onnx
+*.onnx.data
+
+# Audio artifacts (whisper)
+*.wav
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store

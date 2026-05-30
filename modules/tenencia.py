@@ -68,9 +68,8 @@ class TenenciaModule:
         start = time.time()
         
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(
+            browser = await pw.firefox.launch(
                 headless=HEADLESS,
-                args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
             )
             context = await browser.new_context(
                 viewport={"width": 1280, "height": 800},
@@ -228,23 +227,30 @@ class TenenciaModule:
             "img[src*='Captcha']",
         ]
         
-        captcha_presente = False
+        captcha_selector = None
         for sel in captcha_selectors:
             if await page.locator(sel).count() > 0:
-                captcha_presente = True
+                captcha_selector = sel
                 break
         
-        if not captcha_presente:
+        if not captcha_selector:
             print("  [TENENCIA] Sin CAPTCHA detectado")
             return
         
         print("  [TENENCIA] 🔵 CAPTCHA detectado")
         
+        solution = None
         if self.solver:
-            # Resolver con 2captcha
-            print("  [TENENCIA] Resolviendo con 2captcha...")
-            # TODO: Implementar resolución automática
-        else:
+            try:
+                # Tomar screenshot del captcha y resolver con OCR
+                captcha_img = page.locator(captcha_selector).first
+                img_bytes = await captcha_img.screenshot()
+                solution = self.solver.solve_image(img_bytes, numeric=True)
+                print(f"  [TENENCIA] CAPTCHA resuelto: {solution}")
+            except Exception as e:
+                print(f"  [TENENCIA] ⚠ Solver automático falló: {e}")
+
+        if not solution:
             # Modo manual
             print("  [TENENCIA] 👉 Resuelve el CAPTCHA manualmente")
             solution = input("  Ingresa el CAPTCHA: ").strip()

@@ -70,9 +70,8 @@ class AntecedentesModule:
         start = time.time()
         
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(
+            browser = await pw.firefox.launch(
                 headless=HEADLESS,
-                args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
             )
             context = await browser.new_context(
                 viewport={"width": 1280, "height": 800},
@@ -241,11 +240,39 @@ class AntecedentesModule:
             return
         
         print("  [ANTECEDENTES] 🔵 reCAPTCHA detectado")
+
+        # Intentar audio challenge si el solver lo soporta
+        audio_method = getattr(self.solver, 'solve_recaptcha_v2_audio', None) if self.solver else None
+        if audio_method:
+            print("  [ANTECEDENTES] Intentando audio challenge (Whisper)...")
+            site_key = await self._detectar_site_key(page)
+            if site_key:
+                token = await audio_method(page, site_key, "https://constancias.oadprs.gob.mx/")
+                if token and token != "MANUAL":
+                    print("  [ANTECEDENTES] ✅ reCAPTCHA resuelto con audio")
+                    return
+        
+        # Fallback: esperar resolución manual
         print("  [ANTECEDENTES] 👉 Resuélvelo manualmente en el navegador")
         print("  [ANTECEDENTES] ⏱️  Esperando hasta 120 segundos...")
-        
-        # Esperar resolución manual
         await self._esperar_recaptcha_resuelto(page, max_wait=120)
+
+    async def _detectar_site_key(self, page: Page) -> str | None:
+        """Extrae el site key de reCAPTCHA de la página."""
+        try:
+            site_key = await page.evaluate("""
+                () => {
+                    const frames = document.querySelectorAll('iframe[src*="recaptcha"]');
+                    for (const f of frames) {
+                        const match = f.src.match(/[?&]k=([^&]+)/);
+                        if (match) return match[1];
+                    }
+                    return null;
+                }
+            """)
+            return site_key
+        except Exception:
+            return None
     
     async def _esperar_recaptcha_resuelto(self, page: Page, max_wait: int = 120):
         """Espera a que el usuario resuelva el reCAPTCHA."""

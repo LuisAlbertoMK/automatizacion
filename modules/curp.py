@@ -88,9 +88,8 @@ class CURPModule:
         start = time.time()
 
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(
+            browser = await pw.firefox.launch(
                 headless=HEADLESS,
-                args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
             )
             context = await browser.new_context(
                 viewport={"width": 1280, "height": 800},
@@ -329,13 +328,24 @@ class CURPModule:
         # Tomar screenshot del captcha
         img_bytes = await captcha_img.screenshot()
 
-        # Resolver con 2captcha
+        # Resolver CAPTCHA (2captcha, OCR gratuito o manual)
+        solution = None
         if self.solver:
-            solution = self.solver.solve_image(img_bytes, numeric=True)
-            print(f"  [CURP] CAPTCHA resuelto: {solution}")
-        else:
-            # Fallback: pedir solución manual
-            solution = input("  [MANUAL] Escribe el CAPTCHA que ves en pantalla: ").strip()
+            try:
+                solution = self.solver.solve_image(img_bytes, numeric=True)
+                print(f"  [CURP] CAPTCHA resuelto: {solution}")
+            except Exception as e:
+                print(f"  [CURP] ⚠ Solver automático falló: {e}")
+                print("  [CURP] → Modo manual como respaldo")
+
+        if not solution:
+            # Fallback: variable de entorno o manual
+            solution = os.getenv("CAPTCHA_VALUE", "").strip()
+            if solution:
+                print(f"  [CURP] CAPTCHA desde CAPTCHA_VALUE: '{solution}'")
+            else:
+                print("  [CURP] ⚠ Sin CAPTCHA, continuando...")
+                return
 
         # Ingresar solución
         captcha_inputs = [

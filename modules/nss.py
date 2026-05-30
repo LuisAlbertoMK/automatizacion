@@ -27,6 +27,12 @@ try:
 except ImportError:
     OCR_AVAILABLE = False
 
+try:
+    from captcha_solver_imss import IMSCaptchaSolver, CaptchaStore
+    IMSS_SOLVER_AVAILABLE = True
+except ImportError:
+    IMSS_SOLVER_AVAILABLE = False
+
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "./output"))
 TIMEOUT    = int(os.getenv("TIMEOUT", "60")) * 1000
@@ -74,9 +80,8 @@ class NSSModule:
         start = time.time()
 
         async with async_playwright() as pw:
-            browser = await pw.chromium.launch(
+            browser = await pw.firefox.launch(
                 headless=HEADLESS,
-                args=["--no-sandbox", "--disable-blink-features=AutomationControlled"],
             )
             context = await browser.new_context(
                 viewport={"width": 1280, "height": 800},
@@ -97,8 +102,17 @@ class NSSModule:
                 elapsed = time.time() - start
                 print(f"  [NSS] ✅ Completado en {elapsed:.1f}s")
                 return result
+            except NSSError:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                print(f"  [NSS] ⚠ Error en {elapsed:.1f}s: {e}")
+                raise NSSError(f"Error durante la consulta: {e}")
             finally:
-                await browser.close()
+                try:
+                    await browser.close()
+                except Exception:
+                    pass  # Ignorar errores al cerrar (puede que ya esté cerrado)
 
     async def _run(self, page: Page, curp: str, correo: str) -> dict:
         """Flujo principal."""
@@ -129,13 +143,19 @@ class NSSModule:
         # ── 4. Ingresar correo ─────────────────────────────────────
         await self._ingresar_correo(page, correo)
 
-        # ── 5. Resolver reCAPTCHA v2 ───────────────────────────────
+        # ── 5. Confirmar correo ─────────────────────────────────────
+        await self._ingresar_confirmacion_correo(page, correo)
+
+        # ── 6. Resolver CAPTCHA de imagen ──────────────────────────
+        await self._resolver_captcha_imagen(page)
+
+        # ── 7. Resolver reCAPTCHA v2 ───────────────────────────────
         await self._resolver_recaptcha(page)
 
-        # ── 6. Enviar formulario ───────────────────────────────────
+        # ── 8. Enviar formulario ───────────────────────────────────
         await self._enviar_formulario(page)
 
-        # ── 7. Obtener NSS ─────────────────────────────────────────
+        # ── 9. Obtener NSS ─────────────────────────────────────────
         nss = await self._obtener_nss(page, correo)
 
         return {
@@ -223,7 +243,7 @@ class NSSModule:
         raise NSSError("No se encontró el campo CURP en el portal IMSS. Verifica que el portal esté accesible.")
 
     async def _ingresar_correo(self, page: Page, correo: str):
-        """Ingresa el correo electrónico."""
+        """Ingresa el correo electrónico y su confirmación."""
         print(f"  [NSS] Ingresando correo: {correo}")
         
         email_selectors = [
@@ -276,6 +296,122 @@ class NSSModule:
         
         raise NSSError("No se encontró el campo de correo en el portal IMSS. Verifica que el portal esté accesible.")
 
+    async def _ingresar_confirmacion_correo(self, page: Page, correo: str):
+        """Ingresa la confirmación del correo electrónico (correoElectronicoFiscal)."""
+        confirm_selectors = [
+            "input[name='correoElectronicoFiscal.correo']",
+            "input[id='correoConfirmacionInput']",
+            "input[placeholder*='Confirma']",
+        ]
+        for sel in confirm_selectors:
+            try:
+                loc = page.locator(sel)
+                if await loc.count() > 0:
+                    is_visible = await loc.first.is_visible()
+                    if is_visible:
+                        print(f"  [DEBUG] Llenando confirmación correo con: {sel}")
+                        await loc.first.fill(correo)
+                        await asyncio.sleep(0.3)
+                        print(f"  [NSS] Confirmación de correo ingresada ✓")
+                        return
+            except Exception:
+                continue
+        print("  [NSS] Sin campo de confirmación de correo, continuando...")
+
+    async def _resolver_captcha_imagen(self, page: Page):
+        """
+        Detecta y resuelve el CAPTCHA de imagen del IMSS.
+
+        Pipeline:
+          1. Descarga la imagen del CaptchaServlet
+          2. Guarda copia local + abre para inspección visual
+          3. Resuelve con IMSCaptchaSolver (EasyOCR + Tesseract ensemble)
+          4. Fallback a CAPTCHA_VALUE (manual) si el solver no confía
+          5. Fallback a FreeCaptchaSolver (legacy)
+        """
+        import requests as reqs
+        from pathlib import Path
+
+        captcha_img = await page.query_selector(
+            "img[src*='Captcha'], img[src*='captcha'], "
+            "img[src*='CaptchaServlet'], img[src*='captchaServlet']"
+        )
+        captcha_input = await page.query_selector("input[name='captcha']")
+
+        if not captcha_img or not captcha_input:
+            print("  [NSS] Sin CAPTCHA de imagen detectado, continuando...")
+            return
+
+        src = await captcha_img.get_attribute("src") or ""
+        if not src:
+            print("  [NSS] CAPTCHA de imagen sin src, continuando...")
+            return
+
+        if src.startswith("/"):
+            src = f"https://serviciosdigitales.imss.gob.mx{src}"
+
+        print(f"  [NSS] CAPTCHA de imagen detectado, descargando...")
+        try:
+            resp = reqs.get(src, timeout=15, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            })
+            resp.raise_for_status()
+            img_bytes = resp.content
+            print(f"  [NSS] Imagen descargada: {len(img_bytes)} bytes")
+        except Exception as e:
+            print(f"  [NSS] ⚠ Error descargando CAPTCHA: {e}")
+            return
+
+        # ── Guardar imagen para debug visual ─────────────────────
+        captcha_path = Path("debug_captcha_imss.png")
+        captcha_path.write_bytes(img_bytes)
+        import subprocess
+        try:
+            subprocess.Popen(["start", str(captcha_path.absolute())], shell=True)
+        except Exception:
+            pass
+
+        # ── 1. Pipeline IMSCaptchaSolver (EasyOCR + Tesseract) ──
+        valor = ""
+        from captcha_solver_imss import IMSCaptchaSolver, CaptchaStore
+        ims_solver = IMSCaptchaSolver(verbose=True)
+        ims_result = ims_solver.solve(img_bytes)
+
+        if ims_result["success"] and ims_result["score"] >= 0.5:
+            valor = ims_result["value"]
+            print(f"  [NSS] CAPTCHA resuelto por ensemble "
+                  f"(engine: {ims_result['engine']}, "
+                  f"score: {ims_result['score']:.2f}): '{valor}'")
+        else:
+            print(f"  [NSS] Ensemble no confiable "
+                  f"(score: {ims_result.get('score', 0):.2f})")
+
+        # ── 2. Fallback: FreeCaptchaSolver (legacy) ──────────────
+        if not valor:
+            ocr_hint = ""
+            if self.solver and hasattr(self.solver, "solve_image"):
+                try:
+                    ocr_hint = self.solver.solve_image(img_bytes, numeric=False)
+                    print(f"  [FreeCaptcha] OCR sugiere: '{ocr_hint}'")
+                except Exception:
+                    pass
+            if ocr_hint:
+                valor = ocr_hint
+
+        # ── 3. Fallback: variable de entorno (manual) ────────────
+        if not valor:
+            valor = os.getenv("CAPTCHA_VALUE", "").strip()
+            if valor:
+                print(f"  [NSS] CAPTCHA desde variable de entorno: '{valor}'")
+
+        if not valor:
+            print("  [NSS] ⚠ Sin CAPTCHA, continuando...")
+            return
+
+        await captcha_input.fill(valor)
+        await asyncio.sleep(0.3)
+        print(f"  [NSS] CAPTCHA ingresado: {valor} ✓")
+
     async def _resolver_recaptcha(self, page: Page):
         """Detecta y resuelve el reCAPTCHA v2 del portal IMSS (modo semiautomático)."""
         await asyncio.sleep(1)
@@ -288,41 +424,55 @@ class NSSModule:
 
         print(f"  [NSS] reCAPTCHA detectado (key: {site_key[:20]}...)")
 
+        # ── 1. Intentar audio challenge (FreeCaptchaSolver) ──
+        audio_method = getattr(self.solver, 'solve_recaptcha_v2_audio', None) if self.solver else None
+        if audio_method:
+            print("  [NSS] Intentando audio challenge (Whisper)...")
+            token = await audio_method(page, site_key, PORTAL_URL)
+            if token and token != "MANUAL":
+                await self._inyectar_token_recaptcha(page, token)
+                return
+            print("  [NSS] Audio no disponible, usando modo alternativo...")
+
+        # ── 2. Modo automático (2captcha) o manual ──
         if self.solver:
-            # Modo semiautomático: no enviar a 2captcha automáticamente
-            # El usuario puede configurar auto=True en config si quiere totalmente automático
             auto_mode = os.getenv("RECAPTCHA_AUTO", "false").lower() == "true"
             
             if auto_mode:
-                print("  [NSS] Modo AUTOMÁTICO - Enviando a 2captcha...")
+                print("  [NSS] Modo AUTOMÁTICO - Resolviendo CAPTCHA...")
                 token = self.solver.solve_recaptcha_v2(site_key, PORTAL_URL, auto=True)
-                # Inyectar token
-                await page.evaluate(f"""
-                    document.getElementById('g-recaptcha-response').innerHTML = '{token}';
-                    if (typeof ___grecaptcha_cfg !== 'undefined') {{
-                        Object.entries(___grecaptcha_cfg.clients).forEach(([k, v]) => {{
-                            if (v.hasOwnProperty('callback')) {{
-                                v.callback('{token}');
-                            }}
-                        }});
-                    }}
-                """)
-                print("  [NSS] Token reCAPTCHA inyectado ✓")
+                
+                if token and token != "MANUAL":
+                    await self._inyectar_token_recaptcha(page, token)
+                else:
+                    print("  [NSS] ⚠ Solver no disponible en auto, modo manual...")
+                    await self._esperar_recaptcha_resuelto(page, max_wait=120)
             else:
                 # Modo SEMIAUTOMÁTICO (por defecto)
-                print("  [NSS] 🔵 Modo SEMIAUTOMÁTICO activado")
-                print("  [NSS] 👉 Resuelve el reCAPTCHA manualmente en el navegador")
+                print("  [NSS] 🔵 Modo MANUAL activado")
+                print("  [NSS] 👉 Resuelve el reCAPTCHA en el navegador")
                 print("  [NSS] ⏱️  Esperando hasta 120 segundos...")
-                
-                # Esperar a que el usuario resuelva el CAPTCHA
                 await self._esperar_recaptcha_resuelto(page, max_wait=120)
         else:
             # Sin solver configurado - modo manual
             print("  [NSS] 🔵 Modo MANUAL - Sin solver configurado")
-            print("  [NSS] 👉 Resuelve el reCAPTCHA manualmente en el navegador")
+            print("  [NSS] 👉 Resuelve el reCAPTCHA en el navegador")
             print("  [NSS] ⏱️  Esperando hasta 120 segundos...")
-            
             await self._esperar_recaptcha_resuelto(page, max_wait=120)
+
+    async def _inyectar_token_recaptcha(self, page: Page, token: str):
+        """Inyecta un token de reCAPTCHA en la página."""
+        await page.evaluate(f"""
+            document.getElementById('g-recaptcha-response').innerHTML = '{token}';
+            if (typeof ___grecaptcha_cfg !== 'undefined') {{
+                Object.entries(___grecaptcha_cfg.clients).forEach(([k, v]) => {{
+                    if (v.hasOwnProperty('callback')) {{
+                        v.callback('{token}');
+                    }}
+                }});
+            }}
+        """)
+        print("  [NSS] ✅ Token reCAPTCHA inyectado ✓")
     
     async def _esperar_recaptcha_resuelto(self, page: Page, max_wait: int = 120):
         """Espera a que el usuario resuelva el reCAPTCHA manualmente."""
@@ -391,7 +541,7 @@ class NSSModule:
         return None
 
     async def _enviar_formulario(self, page: Page):
-        """Hace clic en el botón de envío."""
+        """Hace clic en el botón de envío y espera la navegación post-submit."""
         print("  [NSS] Buscando botón de envío...")
         
         submit_selectors = [
@@ -416,10 +566,23 @@ class NSSModule:
                     is_visible = await loc.first.is_visible()
                     if is_visible:
                         print(f"  [DEBUG] Haciendo clic en botón: {sel}")
-                        await loc.first.click()
+                        # Usar expect_navigation para esperar la redirección post-submit
+                        async with page.expect_navigation(timeout=30000):
+                            await loc.first.click()
                         print("  [NSS] Formulario enviado ✓")
-                        await asyncio.sleep(3)
+                        await asyncio.sleep(2)
+                        # Tomar screenshot de la página de resultado
+                        try:
+                            await page.screenshot(path="nss_resultado.png")
+                            print("  [DEBUG] Screenshot post-submit: nss_resultado.png")
+                        except Exception:
+                            pass
                         return
+            except PwTimeout:
+                # Timeout en navigation - la página no navegó, pero quizás el submit funcionó
+                print("  [NSS] Submit realizado (sin redirección visible)")
+                await asyncio.sleep(2)
+                return
             except Exception as e:
                 print(f"  [DEBUG] Error con selector {sel}: {e}")
                 continue
@@ -434,7 +597,23 @@ class NSSModule:
 
         # Primero: buscar NSS directo en la respuesta de la página (HTML)
         await asyncio.sleep(2)
-        content = await page.content()
+        try:
+            content = await page.content()
+        except Exception as e:
+            print(f"  [NSS] ⚠ Error al leer página post-submit: {e}")
+            print(f"  [NSS] Intentando con URL actual...")
+            try:
+                url = page.url
+                print(f"  [NSS] URL actual: {url}")
+                # Puede que la página haya redirigido, intentar reload
+                await page.wait_for_load_state("networkidle", timeout=15000)
+                content = await page.content()
+            except Exception as e2:
+                print(f"  [NSS] ⚠ Error recuperando página: {e2}")
+                raise NSSError(
+                    "La conexión con el portal se perdió después del envío. "
+                    "Posiblemente el portal rechazó el CAPTCHA o la sesión expiró."
+                )
 
         # NSS = 11 dígitos consecutivos
         nss_candidates = re.findall(r"\b(\d{11})\b", content)
@@ -456,7 +635,6 @@ class NSSModule:
                     nss = ocr_data["nss"]
                     print(f"  [NSS] NSS encontrado con OCR: {nss} ✓")
                     
-                    # Limpiar archivo temporal
                     try:
                         os.remove(screenshot_path)
                     except:
@@ -464,7 +642,6 @@ class NSSModule:
                     
                     return nss
                 
-                # Limpiar archivo temporal
                 try:
                     os.remove(screenshot_path)
                 except:
@@ -472,7 +649,24 @@ class NSSModule:
             except Exception as e:
                 print(f"  [NSS] Error al usar OCR: {e}")
 
-        # Tercero: verificar si hay mensaje de éxito
+        # Tercero: verificar error de CAPTCHA
+        captcha_error_texts = [
+            "captcha no válido", "captcha inválido", "captcha incorrecto",
+            "código captcha", "código de verificación",
+        ]
+        if any(t in content.lower() for t in captcha_error_texts):
+            error_msg = re.search(
+                r"(el\s+)?captcha\s+(no\s+)?(válido|inválido|incorrecto|erróne)",
+                content, re.IGNORECASE
+            )
+            msg = error_msg.group(0) if error_msg else "CAPTCHA inválido"
+            print(f"  [NSS] ⚠ Error detectado en respuesta: '{msg}'")
+            raise NSSError(
+                f"CAPTCHA inválido. El portal rechazó el código ingresado. "
+                f"Intentá de nuevo verificando bien los caracteres."
+            )
+
+        # Cuarto: verificar si hay mensaje de éxito
         success_texts = [
             "se ha enviado", "revisa tu correo", "correo enviado",
             "número de seguridad social", "tu nss",
@@ -486,24 +680,32 @@ class NSSModule:
                     print(f"  [NSS] NSS extraído del correo: {mail_data['nss']} ✓")
                     return mail_data["nss"]
                 else:
-                    # Retornar el link del correo por si necesita acción adicional
                     link = mail_data.get("verification_link", "")
                     if link:
                         print(f"  [NSS] Link de verificación recibido: {link}")
-                        # Navegar al link
                         await page.goto(link, timeout=TIMEOUT)
                         await asyncio.sleep(3)
-                        content2 = await page.content()
-                        nss2 = re.findall(r"\b(\d{11})\b", content2)
-                        if nss2:
-                            print(f"  [NSS] NSS encontrado tras verificar correo: {nss2[0]} ✓")
-                            return nss2[0]
+                        try:
+                            content2 = await page.content()
+                            nss2 = re.findall(r"\b(\d{11})\b", content2)
+                            if nss2:
+                                print(f"  [NSS] NSS encontrado tras verificar correo: {nss2[0]} ✓")
+                                return nss2[0]
+                        except Exception:
+                            pass
             else:
                 print(
                     f"  [NSS] ⚠ Revisa manualmente el correo {correo}\n"
                     f"  El IMSS enviará el NSS en unos minutos."
                 )
                 return "ENVIADO_AL_CORREO"
+
+        # Quinto: revisar si hay algún número de 11 dígitos visible en la página
+        # (el NSS puede no tener word boundary si está en una tabla)
+        all_nums = re.findall(r"\d{11}", content)
+        if all_nums:
+            print(f"  [NSS] Posible NSS encontrado (sin boundary): {all_nums[0]} ✓")
+            return all_nums[0]
 
         raise NSSError(
             "No se pudo obtener el NSS. "
