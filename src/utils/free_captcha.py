@@ -67,11 +67,11 @@ class FreeCaptchaSolver:
     Solver de CAPTCHAs gratuito y local.
 
     Interfaces compatibles con CaptchaSolver (utils/captcha.py):
-      - solve_image(image_bytes, numeric=True)  → str
-      - solve_recaptcha_v2(site_key, page_url, auto=True) → "MANUAL"
+      - solve_image(image_bytes, numeric=True)  -> str
+      - solve_recaptcha_v2(site_key, page_url, auto=True) -> "MANUAL"
 
     Interfaz adicional asíncrona:
-      - solve_recaptcha_v2_audio(page, site_key, page_url) → token o "MANUAL"
+      - solve_recaptcha_v2_audio(page, site_key, page_url) -> token o "MANUAL"
     """
 
     def __init__(self, use_ocr: bool = True, use_whisper: bool = True):

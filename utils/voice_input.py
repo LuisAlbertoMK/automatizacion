@@ -56,7 +56,7 @@ class VoiceInput:
         print(f"  [VOZ] Cargando modelo Whisper '{model_size}'...")
         try:
             self.model = whisper.load_model(model_size)
-            print(f"  [VOZ] Modelo cargado ✓")
+            print(f"  [VOZ] Modelo cargado [OK]")
         except Exception as e:
             raise VoiceInputError(f"Error cargando modelo Whisper: {e}")
     
@@ -94,7 +94,7 @@ class VoiceInput:
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
             sf.write(temp_file.name, recording, self.sample_rate)
             
-            print(f"  [VOZ] ✅ Grabación completada")
+            print(f"  [VOZ] [OK] Grabación completada")
             return temp_file.name
             
         except Exception as e:
@@ -171,7 +171,7 @@ class VoiceInput:
         
         if match:
             curp = match.group(1)
-            print(f"  [VOZ] ✅ CURP detectada: {curp}")
+            print(f"  [VOZ] [OK] CURP detectada: {curp}")
             return curp
         
         # Intentar extraer letra por letra si el usuario deletreó
@@ -182,10 +182,10 @@ class VoiceInput:
         
         if match2:
             curp = match2.group(1)
-            print(f"  [VOZ] ✅ CURP detectada (deletreada): {curp}")
+            print(f"  [VOZ] [OK] CURP detectada (deletreada): {curp}")
             return curp
         
-        print(f"  [VOZ] ⚠ No se detectó CURP válida")
+        print(f"  [VOZ] [!] No se detectó CURP válida")
         return None
     
     def extract_email(self, texto):
@@ -211,10 +211,10 @@ class VoiceInput:
         
         if match:
             email = match.group(1)
-            print(f"  [VOZ] ✅ Email detectado: {email}")
+            print(f"  [VOZ] [OK] Email detectado: {email}")
             return email
         
-        print(f"  [VOZ] ⚠ No se detectó email válido")
+        print(f"  [VOZ] [!] No se detectó email válido")
         return None
     
     def extract_placa(self, texto):
@@ -236,16 +236,16 @@ class VoiceInput:
         
         if match:
             placa = match.group(1)
-            print(f"  [VOZ] ✅ Placa detectada: {placa}")
+            print(f"  [VOZ] [OK] Placa detectada: {placa}")
             return placa
         
-        print(f"  [VOZ] ⚠ No se detectó placa válida")
+        print(f"  [VOZ] [!] No se detectó placa válida")
         return None
     
     def _convertir_numeros_texto(self, texto):
         """
         Convierte números en texto a dígitos.
-        Ejemplo: "uno dos tres" → "123"
+        Ejemplo: "uno dos tres" -> "123"
         """
         numeros = {
             "cero": "0", "uno": "1", "dos": "2", "tres": "3",
@@ -284,9 +284,9 @@ class VoiceInput:
                 if self._validar_curp(curp):
                     return curp
                 else:
-                    print(f"  [VOZ] ⚠ CURP con formato inválido, intenta de nuevo")
+                    print(f"  [VOZ] [!] CURP con formato inválido, intenta de nuevo")
             else:
-                print(f"  [VOZ] ⚠ No se detectó CURP, intenta de nuevo")
+                print(f"  [VOZ] [!] No se detectó CURP, intenta de nuevo")
         
         raise VoiceInputError("No se pudo obtener CURP válida por voz")
     
@@ -313,7 +313,7 @@ class VoiceInput:
             if email and "@" in email and "." in email:
                 return email
             else:
-                print(f"  [VOZ] ⚠ No se detectó email válido, intenta de nuevo")
+                print(f"  [VOZ] [!] No se detectó email válido, intenta de nuevo")
         
         raise VoiceInputError("No se pudo obtener email válido por voz")
     

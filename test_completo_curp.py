@@ -39,17 +39,17 @@ def verificar_requisitos():
     for modulo, descripcion in requisitos.items():
         try:
             __import__(modulo)
-            print(f"✅ {modulo:15} - {descripcion}")
+            print(f"[OK] {modulo:15} - {descripcion}")
         except ImportError:
-            print(f"❌ {modulo:15} - {descripcion} (FALTANTE)")
+            print(f"[ERR] {modulo:15} - {descripcion} (FALTANTE)")
             faltantes.append(modulo)
     
     if faltantes:
-        print(f"\n⚠️  Faltan {len(faltantes)} dependencias:")
+        print(f"\n[!]️  Faltan {len(faltantes)} dependencias:")
         print(f"   pip install {' '.join(faltantes)}")
         return False
     
-    print("\n✅ Todos los requisitos están instalados")
+    print("\n[OK] Todos los requisitos están instalados")
     return True
 
 
@@ -61,28 +61,28 @@ def verificar_configuracion():
     
     # Verificar archivo config.env
     if not Path("config.env").exists():
-        print("❌ Archivo config.env no encontrado")
+        print("[ERR] Archivo config.env no encontrado")
         print("   Copia config.example.env a config.env")
         return False
     
-    print("✅ Archivo config.env encontrado")
+    print("[OK] Archivo config.env encontrado")
     
     # Verificar API key de 2captcha
     api_key = os.getenv("CAPTCHA_API_KEY", "")
     if not api_key or api_key == "tu_api_key_aqui":
-        print("⚠️  API key de 2captcha no configurada")
+        print("[!]️  API key de 2captcha no configurada")
         print("   El CAPTCHA será manual")
         return True  # No es crítico
     
-    print(f"✅ API key de 2captcha configurada: {api_key[:10]}...")
+    print(f"[OK] API key de 2captcha configurada: {api_key[:10]}...")
     
     # Verificar directorios
     dirs = ["output", "data", "modules", "utils"]
     for d in dirs:
         if Path(d).exists():
-            print(f"✅ Directorio {d}/ existe")
+            print(f"[OK] Directorio {d}/ existe")
         else:
-            print(f"⚠️  Directorio {d}/ no existe, creando...")
+            print(f"[!]️  Directorio {d}/ no existe, creando...")
             Path(d).mkdir(exist_ok=True)
     
     return True
@@ -107,20 +107,20 @@ async def test_curp_completo(curp: str = "OOLL940914HMCRGS08"):
     if api_key and api_key != "tu_api_key_aqui":
         try:
             solver = CaptchaSolver(api_key)
-            print("✅ CaptchaSolver inicializado")
+            print("[OK] CaptchaSolver inicializado")
         except CaptchaError as e:
-            print(f"⚠️  CaptchaSolver: {e}")
+            print(f"[!]️  CaptchaSolver: {e}")
             print("   Continuando sin solver automático")
     else:
-        print("⚠️  Sin API key de 2captcha - CAPTCHA será manual")
+        print("[!]️  Sin API key de 2captcha - CAPTCHA será manual")
     
     # Inicializar módulo CURP
     print("\n🔄 Inicializando módulo CURP...")
     try:
         modulo = CURPModule(captcha_solver=solver)
-        print("✅ Módulo CURP inicializado correctamente")
+        print("[OK] Módulo CURP inicializado correctamente")
     except Exception as e:
-        print(f"❌ Error al inicializar módulo CURP: {e}")
+        print(f"[ERR] Error al inicializar módulo CURP: {e}")
         return False
     
     # Ejecutar consulta
@@ -132,11 +132,11 @@ async def test_curp_completo(curp: str = "OOLL940914HMCRGS08"):
         
         # Mostrar resultado
         print("\n" + "=" * 60)
-        print("✅ RESULTADO DE LA CONSULTA")
+        print("[OK] RESULTADO DE LA CONSULTA")
         print("=" * 60)
         
         if resultado.get("success"):
-            print("✅ Consulta exitosa")
+            print("[OK] Consulta exitosa")
             
             for clave, valor in resultado.items():
                 if clave != "success" and valor:
@@ -151,9 +151,9 @@ async def test_curp_completo(curp: str = "OOLL940914HMCRGS08"):
                     print(f"   Ruta: {pdf_path}")
                     print(f"   Tamaño: {size_kb:.1f} KB")
                 else:
-                    print(f"\n⚠️  PDF reportado pero no encontrado: {pdf_path}")
+                    print(f"\n[!]️  PDF reportado pero no encontrado: {pdf_path}")
         else:
-            print("❌ Consulta falló")
+            print("[ERR] Consulta falló")
             if resultado.get("error"):
                 print(f"   Error: {resultado['error']}")
         
@@ -161,10 +161,10 @@ async def test_curp_completo(curp: str = "OOLL940914HMCRGS08"):
         return resultado.get("success", False)
         
     except KeyboardInterrupt:
-        print("\n\n⚠️  Prueba interrumpida por el usuario")
+        print("\n\n[!]️  Prueba interrumpida por el usuario")
         return False
     except Exception as e:
-        print(f"\n❌ Error durante la consulta: {e}")
+        print(f"\n[ERR] Error durante la consulta: {e}")
         import traceback
         traceback.print_exc()
         return False
@@ -178,12 +178,12 @@ async def main():
     
     # 1. Verificar requisitos
     if not verificar_requisitos():
-        print("\n❌ Faltan requisitos. Instala las dependencias y vuelve a intentar.")
+        print("\n[ERR] Faltan requisitos. Instala las dependencias y vuelve a intentar.")
         return False
     
     # 2. Verificar configuración
     if not verificar_configuracion():
-        print("\n❌ Configuración incompleta. Revisa config.env")
+        print("\n[ERR] Configuración incompleta. Revisa config.env")
         return False
     
     # 3. Ejecutar prueba de CURP
@@ -196,11 +196,11 @@ async def main():
     print("=" * 60)
     
     if exito:
-        print("✅ TODAS LAS PRUEBAS PASARON")
+        print("[OK] TODAS LAS PRUEBAS PASARON")
         print("\n💡 El sistema está funcionando correctamente")
         print("   Puedes ejecutar: python main.py")
     else:
-        print("❌ ALGUNAS PRUEBAS FALLARON")
+        print("[ERR] ALGUNAS PRUEBAS FALLARON")
         print("\n💡 Revisa los errores anteriores")
         print("   Posibles causas:")
         print("   - Falta configurar API key de 2captcha")
@@ -217,5 +217,5 @@ if __name__ == "__main__":
         resultado = asyncio.run(main())
         sys.exit(0 if resultado else 1)
     except KeyboardInterrupt:
-        print("\n\n⏹️  Prueba cancelada por el usuario")
+        print("\n\n[STOP]️  Prueba cancelada por el usuario")
         sys.exit(1)

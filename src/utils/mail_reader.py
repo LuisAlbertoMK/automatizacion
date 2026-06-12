@@ -7,7 +7,7 @@ Lee el correo del IMSS automáticamente para extraer:
 Compatible con Gmail, Outlook y cualquier servidor IMAP estándar.
 
 CONFIGURACIÓN GMAIL:
-  1. Ve a myaccount.google.com → Seguridad → Verificación en dos pasos (activa)
+  1. Ve a myaccount.google.com -> Seguridad -> Verificación en dos pasos (activa)
   2. Busca "Contraseñas de aplicaciones"
   3. Genera una para "Correo / Windows"
   4. Usa esa contraseña de 16 chars en IMAP_PASSWORD
@@ -70,7 +70,7 @@ class MailReader:
                     raw = client.fetch([uid], ["RFC822"])[uid][b"RFC822"]
                     msg = email.message_from_bytes(raw)
                     result = self._parse_message(msg)
-                    print(f"  [mail] Correo recibido en {elapsed}s ✓")
+                    print(f"  [mail] Correo recibido en {elapsed}s [OK]")
                     client.set_flags([uid], [b"\\Seen"])
                     return result
 

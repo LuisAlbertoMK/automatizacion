@@ -18,17 +18,17 @@ def print_header(title: str):
 
 
 def check_ok(msg: str):
-    print(f"  ✅ {msg}")
+    print(f"  [OK] {msg}")
     return True
 
 
 def check_fail(msg: str):
-    print(f"  ❌ {msg}")
+    print(f"  [ERR] {msg}")
     return False
 
 
 def check_warn(msg: str):
-    print(f"  ⚠️  {msg}")
+    print(f"  [!]️  {msg}")
     return True
 
 
@@ -48,7 +48,7 @@ def check_python():
 def check_dependencies():
     print_header("📦 Dependencias")
     
-    # Mapa: nombre pip → nombre import
+    # Mapa: nombre pip -> nombre import
     deps = {
         "playwright": "playwright",
         "requests": "requests",
@@ -67,7 +67,7 @@ def check_dependencies():
             __import__(import_name)
             check_ok(f"{pip_name}")
         except ImportError:
-            check_fail(f"{pip_name} no instalado → pip install {pip_name}")
+            check_fail(f"{pip_name} no instalado -> pip install {pip_name}")
             all_ok = False
     
     # Opcionales
@@ -98,19 +98,19 @@ def check_playwright():
         return check_ok("Chromium disponible y funcional")
     except Exception as e:
         check_fail(f"Playwright/Chromium no disponible: {e}")
-        print("    → Ejecuta: playwright install chromium")
+        print("    -> Ejecuta: playwright install chromium")
         return False
 
 
 # ── 4. Configuración ──────────────────────────────────────────────────
 
 def check_config():
-    print_header("⚙️  Configuración")
+    print_header("[GEAR]️  Configuración")
     
     config_file = Path("config.env")
     if not config_file.exists():
         check_fail("config.env no encontrado")
-        print("    → Ejecuta: cp config.example.env config.env")
+        print("    -> Ejecuta: cp config.example.env config.env")
         return False
     
     check_ok("config.env encontrado")
@@ -246,7 +246,7 @@ def main():
     total = len(results)
     
     for name, ok in results.items():
-        status = "✅" if ok else "❌"
+        status = "[OK]" if ok else "[ERR]"
         print(f"  {status} {name}")
     
     print(f"\n  Resultado: {passed}/{total} checks pasaron")
@@ -254,7 +254,7 @@ def main():
     if passed == total:
         print("  🎉 SISTEMA LISTO PARA USAR")
     else:
-        print("  ⚠️  Revisa los errores arriba")
+        print("  [!]️  Revisa los errores arriba")
     
     return 0 if passed == total else 1
 

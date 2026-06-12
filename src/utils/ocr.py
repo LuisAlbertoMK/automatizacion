@@ -45,9 +45,9 @@ class OCRExtractor:
         """Verifica que Tesseract esté instalado."""
         try:
             pytesseract.get_tesseract_version()
-            print("  [OCR] Tesseract disponible ✓")
+            print("  [OCR] Tesseract disponible [OK]")
         except Exception:
-            print("  [OCR] ⚠ Tesseract no encontrado. Instálalo desde:")
+            print("  [OCR] [!] Tesseract no encontrado. Instálalo desde:")
             print("  https://github.com/UB-Mannheim/tesseract/wiki")
             print("  O el OCR funcionará en modo limitado")
     

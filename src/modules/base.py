@@ -181,7 +181,7 @@ class BaseModule:
         tag = f"[{module_name}]" if module_name else ""
 
         print(f"  {tag} 🔵 Modo MANUAL — resolvé el reCAPTCHA en el navegador")
-        print(f"  {tag} ⏱️  Esperando hasta {max_wait}s...")
+        print(f"  {tag} [..]️  Esperando hasta {max_wait}s...")
 
         while elapsed < max_wait:
             await asyncio.sleep(interval)
@@ -191,10 +191,10 @@ class BaseModule:
                     "() => document.getElementById('g-recaptcha-response')?.value || ''"
                 )
                 if response and len(response) > 20:
-                    self.log(f"reCAPTCHA resuelto en {elapsed}s ✓")
+                    self.log(f"reCAPTCHA resuelto en {elapsed}s [OK]")
                     return True
                 if elapsed % 10 == 0:
-                    print(f"  {tag} ⏳ Esperando... ({elapsed}s/{max_wait}s)")
+                    print(f"  {tag} [..] Esperando... ({elapsed}s/{max_wait}s)")
             except Exception:
                 pass
 
@@ -233,7 +233,7 @@ class BaseModule:
                 }});
             }}
         """)
-        self.log("✅ Token reCAPTCHA inyectado ✓")
+        self.log("[OK] Token reCAPTCHA inyectado [OK]")
 
     async def download_pdf(self, page: Page, selectors: list, output_path: Path, name: str = "PDF") -> Path | None:
         """Busca botón de descarga PDF y lo descarga."""
@@ -249,7 +249,7 @@ class BaseModule:
                             await loc.first.click()
                         download = await dl_info.value
                         await download.save_as(output_path)
-                        self.log(f"{name} descargado: {output_path} ✓")
+                        self.log(f"{name} descargado: {output_path} [OK]")
                         self.open_pdf(output_path)
                         return output_path
                     except Exception as e:
@@ -273,7 +273,7 @@ class BaseModule:
                                 await link.click()
                             download = await dl_info.value
                             await download.save_as(output_path)
-                            self.log(f"{name} descargado: {output_path} ✓")
+                            self.log(f"{name} descargado: {output_path} [OK]")
                             self.open_pdf(output_path)
                             return output_path
                         except Exception:

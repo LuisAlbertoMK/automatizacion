@@ -32,7 +32,7 @@ if [ -z "$STAGED_FILES" ]; then
 fi
 
 for pattern in "${SECRET_PATTERNS[@]}"; do
-    MATCHES=$(echo "$STAGED_FILES" | xargs git show :./ 2>/dev/null | grep -n "$pattern" || true)
+    MATCHES=$(echo "$STAGED_FILES" | xargs git show :./ 2>/dev/null | grep -n -e "$pattern" || true)
     if [ -n "$MATCHES" ]; then
         echo -e "${RED}[pre-commit] ❌ Posible secret encontrado:${NC}"
         echo "$MATCHES" | head -5
@@ -44,7 +44,7 @@ done
 echo -e "${YELLOW}[pre-commit] 🔍 Escaneando debug statements...${NC}"
 
 for pattern in 'import pdb' 'breakpoint()' 'pdb.set_trace()'; do
-    MATCHES=$(echo "$STAGED_FILES" | xargs git show :./ 2>/dev/null | grep -n "$pattern" || true)
+    MATCHES=$(echo "$STAGED_FILES" | xargs git show :./ 2>/dev/null | grep -n -e "$pattern" || true)
     if [ -n "$MATCHES" ]; then
         echo -e "${YELLOW}[pre-commit] ⚠ Debug statement encontrado:${NC}"
         echo "$MATCHES" | head -3

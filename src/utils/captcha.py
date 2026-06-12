@@ -46,7 +46,7 @@ class CaptchaSolver:
                     f"Saldo insuficiente en 2captcha: ${balance:.4f} USD. "
                     "Recarga en https://2captcha.com"
                 )
-            print(f"  [captcha] Saldo 2captcha: ${balance:.4f} USD ✓")
+            print(f"  [captcha] Saldo 2captcha: ${balance:.4f} USD [OK]")
         except (ValueError, requests.RequestException):
             # No bloqueamos si falla la verificación de saldo
             pass
@@ -99,7 +99,7 @@ class CaptchaSolver:
         """
         if not auto:
             # Modo semiautomático - no envía a 2captcha
-            print("  [captcha] ⚠ Modo SEMIAUTOMÁTICO activado")
+            print("  [captcha] [!] Modo SEMIAUTOMÁTICO activado")
             print("  [captcha] Resuelve el reCAPTCHA manualmente en el navegador")
             return "MANUAL"  # Señal para que el módulo espere
         
@@ -142,7 +142,7 @@ class CaptchaSolver:
         Costo aprox: $0.004 USD. Tiempo: 10–30 seg.
         """
         if not auto:
-            print("  [captcha] ⚠ Modo SEMIAUTOMÁTICO activado")
+            print("  [captcha] [!] Modo SEMIAUTOMÁTICO activado")
             print("  [captcha] reCAPTCHA v3 se resolverá automáticamente por el navegador")
             return "MANUAL"
         
@@ -186,7 +186,7 @@ class CaptchaSolver:
             data = r.json()
 
             if data.get("status") == 1:
-                print(f"  [captcha] Resuelto en {elapsed}s ✓")
+                print(f"  [captcha] Resuelto en {elapsed}s [OK]")
                 return data["request"]
 
             if data.get("request") not in ("CAPCHA_NOT_READY", "CAPTCHA_NOT_READY"):

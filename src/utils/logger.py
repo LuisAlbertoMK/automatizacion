@@ -33,10 +33,10 @@ class TramiteLogger:
         "debug":   Fore.WHITE,
     }
     ICONS = {
-        "info":    "ℹ",
-        "success": "✅",
-        "warning": "⚠",
-        "error":   "❌",
+        "info":    "[i]",
+        "success": "[OK]",
+        "warning": "[!]",
+        "error":   "[ERR]",
         "debug":   "🔍",
     }
 

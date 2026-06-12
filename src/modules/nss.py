@@ -59,7 +59,7 @@ class NSSModule:
         self.ocr         = OCRExtractor() if self.use_ocr else None
         
         if use_ocr and not OCR_AVAILABLE:
-            print("  [NSS] ⚠ OCR no disponible. Instala: pip install pytesseract pillow")
+            print("  [NSS] [!] OCR no disponible. Instala: pip install pytesseract pillow")
 
     async def consultar(self, curp: str, correo: str) -> dict:
         """
@@ -100,13 +100,13 @@ class NSSModule:
             try:
                 result = await self._run(page, curp=curp, correo=correo)
                 elapsed = time.time() - start
-                print(f"  [NSS] ✅ Completado en {elapsed:.1f}s")
+                print(f"  [NSS] [OK] Completado en {elapsed:.1f}s")
                 return result
             except NSSError:
                 raise
             except Exception as e:
                 elapsed = time.time() - start
-                print(f"  [NSS] ⚠ Error en {elapsed:.1f}s: {e}")
+                print(f"  [NSS] [!] Error en {elapsed:.1f}s: {e}")
                 raise NSSError(f"Error durante la consulta: {e}")
             finally:
                 try:
@@ -173,7 +173,7 @@ class NSSModule:
         for sel in form_selectors:
             try:
                 await page.wait_for_selector(sel, timeout=15000)
-                print("  [NSS] Formulario listo ✓")
+                print("  [NSS] Formulario listo [OK]")
                 return
             except PwTimeout:
                 continue
@@ -215,7 +215,7 @@ class NSSModule:
                         print(f"  [DEBUG] Llenando CURP con selector: {sel}")
                         await loc.first.fill(curp)
                         await asyncio.sleep(0.3)
-                        print(f"  [NSS] CURP ingresada ✓")
+                        print(f"  [NSS] CURP ingresada [OK]")
                         return
             except Exception as e:
                 print(f"  [DEBUG] Error con selector {sel}: {e}")
@@ -235,7 +235,7 @@ class NSSModule:
                     
                     if "curp" in name.lower() or "curp" in id_attr.lower() or "curp" in placeholder.lower():
                         await inp.fill(curp)
-                        print(f"  [NSS] CURP ingresada en campo detectado ✓")
+                        print(f"  [NSS] CURP ingresada en campo detectado [OK]")
                         return
         except Exception as e:
             print(f"  [DEBUG] Error en enfoque alternativo: {e}")
@@ -267,7 +267,7 @@ class NSSModule:
                         print(f"  [DEBUG] Llenando correo con selector: {sel}")
                         await loc.first.fill(correo)
                         await asyncio.sleep(0.3)
-                        print(f"  [NSS] Correo ingresado ✓")
+                        print(f"  [NSS] Correo ingresado [OK]")
                         return
             except Exception as e:
                 print(f"  [DEBUG] Error con selector {sel}: {e}")
@@ -289,7 +289,7 @@ class NSSModule:
                        "correo" in id_attr.lower() or "email" in id_attr.lower() or \
                        "correo" in placeholder.lower() or "email" in placeholder.lower():
                         await inp.fill(correo)
-                        print(f"  [NSS] Correo ingresado en campo detectado ✓")
+                        print(f"  [NSS] Correo ingresado en campo detectado [OK]")
                         return
         except Exception as e:
             print(f"  [DEBUG] Error en enfoque alternativo: {e}")
@@ -312,7 +312,7 @@ class NSSModule:
                         print(f"  [DEBUG] Llenando confirmación correo con: {sel}")
                         await loc.first.fill(correo)
                         await asyncio.sleep(0.3)
-                        print(f"  [NSS] Confirmación de correo ingresada ✓")
+                        print(f"  [NSS] Confirmación de correo ingresada [OK]")
                         return
             except Exception:
                 continue
@@ -359,7 +359,7 @@ class NSSModule:
             img_bytes = resp.content
             print(f"  [NSS] Imagen descargada: {len(img_bytes)} bytes")
         except Exception as e:
-            print(f"  [NSS] ⚠ Error descargando CAPTCHA: {e}")
+            print(f"  [NSS] [!] Error descargando CAPTCHA: {e}")
             return
 
         # ── Guardar imagen para debug visual ─────────────────────
@@ -405,12 +405,12 @@ class NSSModule:
                 print(f"  [NSS] CAPTCHA desde variable de entorno: '{valor}'")
 
         if not valor:
-            print("  [NSS] ⚠ Sin CAPTCHA, continuando...")
+            print("  [NSS] [!] Sin CAPTCHA, continuando...")
             return
 
         await captcha_input.fill(valor)
         await asyncio.sleep(0.3)
-        print(f"  [NSS] CAPTCHA ingresado: {valor} ✓")
+        print(f"  [NSS] CAPTCHA ingresado: {valor} [OK]")
 
     async def _resolver_recaptcha(self, page: Page):
         """Detecta y resuelve el reCAPTCHA v2 del portal IMSS (modo semiautomático)."""
@@ -445,19 +445,19 @@ class NSSModule:
                 if token and token != "MANUAL":
                     await self._inyectar_token_recaptcha(page, token)
                 else:
-                    print("  [NSS] ⚠ Solver no disponible en auto, modo manual...")
+                    print("  [NSS] [!] Solver no disponible en auto, modo manual...")
                     await self._esperar_recaptcha_resuelto(page, max_wait=120)
             else:
                 # Modo SEMIAUTOMÁTICO (por defecto)
                 print("  [NSS] 🔵 Modo MANUAL activado")
                 print("  [NSS] 👉 Resuelve el reCAPTCHA en el navegador")
-                print("  [NSS] ⏱️  Esperando hasta 120 segundos...")
+                print("  [NSS] [..]️  Esperando hasta 120 segundos...")
                 await self._esperar_recaptcha_resuelto(page, max_wait=120)
         else:
             # Sin solver configurado - modo manual
             print("  [NSS] 🔵 Modo MANUAL - Sin solver configurado")
             print("  [NSS] 👉 Resuelve el reCAPTCHA en el navegador")
-            print("  [NSS] ⏱️  Esperando hasta 120 segundos...")
+            print("  [NSS] [..]️  Esperando hasta 120 segundos...")
             await self._esperar_recaptcha_resuelto(page, max_wait=120)
 
     async def _inyectar_token_recaptcha(self, page: Page, token: str):
@@ -475,7 +475,7 @@ class NSSModule:
                 }});
             }}
         """)
-        print("  [NSS] ✅ Token reCAPTCHA inyectado ✓")
+        print("  [NSS] [OK] Token reCAPTCHA inyectado [OK]")
     
     async def _esperar_recaptcha_resuelto(self, page: Page, max_wait: int = 120):
         """Espera a que el usuario resuelva el reCAPTCHA manualmente."""
@@ -496,15 +496,15 @@ class NSSModule:
                 """)
                 
                 if response and len(response) > 20:
-                    print(f"  [NSS] ✅ reCAPTCHA resuelto en {elapsed}s")
+                    print(f"  [NSS] [OK] reCAPTCHA resuelto en {elapsed}s")
                     return
                 
                 if elapsed % 10 == 0:
-                    print(f"  [NSS] ⏳ Esperando... ({elapsed}s/{max_wait}s)")
+                    print(f"  [NSS] [..] Esperando... ({elapsed}s/{max_wait}s)")
             except Exception:
                 pass
         
-        print(f"  [NSS] ⚠ Timeout: reCAPTCHA no resuelto en {max_wait}s")
+        print(f"  [NSS] [!] Timeout: reCAPTCHA no resuelto en {max_wait}s")
         print(f"  [NSS] Continuando de todas formas...")
 
     async def _detectar_site_key(self, page: Page) -> str | None:
@@ -572,7 +572,7 @@ class NSSModule:
                         # Usar expect_navigation para esperar la redirección post-submit
                         async with page.expect_navigation(timeout=30000):
                             await loc.first.click()
-                        print("  [NSS] Formulario enviado ✓")
+                        print("  [NSS] Formulario enviado [OK]")
                         await asyncio.sleep(2)
                         # Tomar screenshot de la página de resultado
                         try:
@@ -603,7 +603,7 @@ class NSSModule:
         try:
             content = await page.content()
         except Exception as e:
-            print(f"  [NSS] ⚠ Error al leer página post-submit: {e}")
+            print(f"  [NSS] [!] Error al leer página post-submit: {e}")
             print(f"  [NSS] Intentando con URL actual...")
             try:
                 url = page.url
@@ -612,7 +612,7 @@ class NSSModule:
                 await page.wait_for_load_state("networkidle", timeout=15000)
                 content = await page.content()
             except Exception as e2:
-                print(f"  [NSS] ⚠ Error recuperando página: {e2}")
+                print(f"  [NSS] [!] Error recuperando página: {e2}")
                 raise NSSError(
                     "La conexión con el portal se perdió después del envío. "
                     "Posiblemente el portal rechazó el CAPTCHA o la sesión expiró."
@@ -622,7 +622,7 @@ class NSSModule:
         nss_candidates = re.findall(r"\b(\d{11})\b", content)
         if nss_candidates:
             nss = nss_candidates[0]
-            print(f"  [NSS] NSS encontrado en página (HTML): {nss} ✓")
+            print(f"  [NSS] NSS encontrado en página (HTML): {nss} [OK]")
             return nss
         
         # Segundo: intentar con OCR si está disponible
@@ -636,7 +636,7 @@ class NSSModule:
                 
                 if ocr_data["nss"]:
                     nss = ocr_data["nss"]
-                    print(f"  [NSS] NSS encontrado con OCR: {nss} ✓")
+                    print(f"  [NSS] NSS encontrado con OCR: {nss} [OK]")
                     
                     try:
                         os.remove(screenshot_path)
@@ -663,7 +663,7 @@ class NSSModule:
                 content, re.IGNORECASE
             )
             msg = error_msg.group(0) if error_msg else "CAPTCHA inválido"
-            print(f"  [NSS] ⚠ Error detectado en respuesta: '{msg}'")
+            print(f"  [NSS] [!] Error detectado en respuesta: '{msg}'")
             raise NSSError(
                 f"CAPTCHA inválido. El portal rechazó el código ingresado. "
                 f"Intentá de nuevo verificando bien los caracteres."
@@ -680,7 +680,7 @@ class NSSModule:
             if self.mail_reader:
                 mail_data = self.mail_reader.wait_for_imss_email(max_wait_sec=180)
                 if mail_data.get("nss"):
-                    print(f"  [NSS] NSS extraído del correo: {mail_data['nss']} ✓")
+                    print(f"  [NSS] NSS extraído del correo: {mail_data['nss']} [OK]")
                     return mail_data["nss"]
                 else:
                     link = mail_data.get("verification_link", "")
@@ -692,13 +692,13 @@ class NSSModule:
                             content2 = await page.content()
                             nss2 = re.findall(r"\b(\d{11})\b", content2)
                             if nss2:
-                                print(f"  [NSS] NSS encontrado tras verificar correo: {nss2[0]} ✓")
+                                print(f"  [NSS] NSS encontrado tras verificar correo: {nss2[0]} [OK]")
                                 return nss2[0]
                         except Exception:
                             pass
             else:
                 print(
-                    f"  [NSS] ⚠ Revisa manualmente el correo {correo}\n"
+                    f"  [NSS] [!] Revisa manualmente el correo {correo}\n"
                     f"  El IMSS enviará el NSS en unos minutos."
                 )
                 return "ENVIADO_AL_CORREO"
@@ -707,7 +707,7 @@ class NSSModule:
         # (el NSS puede no tener word boundary si está en una tabla)
         all_nums = re.findall(r"\d{11}", content)
         if all_nums:
-            print(f"  [NSS] Posible NSS encontrado (sin boundary): {all_nums[0]} ✓")
+            print(f"  [NSS] Posible NSS encontrado (sin boundary): {all_nums[0]} [OK]")
             return all_nums[0]
 
         raise NSSError(

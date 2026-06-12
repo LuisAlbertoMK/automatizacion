@@ -13,10 +13,10 @@ def check_module(module_name, package_name=None):
     
     try:
         __import__(module_name)
-        print(f"✅ {package_name} - Instalado")
+        print(f"[OK] {package_name} - Instalado")
         return True
     except ImportError:
-        print(f"❌ {package_name} - NO instalado")
+        print(f"[ERR] {package_name} - NO instalado")
         return False
 
 def main():
@@ -49,9 +49,9 @@ def main():
     print("\n" + "=" * 60)
     
     if all_ok:
-        print("✅ Todas las dependencias están instaladas")
+        print("[OK] Todas las dependencias están instaladas")
     else:
-        print("❌ Faltan dependencias. Instálalas con:")
+        print("[ERR] Faltan dependencias. Instálalas con:")
         print(f"\n   pip install {' '.join(missing)}")
     
     print("\n🌐 Verificando navegadores de Playwright...\n")
@@ -65,13 +65,13 @@ def main():
         )
         
         if "chromium" in result.stdout.lower() or result.returncode == 0:
-            print("✅ Playwright configurado")
+            print("[OK] Playwright configurado")
             print("\nPara instalar navegadores ejecuta:")
             print("   python -m playwright install chromium")
         else:
-            print("⚠️  Verifica Playwright manualmente")
+            print("[!]️  Verifica Playwright manualmente")
     except Exception as e:
-        print(f"⚠️  No se pudo verificar Playwright: {e}")
+        print(f"[!]️  No se pudo verificar Playwright: {e}")
         print("\nInstala los navegadores con:")
         print("   python -m playwright install chromium")
     
@@ -98,9 +98,9 @@ def main():
     for file_path in required_files:
         full_path = base_dir / file_path
         if full_path.exists():
-            print(f"✅ {file_path}")
+            print(f"[OK] {file_path}")
         else:
-            print(f"❌ {file_path} - NO ENCONTRADO")
+            print(f"[ERR] {file_path} - NO ENCONTRADO")
             all_ok = False
     
     print("\n" + "=" * 60)
@@ -109,7 +109,7 @@ def main():
         print("🎉 Sistema listo para usar!")
         print("\nEjecuta: python main.py")
     else:
-        print("⚠️  Hay problemas que resolver antes de usar el sistema")
+        print("[!]️  Hay problemas que resolver antes de usar el sistema")
     
     print("=" * 60)
 

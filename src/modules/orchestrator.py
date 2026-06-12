@@ -60,7 +60,7 @@ class TramitesOrchestrator:
             self.multimodal = MultimodalInput(voice_model=voice_model)
         else:
             self.multimodal = None
-            print("  [ORCHESTRATOR] ⚠ Entrada multimodal no disponible")
+            print("  [ORCHESTRATOR] [!] Entrada multimodal no disponible")
     
     async def ejecutar_tramite(self, tipo: TramiteType, modo_entrada: InputMode = "text") -> dict:
         """

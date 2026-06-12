@@ -44,21 +44,21 @@ class MultimodalInput:
         if WHISPER_AVAILABLE:
             try:
                 self.voice = VoiceInput(model_size=voice_model)
-                print("  [MULTIMODAL] ✅ Entrada por voz disponible")
+                print("  [MULTIMODAL] [OK] Entrada por voz disponible")
             except Exception as e:
-                print(f"  [MULTIMODAL] ⚠ Voz no disponible: {e}")
+                print(f"  [MULTIMODAL] [!] Voz no disponible: {e}")
         else:
-            print("  [MULTIMODAL] ⚠ Voz no disponible (instala: pip install openai-whisper sounddevice soundfile)")
+            print("  [MULTIMODAL] [!] Voz no disponible (instala: pip install openai-whisper sounddevice soundfile)")
         
         # Inicializar OCR si está disponible
         if OCR_AVAILABLE:
             try:
                 self.ocr = OCRExtractor()
-                print("  [MULTIMODAL] ✅ Entrada por imagen disponible")
+                print("  [MULTIMODAL] [OK] Entrada por imagen disponible")
             except Exception as e:
-                print(f"  [MULTIMODAL] ⚠ OCR no disponible: {e}")
+                print(f"  [MULTIMODAL] [!] OCR no disponible: {e}")
         else:
-            print("  [MULTIMODAL] ⚠ OCR no disponible (instala Tesseract)")
+            print("  [MULTIMODAL] [!] OCR no disponible (instala Tesseract)")
     
     def get_curp(self, mode: InputMode = "text", prompt: str = "CURP") -> str:
         """
@@ -149,10 +149,10 @@ class MultimodalInput:
             while True:
                 valor = input(f"  {field_name}: ").strip()
                 if not valor:
-                    print(f"  ⚠ {field_name} es requerido")
+                    print(f"  [!] {field_name} es requerido")
                     continue
                 if validator and not validator(valor):
-                    print(f"  ⚠ Formato inválido para {field_name}")
+                    print(f"  [!] Formato inválido para {field_name}")
                     continue
                 return valor
         
@@ -180,7 +180,7 @@ class MultimodalInput:
             curp = input(f"  {prompt} (18 caracteres): ").strip().upper()
             if self._validar_curp(curp):
                 return curp
-            print("  ⚠ CURP inválida (debe ser 18 caracteres, formato: AAAA######HAAAAA##)")
+            print("  [!] CURP inválida (debe ser 18 caracteres, formato: AAAA######HAAAAA##)")
     
     def _get_curp_voice(self):
         """Obtiene CURP por voz."""
@@ -218,7 +218,7 @@ class MultimodalInput:
             email = input(f"  {prompt}: ").strip()
             if "@" in email and "." in email:
                 return email
-            print("  ⚠ Email inválido")
+            print("  [!] Email inválido")
     
     def _get_email_voice(self):
         """Obtiene email por voz."""
@@ -247,7 +247,7 @@ class MultimodalInput:
             placa = input(f"  {prompt} (ej: ABC1234): ").strip().upper()
             if len(placa) >= 6:  # Validación básica
                 return placa
-            print("  ⚠ Placa inválida")
+            print("  [!] Placa inválida")
     
     def _get_placa_voice(self):
         """Obtiene placa por voz."""
@@ -304,7 +304,7 @@ class MultimodalInput:
         elif opcion == "3" and self.ocr:
             return "image"
         else:
-            print("  ⚠ Opción inválida, usando texto")
+            print("  [!] Opción inválida, usando texto")
             return "text"
     
     def _validar_curp(self, curp: str) -> bool:

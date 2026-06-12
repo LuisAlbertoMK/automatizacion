@@ -56,12 +56,12 @@ BANNER = f"""
 
 AYUDA = f"""
 {Fore.YELLOW}Comandos disponibles:{Style.RESET_ALL}
-  curp        → Consultar y descargar CURP
-  nss         → Obtener NSS del IMSS
-  ambos       → CURP + NSS en una sola operación
-  perfil      → Ver, guardar o cargar un perfil
-  ayuda       → Mostrar esta pantalla
-  salir       → Salir del programa
+  curp        -> Consultar y descargar CURP
+  nss         -> Obtener NSS del IMSS
+  ambos       -> CURP + NSS en una sola operación
+  perfil      -> Ver, guardar o cargar un perfil
+  ayuda       -> Mostrar esta pantalla
+  salir       -> Salir del programa
 """
 
 
@@ -78,20 +78,20 @@ class Agente:
         if api_key and api_key != "tu_api_key_aqui":
             try:
                 self.solver = CaptchaSolver(api_key)
-                print(f"{Fore.GREEN}  ✓ 2captcha conectado{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}  [OK] 2captcha conectado{Style.RESET_ALL}")
             except CaptchaError as e:
-                print(f"{Fore.YELLOW}  ⚠ 2captcha: {e}{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}  [!] 2captcha: {e}{Style.RESET_ALL}")
 
         # Fallback al solver gratuito si no hay 2captcha configurado
         if not self.solver and FREE_SOLVER_AVAILABLE:
             try:
                 self.solver = FreeCaptchaSolver()
-                print(f"{Fore.CYAN}  ✓ FreeCaptchaSolver activo (OCR + Whisper){Style.RESET_ALL}")
+                print(f"{Fore.CYAN}  [OK] FreeCaptchaSolver activo (OCR + Whisper){Style.RESET_ALL}")
             except Exception as e:
-                print(f"{Fore.YELLOW}  ⚠ FreeCaptchaSolver: {e}{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}  [!] FreeCaptchaSolver: {e}{Style.RESET_ALL}")
 
         if not self.solver:
-            print(f"{Fore.YELLOW}  ⚠ Sin solver de CAPTCHA — serán manuales{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}  [!] Sin solver de CAPTCHA — serán manuales{Style.RESET_ALL}")
 
         if MAIL_AVAILABLE:
             imap_email = os.getenv("IMAP_EMAIL", "")
@@ -102,9 +102,9 @@ class Agente:
             if imap_email and "@" in imap_email and not is_placeholder and imap_pass:
                 try:
                     self.mail_reader = MailReader()
-                    print(f"{Fore.GREEN}  ✓ IMAP configurado ({imap_email}){Style.RESET_ALL}")
+                    print(f"{Fore.GREEN}  [OK] IMAP configurado ({imap_email}){Style.RESET_ALL}")
                 except Exception as e:
-                    print(f"{Fore.YELLOW}  ⚠ IMAP: {e}{Style.RESET_ALL}")
+                    print(f"{Fore.YELLOW}  [!] IMAP: {e}{Style.RESET_ALL}")
 
     # ── CURP ──────────────────────────────────────────────────────────────────
     async def tramite_curp(self, perfil: dict = None) -> dict:
@@ -129,7 +129,7 @@ class Agente:
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: NSS IMSS ━━━{Style.RESET_ALL}")
         print(f"{Fore.YELLOW}  Usando CNN solver local (85% char accuracy, ~50ms){Style.RESET_ALL}")
         if not self.mail_reader:
-            print(f"{Fore.YELLOW}  ⚠ Sin lector de correo — el NSS se envía por email{Style.RESET_ALL}")
+            print(f"{Fore.YELLOW}  [!] Sin lector de correo — el NSS se envía por email{Style.RESET_ALL}")
 
         if perfil and perfil.get("curp"):
             curp = perfil["curp"]
@@ -318,7 +318,7 @@ async def modo_interactivo():
                 p = agente.gestionar_perfil()
                 if p:
                     perfil_activo = p
-                    print(f"  {Fore.GREEN}Perfil cargado ✓{Style.RESET_ALL}")
+                    print(f"  {Fore.GREEN}Perfil cargado [OK]{Style.RESET_ALL}")
             else:
                 # Interpretar lenguaje natural básico
                 if "curp" in cmd and "nss" in cmd:
@@ -371,7 +371,7 @@ def _handle_shutdown(signum, frame):
 
     Pilar 5 — Fiabilidad & Resiliencia: evita estado inconsistente.
     """
-    print(f"\n{Fore.YELLOW}⚠  Cerrando graceful... (Ctrl+C otra vez para forzar){Style.RESET_ALL}")
+    print(f"\n{Fore.YELLOW}[!]  Cerrando graceful... (Ctrl+C otra vez para forzar){Style.RESET_ALL}")
     for task in asyncio.all_tasks():
         task.cancel()
 
@@ -392,9 +392,9 @@ def main():
         else:
             asyncio.run(modo_interactivo())
     except KeyboardInterrupt:
-        print(f"\n{Fore.GREEN}✓  Sesión cerrada.{Style.RESET_ALL}")
+        print(f"\n{Fore.GREEN}[OK]  Sesión cerrada.{Style.RESET_ALL}")
     except asyncio.CancelledError:
-        print(f"\n{Fore.GREEN}✓  Tareas canceladas graceful.{Style.RESET_ALL}")
+        print(f"\n{Fore.GREEN}[OK]  Tareas canceladas graceful.{Style.RESET_ALL}")
 
 
 if __name__ == "__main__":

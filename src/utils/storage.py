@@ -33,7 +33,7 @@ def _get_cipher() -> Fernet:
             "STORAGE_KEY no configurada en config.env. "
             "Generá una con: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )
-    # SHA-256 → 32 bytes → base64url para Fernet
+    # SHA-256 -> 32 bytes -> base64url para Fernet
     hashed = hashlib.sha256(raw_key.encode()).digest()
     fernet_key = base64.urlsafe_b64encode(hashed)
     return Fernet(fernet_key)
@@ -65,7 +65,7 @@ def save_profile(alias: str, profile: dict):
     all_profiles = _load_all()
     all_profiles[alias] = profile
     _save_all(all_profiles)
-    print(f"  [storage] Perfil '{alias}' guardado ✓")
+    print(f"  [storage] Perfil '{alias}' guardado [OK]")
 
 
 def load_profile(alias: str) -> dict | None:

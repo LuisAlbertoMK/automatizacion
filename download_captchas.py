@@ -188,7 +188,7 @@ async def main():
         # Verificar si Incapsula nos bloqueó
         body_text = await page.text_content("body") or ""
         if "Incapsula" in body_text:
-            _log("⚠  BLOQUEADO POR INCAPSULA")
+            _log("[!]  BLOQUEADO POR INCAPSULA")
             _log("Abriendo Firefox visible para resolver el challenge...")
             await page.screenshot(path=OUTPUT_DIR / "_incapsula.png")
             _log(f"Screenshot guardado en {OUTPUT_DIR / '_incapsula.png'}")

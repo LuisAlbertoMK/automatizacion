@@ -14,10 +14,10 @@ def check_python_version():
     print("\n📌 Verificando Python...")
     version = sys.version_info
     if version.major >= 3 and version.minor >= 10:
-        print(f"  ✅ Python {version.major}.{version.minor}.{version.micro} instalado")
+        print(f"  [OK] Python {version.major}.{version.minor}.{version.micro} instalado")
         return True
     else:
-        print(f"  ❌ Python {version.major}.{version.minor} - Se requiere 3.10+")
+        print(f"  [ERR] Python {version.major}.{version.minor} - Se requiere 3.10+")
         return False
 
 def check_module(module_name, package_name=None):
@@ -27,10 +27,10 @@ def check_module(module_name, package_name=None):
     
     try:
         __import__(module_name)
-        print(f"  ✅ {package_name} instalado")
+        print(f"  [OK] {package_name} instalado")
         return True
     except ImportError:
-        print(f"  ❌ {package_name} NO instalado")
+        print(f"  [ERR] {package_name} NO instalado")
         print(f"     Instalar con: pip install {package_name}")
         return False
 
@@ -47,10 +47,10 @@ def check_playwright():
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True)
             browser.close()
-        print("  ✅ Chromium instalado")
+        print("  [OK] Chromium instalado")
         return True
     except Exception as e:
-        print("  ❌ Chromium NO instalado")
+        print("  [ERR] Chromium NO instalado")
         print("     Instalar con: python -m playwright install chromium")
         return False
 
@@ -67,13 +67,13 @@ def check_tesseract():
         )
         if result.returncode == 0:
             version = result.stdout.split('\n')[0]
-            print(f"  ✅ {version}")
+            print(f"  [OK] {version}")
             return True
         else:
-            print("  ❌ Tesseract NO encontrado")
+            print("  [ERR] Tesseract NO encontrado")
             return False
     except (FileNotFoundError, subprocess.TimeoutExpired):
-        print("  ❌ Tesseract NO instalado")
+        print("  [ERR] Tesseract NO instalado")
         print("     Descargar de: https://github.com/UB-Mannheim/tesseract/wiki")
         return False
 
@@ -87,12 +87,12 @@ def check_whisper():
     # Verificar si el modelo base está descargado
     try:
         import whisper
-        print("  ℹ️  Verificando modelo 'base'...")
+        print("  [i]️  Verificando modelo 'base'...")
         model = whisper.load_model("base")
-        print("  ✅ Modelo 'base' disponible")
+        print("  [OK] Modelo 'base' disponible")
         return True
     except Exception as e:
-        print(f"  ⚠️  Modelo 'base' no descargado")
+        print(f"  [!]️  Modelo 'base' no descargado")
         print("     Descargar con: python -c \"import whisper; whisper.load_model('base')\"")
         return True  # Whisper está instalado, solo falta el modelo
 
@@ -137,17 +137,17 @@ def check_project_structure():
     for dir_name in required_dirs:
         dir_path = Path(dir_name)
         if dir_path.exists():
-            print(f"  ✅ Directorio {dir_name}/ existe")
+            print(f"  [OK] Directorio {dir_name}/ existe")
         else:
-            print(f"  ❌ Directorio {dir_name}/ NO existe")
+            print(f"  [ERR] Directorio {dir_name}/ NO existe")
             all_ok = False
     
     for file_name in required_files:
         file_path = Path(file_name)
         if file_path.exists():
-            print(f"  ✅ {file_name}")
+            print(f"  [OK] {file_name}")
         else:
-            print(f"  ❌ {file_name} NO existe")
+            print(f"  [ERR] {file_name} NO existe")
             all_ok = False
     
     return all_ok
@@ -158,11 +158,11 @@ def check_config():
     
     config_file = Path("config.env")
     if not config_file.exists():
-        print("  ❌ config.env NO existe")
+        print("  [ERR] config.env NO existe")
         print("     Copiar de: config.example.env")
         return False
     
-    print("  ✅ config.env existe")
+    print("  [OK] config.env existe")
     
     # Leer configuración
     with open(config_file, 'r', encoding='utf-8') as f:
@@ -170,13 +170,13 @@ def check_config():
     
     # Verificar variables importantes
     if "OUTPUT_DIR" in content:
-        print("  ✅ OUTPUT_DIR configurado")
+        print("  [OK] OUTPUT_DIR configurado")
     
     if "HEADLESS" in content:
-        print("  ✅ HEADLESS configurado")
+        print("  [OK] HEADLESS configurado")
     
     if "USE_OCR" in content:
-        print("  ✅ USE_OCR configurado")
+        print("  [OK] USE_OCR configurado")
     
     return True
 
@@ -217,7 +217,7 @@ def main():
     total = len(results)
     
     for name, ok in results:
-        status = "✅" if ok else "❌"
+        status = "[OK]" if ok else "[ERR]"
         print(f"  {status} {name}")
     
     print("\n" + "="*70)
@@ -232,7 +232,7 @@ def main():
         print("    python main_multimodal.py --tramite curp --voice")
         return 0
     else:
-        print("\n  ⚠️  Hay componentes faltantes. Revisa los errores arriba.")
+        print("\n  [!]️  Hay componentes faltantes. Revisa los errores arriba.")
         print("\n  Instalación rápida:")
         print("    pip install -r requirements.txt")
         print("    python -m playwright install chromium")
