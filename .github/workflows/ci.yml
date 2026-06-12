@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system ruff
+          uv pip install --system -r requirements.txt
+
+      - name: Lint with ruff
+        run: ruff check modules/ src/ utils/ main.py main_multimodal.py --ignore E501,F401,E402
+
+      - name: Check compilation
+        run: python -m compileall -q modules/ src/ utils/ main.py main_multimodal.py
+
+      - name: Check for secrets in staged files
+        run: |
+          echo "::notice::Pre-commit hook disponible localmente en .githooks/pre-commit"

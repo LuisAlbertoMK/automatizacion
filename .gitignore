@@ -1,5 +1,6 @@
 node_modules
 .env
+config.env
 __pycache__
 
 # Logs
@@ -23,6 +24,12 @@ resultado_*.png
 # IDE
 .vscode/
 .idea/
+
+# Raw captcha artifacts
+captcha_solver_imss/raw_captchas/
+
+# Credentials stored by antecedentes module
+data/credenciales_antecedentes.txt
 
 # OS
 Thumbs.db

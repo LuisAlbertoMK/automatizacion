@@ -112,7 +112,9 @@ async def refresh_captcha(page) -> bool:
                 # Agregar timestamp para evitar caché
                 separator = "&" if "?" in src else "?"
                 new_src = f"{src}{separator}_{int(time.time()*1000)}"
-                await page.evaluate(f"arguments[0].src = '{new_src}'", captcha_img)
+                import json
+                new_src_safe = json.dumps(new_src)
+                await page.evaluate(f"arguments[0].src = {new_src_safe}", captcha_img)
                 await asyncio.sleep(1.5)
                 return True
             except Exception:

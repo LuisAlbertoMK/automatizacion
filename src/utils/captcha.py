@@ -10,7 +10,6 @@ Soporta:
 
 import os
 import time
-import asyncio
 import base64
 import requests
 from pathlib import Path
@@ -168,133 +167,22 @@ class CaptchaSolver:
         return self._wait_for_result(task_id, max_wait=90)
 
     # ────────────────────────────────────────────────────────────
-    # Versiones async (no bloquean el event loop)
-    # ────────────────────────────────────────────────────────────
-    async def solve_image_async(self, image_bytes: bytes, numeric: bool = True) -> str:
-        """Async: Resuelve un CAPTCHA de imagen sin bloquear."""
-        b64 = base64.b64encode(image_bytes).decode()
-        params = {"key": self.api_key, "method": "base64", "body": b64, "json": 1}
-        if numeric:
-            params["numeric"] = 1
-
-        r = await asyncio.to_thread(
-            requests.post, f"{BASE_URL}/in.php", data=params, timeout=30
-        )
-        data = r.json()
-        if data.get("status") != 1:
-            raise CaptchaError(f"Error enviando imagen: {data.get('request')}")
-        return await self._wait_for_result_async(data["request"])
-
-    async def solve_recaptcha_v2_async(self, site_key: str, page_url: str, auto: bool = True) -> str:
-        """Async: Resuelve reCAPTCHA v2 sin bloquear."""
-        if not auto:
-            print("  [captcha] ⚠ Modo SEMIAUTOMÁTICO activado")
-            return "MANUAL"
-        params = {
-            "key": self.api_key, "method": "userrecaptcha",
-            "googlekey": site_key, "pageurl": page_url, "json": 1,
-        }
-        r = await asyncio.to_thread(requests.post, f"{BASE_URL}/in.php", data=params, timeout=30)
-        data = r.json()
-        if data.get("status") != 1:
-            raise CaptchaError(f"Error enviando reCAPTCHA v2: {data.get('request')}")
-        print("  [captcha] Resolviendo reCAPTCHA v2 async (15–45 seg)...")
-        return await self._wait_for_result_async(data["request"], max_wait=120)
-
-    async def solve_recaptcha_v3_async(
-        self, site_key: str, page_url: str, action: str = "submit",
-        min_score: float = 0.3, auto: bool = True,
-    ) -> str:
-        """Async: Resuelve reCAPTCHA v3 sin bloquear."""
-        if not auto:
-            print("  [captcha] ⚠ Modo SEMIAUTOMÁTICO activado")
-            return "MANUAL"
-        params = {
-            "key": self.api_key, "method": "userrecaptcha", "version": "v3",
-            "googlekey": site_key, "pageurl": page_url, "action": action,
-            "min_score": min_score, "json": 1,
-        }
-        r = await asyncio.to_thread(requests.post, f"{BASE_URL}/in.php", data=params, timeout=30)
-        data = r.json()
-        if data.get("status") != 1:
-            raise CaptchaError(f"Error enviando reCAPTCHA v3: {data.get('request')}")
-        print("  [captcha] Resolviendo reCAPTCHA v3 async (10–30 seg)...")
-        return await self._wait_for_result_async(data["request"], max_wait=90)
-
-    async def _wait_for_result_async(self, task_id: str, max_wait: int = 120) -> str:
-        """Async polling hasta que 2captcha devuelva la solución.
-
-        Incluye retry con exponential backoff ante errores transitorios
-        (Pilar 5 — Fiabilidad & Resiliencia).
-        """
-        elapsed = 0
-        interval = 5
-        retries = 0
-        max_retries = 3
-        base_delay = 2
-
-        while elapsed < max_wait:
-            await asyncio.sleep(interval)
-            elapsed += interval
-
-            try:
-                r = await asyncio.to_thread(
-                    requests.get, f"{BASE_URL}/res.php",
-                    params={"key": self.api_key, "action": "get", "id": task_id, "json": 1},
-                    timeout=15,
-                )
-            except requests.RequestException as e:
-                retries += 1
-                if retries > max_retries:
-                    raise CaptchaError(f"Error de red tras {max_retries} reintentos: {e}")
-                delay = base_delay ** retries
-                print(f"  [captcha] ⚠ Error de red, reintento {retries}/{max_retries} en {delay}s...")
-                await asyncio.sleep(delay)
-                continue
-
-            data = r.json()
-            if data.get("status") == 1:
-                print(f"  [captcha] Resuelto en {elapsed}s ✓")
-                return data["request"]
-            if data.get("request") not in ("CAPCHA_NOT_READY", "CAPTCHA_NOT_READY"):
-                raise CaptchaError(f"Error 2captcha: {data.get('request')}")
-
-        raise CaptchaError(f"Timeout: CAPTCHA no resuelto en {max_wait}s")
-
-    # ────────────────────────────────────────────────────────────
     # Espera resultado
     # ────────────────────────────────────────────────────────────
     def _wait_for_result(self, task_id: str, max_wait: int = 120) -> str:
-        """Polling hasta que 2captcha devuelva la solución.
-
-        Incluye retry con exponential backoff ante errores transitorios
-        (Pilar 5 — Fiabilidad & Resiliencia).
-        """
+        """Polling hasta que 2captcha devuelva la solución."""
         elapsed = 0
         interval = 5
-        retries = 0
-        max_retries = 3
-        base_delay = 2
 
         while elapsed < max_wait:
             time.sleep(interval)
             elapsed += interval
 
-            try:
-                r = requests.get(
-                    f"{BASE_URL}/res.php",
-                    params={"key": self.api_key, "action": "get", "id": task_id, "json": 1},
-                    timeout=15,
-                )
-            except requests.RequestException as e:
-                retries += 1
-                if retries > max_retries:
-                    raise CaptchaError(f"Error de red tras {max_retries} reintentos: {e}")
-                delay = base_delay ** retries
-                print(f"  [captcha] ⚠ Error de red, reintento {retries}/{max_retries} en {delay}s...")
-                time.sleep(delay)
-                continue
-
+            r = requests.get(
+                f"{BASE_URL}/res.php",
+                params={"key": self.api_key, "action": "get", "id": task_id, "json": 1},
+                timeout=15,
+            )
             data = r.json()
 
             if data.get("status") == 1:

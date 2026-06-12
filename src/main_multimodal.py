@@ -18,10 +18,7 @@ from dotenv import load_dotenv
 # Cargar configuración
 load_dotenv("config.env")
 
-# Agregar src/ al path (canonical) y path del proyecto
-_src_path = Path(__file__).parent / "src"
-if _src_path.exists():
-    sys.path.insert(0, str(_src_path))
+# Agregar path del proyecto
 sys.path.insert(0, str(Path(__file__).parent))
 
 from modules.orchestrator import TramitesOrchestrator

@@ -20,10 +20,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from colorama import Fore, Style, init as colorama_init
 
-# ── Agregar src/ al path (canonical) ──────────────────────────────────────────
-_src_path = Path(__file__).parent / "src"
-if _src_path.exists():
-    sys.path.insert(0, str(_src_path))
+# ── Agregar src/ al path ──────────────────────────────────────────────────────
+sys.path.insert(0, str(Path(__file__).parent))
 
 # ── Cargar configuración ──────────────────────────────────────────────────────
 load_dotenv("config.env")
@@ -369,9 +367,9 @@ async def modo_directo(args):
 
 
 def _handle_shutdown(signum, frame):
-    """Graceful shutdown: cierra el event loop limpia mente (Ctrl+C / SIGTERM).
+    """Graceful shutdown — cierra tareas asíncronas sin corrupción.
 
-    Pilar 5 — Fiabilidad & Resiliencia: 0 requests cortados.
+    Pilar 5 — Fiabilidad & Resiliencia: evita estado inconsistente.
     """
     print(f"\n{Fore.YELLOW}⚠  Cerrando graceful... (Ctrl+C otra vez para forzar){Style.RESET_ALL}")
     for task in asyncio.all_tasks():
