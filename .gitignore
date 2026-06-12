@@ -28,8 +28,8 @@ resultado_*.png
 # Raw captcha artifacts
 captcha_solver_imss/raw_captchas/
 
-# Credentials stored by antecedentes module
-data/credenciales_antecedentes.txt
+# Runtime data (profiles, creds)
+data/
 
 # OS
 Thumbs.db
