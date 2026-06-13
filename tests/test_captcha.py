@@ -9,7 +9,7 @@ import pytest
 
 os.environ["CAPTCHA_API_KEY"] = "test_api_key_12345"
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from utils.captcha import CaptchaSolver, CaptchaError  # noqa: E402
 

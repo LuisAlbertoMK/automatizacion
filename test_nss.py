@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 load_dotenv("config.env")
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from modules.nss import NSSModule
 

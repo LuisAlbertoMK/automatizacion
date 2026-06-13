@@ -9,6 +9,11 @@ import os
 import subprocess
 from pathlib import Path
 
+# Asegurar que src/ esté en el path (canonical)
+_src_path = Path(__file__).parent / "src"
+if _src_path.exists():
+    sys.path.insert(0, str(_src_path))
+
 # ── Helpers ─────────────────────────────────────────────────────────────
 
 def print_header(title: str):

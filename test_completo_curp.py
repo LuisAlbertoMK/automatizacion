@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 load_dotenv("config.env")
 
 # Agregar el directorio raíz al path
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 from modules.curp import CURPModule
 from utils.captcha import CaptchaSolver, CaptchaError

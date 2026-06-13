@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from PIL import Image
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from utils.ocr import OCRExtractor, OCRError  # noqa: E402
 
