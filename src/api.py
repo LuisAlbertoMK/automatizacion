@@ -2,6 +2,12 @@
 api.py — API REST para el Agente de Trámites GOB.MX.
 Expone los trámites como endpoints HTTP con FastAPI.
 
+Rate limiting via slowapi — configurable con vars de entorno:
+    RATE_LIMIT_LIGHT     "30/minute"   (endpoints livianos: /, /health)
+    RATE_LIMIT_CURP       "5/minute"   (consulta CURP)
+    RATE_LIMIT_NSS        "5/minute"   (obtención NSS)
+    RATE_LIMIT_PERFILES  "10/minute"   (perfiles)
+
 Uso:
     uvicorn src.api:app --reload
     # o via docker: docker compose --profile api up
@@ -13,7 +19,7 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from fastapi import FastAPI, HTTPException, Query  # noqa: F401
+    from fastapi import FastAPI, HTTPException, Query, Request  # noqa: F401
     from pydantic import BaseModel
     FASTAPI_AVAILABLE = True
 except ImportError:
@@ -37,6 +43,22 @@ from modules.curp import CURPModule  # noqa: E402
 from modules.nss import NSSModule  # noqa: E402
 from utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
 from utils.storage import list_profiles, save_profile  # noqa: E402
+
+# ── Rate limiting (slowapi) ─────────────────────────────────
+
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.util import get_remote_address
+    SLOWAPI_AVAILABLE = True
+except ImportError:
+    SLOWAPI_AVAILABLE = False
+
+
+def _rate_limit(key: str, default: str) -> str:
+    """Lee una variable de entorno o devuelve el default para rate limit."""
+    return os.getenv(f"RATE_LIMIT_{key}", default)
+
 
 # ── Models ─────────────────────────────────────────────────
 
@@ -65,6 +87,20 @@ app = FastAPI(
     version="1.0.0",
 )
 
+if SLOWAPI_AVAILABLE:
+    limiter = Limiter(key_func=get_remote_address)
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+else:
+    # No-op fallback para que los decoradores no rompan
+    def _noop(f):
+        return f
+
+    class _NoopLimiter:
+        def limit(self, *args, **kwargs):
+            return _noop
+    limiter = _NoopLimiter()
+
 
 def _get_solver():
     """Inicializa captcha solver (2captcha o free)."""
@@ -82,7 +118,8 @@ def _get_solver():
 
 
 @app.get("/")
-def root():
+@limiter.limit(_rate_limit("LIGHT", "30/minute"))
+def root(request: Request):
     return {
         "app": "Agente de Trámites GOB.MX",
         "version": "1.0.0",
@@ -97,12 +134,14 @@ def root():
 
 
 @app.get("/health")
-def health():
+@limiter.limit(_rate_limit("LIGHT", "30/minute"))
+def health(request: Request):
     return {"status": "ok"}
 
 
 @app.post("/curp")
-async def consultar_curp(req: CurpRequest):
+@limiter.limit(_rate_limit("CURP", "5/minute"))
+async def consultar_curp(request: Request, req: CurpRequest):
     """Consulta CURP vía RENAPO."""
     solver = _get_solver()
     modulo = CURPModule(captcha_solver=solver)
@@ -114,7 +153,8 @@ async def consultar_curp(req: CurpRequest):
 
 
 @app.post("/nss")
-async def consultar_nss(req: NssRequest):
+@limiter.limit(_rate_limit("NSS", "5/minute"))
+async def consultar_nss(request: Request, req: NssRequest):
     """Obtiene NSS del IMSS."""
     solver = _get_solver()
     modulo = NSSModule(captcha_solver=solver)
@@ -128,13 +168,15 @@ async def consultar_nss(req: NssRequest):
 
 
 @app.get("/perfiles")
-def listar_perfiles():
+@limiter.limit(_rate_limit("PERFILES", "10/minute"))
+def listar_perfiles(request: Request):
     perfiles = list_profiles()
     return {"perfiles": perfiles}
 
 
 @app.post("/perfiles")
-def guardar_perfil(data: ProfileData):
+@limiter.limit(_rate_limit("PERFILES", "10/minute"))
+def guardar_perfil(request: Request, data: ProfileData):
     profile = {k: v for k, v in data.model_dump().items() if v and k != "alias"}
     save_profile(data.alias, profile)
     return {"success": True, "alias": data.alias}
