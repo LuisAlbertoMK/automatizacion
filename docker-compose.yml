@@ -20,6 +20,25 @@ services:
     tty: true
     command: ["--help"]
 
+  # ── Web UI (Streamlit) ──
+  app:
+    build: .
+    container_name: tramites-app
+    env_file:
+      - config.env
+    environment:
+      - HEADLESS=true
+      - REQUEST_DELAY=2.0
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./output:/app/output
+      - ./logs:/app/logs
+      - ./data:/app/data
+    command: ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    profiles:
+      - app
+
   # ── API REST (opcional) ──
   api:
     build: .

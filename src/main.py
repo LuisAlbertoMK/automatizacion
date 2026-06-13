@@ -27,6 +27,31 @@ sys.path.insert(0, str(Path(__file__).parent))
 load_dotenv("config.env")
 colorama_init(autoreset=True)
 
+
+def _validar_config():
+    """Valida config esencial al startup. Warn si faltan cosas críticas."""
+    issues = []
+    if not os.getenv("STORAGE_KEY"):
+        issues.append("STORAGE_KEY no configurada — los perfiles no se guardarán")
+    api_key = os.getenv("CAPTCHA_API_KEY", "")
+    if not api_key or api_key == "tu_api_key_aqui":
+        issues.append("CAPTCHA_API_KEY no configurada — captchas serán manuales")
+    if issues:
+        print(f"  {Fore.YELLOW}[!] Configuración:{Style.RESET_ALL}")
+        for i in issues:
+            print(f"    {Fore.YELLOW}⚠  {i}{Style.RESET_ALL}")
+
+
+def _listar_tramites():
+    """Muestra todos los trámites registrados y su estado."""
+    from modules.orchestrator import listar_tramites
+    tramites = listar_tramites()
+    print(f"\n  {Fore.CYAN}Trámites disponibles:{Style.RESET_ALL}")
+    for nombre, info in tramites.items():
+        print(f"    {nombre:20s} {info['estado']}  {info['tiempo']}")
+    print()
+
+
 # ── Importar módulos del agente ───────────────────────────────────────────────
 from utils.captcha  import CaptchaSolver, CaptchaError
 from utils.storage  import save_profile, load_profile, list_profiles
@@ -384,7 +409,14 @@ def main():
     parser.add_argument("--curp",    help="CURP de 18 caracteres")
     parser.add_argument("--correo",  help="Correo electrónico")
     parser.add_argument("--perfil",  help="Alias de perfil guardado")
+    parser.add_argument("--list-tramites", action="store_true", help="Listar todos los trámites disponibles")
     args = parser.parse_args()
+
+    _validar_config()
+
+    if args.list_tramites:
+        _listar_tramites()
+        return
 
     try:
         if args.tramite or args.perfil:
