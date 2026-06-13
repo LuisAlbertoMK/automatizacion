@@ -1,19 +1,35 @@
-"""
+﻿"""
 utils/ocr.py
-Extracción de texto de imágenes y PDFs usando OCR (Tesseract)
+Extracci├│n de texto de im├ígenes y PDFs usando OCR (Tesseract)
 
 Funcionalidades:
-  - Extraer texto de imágenes (PNG, JPG, etc.)
+  - Extraer texto de im├ígenes (PNG, JPG, etc.)
   - Extraer texto de PDFs (convierte a imagen primero)
-  - Extraer datos específicos (CURP, NSS, nombres, fechas)
-  - Preprocesamiento de imágenes para mejor precisión
+  - Extraer datos espec├¡ficos (CURP, NSS, nombres, fechas)
+  - Preprocesamiento de im├ígenes para mejor precisi├│n
 """
 
 import os
 import re
 from pathlib import Path
-from PIL import Image
+from typing import Optional, Dict, List
+import pytesseract
+from PIL import Image, ImageEnhance, ImageFilter
+import io
 from exceptions import OCRError
+
+# Configurar ruta de Tesseract en Windows
+# Si est├í instalado en la ruta por defecto
+TESSERACT_PATHS = [
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    r"C:\Users\Public\Tesseract-OCR\tesseract.exe",
+]
+
+for path in TESSERACT_PATHS:
+    if os.path.exists(path):
+        pytesseract.pytesseract.tesseract_cmd = path
+        break
 
 
 class OCRExtractor:
@@ -23,14 +39,14 @@ class OCRExtractor:
         self._verify_tesseract()
     
     def _verify_tesseract(self):
-        """Verifica que Tesseract esté instalado."""
+        """Verifica que Tesseract est├® instalado."""
         try:
             pytesseract.get_tesseract_version()
             print("  [OCR] Tesseract disponible [OK]")
         except Exception:
-            print("  [OCR] [!] Tesseract no encontrado. Instálalo desde:")
+            print("  [OCR] [!] Tesseract no encontrado. Inst├ílalo desde:")
             print("  https://github.com/UB-Mannheim/tesseract/wiki")
-            print("  O el OCR funcionará en modo limitado")
+            print("  O el OCR funcionar├í en modo limitado")
     
     def extract_from_image(self, image_path: str, lang: str = "spa") -> str:
         """
@@ -38,10 +54,10 @@ class OCRExtractor:
         
         Args:
             image_path: Ruta a la imagen
-            lang: Idioma ('spa' para español, 'eng' para inglés)
+            lang: Idioma ('spa' para espa├▒ol, 'eng' para ingl├®s)
         
         Returns:
-            Texto extraído
+            Texto extra├¡do
         """
         try:
             img = Image.open(image_path)
@@ -61,7 +77,7 @@ class OCRExtractor:
             lang: Idioma
         
         Returns:
-            Texto extraído
+            Texto extra├¡do
         """
         try:
             img = Image.open(io.BytesIO(image_bytes))
@@ -74,24 +90,24 @@ class OCRExtractor:
     def extract_from_pdf(self, pdf_path: str, lang: str = "spa") -> str:
         """
         Extrae texto de un PDF usando OCR.
-        Convierte cada página a imagen y extrae el texto.
+        Convierte cada p├ígina a imagen y extrae el texto.
         
         Args:
             pdf_path: Ruta al PDF
             lang: Idioma
         
         Returns:
-            Texto extraído de todas las páginas
+            Texto extra├¡do de todas las p├íginas
         """
         try:
             from pdf2image import convert_from_path
             
-            # Convertir PDF a imágenes
+            # Convertir PDF a im├ígenes
             images = convert_from_path(pdf_path, dpi=300)
             
             all_text = []
             for i, img in enumerate(images):
-                print(f"  [OCR] Procesando página {i+1}/{len(images)}...")
+                print(f"  [OCR] Procesando p├ígina {i+1}/{len(images)}...")
                 img = self._preprocess_image(img)
                 text = pytesseract.image_to_string(img, lang=lang)
                 all_text.append(text)
@@ -99,15 +115,15 @@ class OCRExtractor:
             return "\n\n".join(all_text).strip()
         except ImportError:
             raise OCRError(
-                "pdf2image no está instalado. Instálalo con: pip install pdf2image\n"
-                "También necesitas poppler: https://github.com/oschwartz10612/poppler-windows/releases/"
+                "pdf2image no est├í instalado. Inst├ílalo con: pip install pdf2image\n"
+                "Tambi├®n necesitas poppler: https://github.com/oschwartz10612/poppler-windows/releases/"
             )
         except Exception as e:
             raise OCRError(f"Error extrayendo texto de PDF: {e}")
     
     def _preprocess_image(self, img: Image.Image) -> Image.Image:
         """
-        Preprocesa la imagen para mejorar la precisión del OCR.
+        Preprocesa la imagen para mejorar la precisi├│n del OCR.
         
         Args:
             img: Imagen PIL
@@ -125,7 +141,7 @@ class OCRExtractor:
         # Aumentar nitidez
         img = img.filter(ImageFilter.SHARPEN)
         
-        # Redimensionar si es muy pequeña
+        # Redimensionar si es muy peque├▒a
         width, height = img.size
         if width < 1000:
             scale = 1000 / width
@@ -134,9 +150,9 @@ class OCRExtractor:
         
         return img
     
-    # ──────────────────────────────────────────────────────────────
-    # Extractores específicos de datos
-    # ──────────────────────────────────────────────────────────────
+    # ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    # Extractores espec├¡ficos de datos
+    # ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
     
     def extract_curp(self, text: str) -> Optional[str]:
         """
@@ -148,7 +164,7 @@ class OCRExtractor:
         Returns:
             CURP encontrada o None
         """
-        # Patrón CURP: 4 letras + 6 dígitos + H/M + 5 letras + 1 letra/dígito + 1 dígito
+        # Patr├│n CURP: 4 letras + 6 d├¡gitos + H/M + 5 letras + 1 letra/d├¡gito + 1 d├¡gito
         pattern = r'\b([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)\b'
         match = re.search(pattern, text.upper())
         return match.group(1) if match else None
@@ -163,7 +179,7 @@ class OCRExtractor:
         Returns:
             NSS encontrado o None
         """
-        # NSS: 11 dígitos
+        # NSS: 11 d├¡gitos
         pattern = r'\b(\d{11})\b'
         match = re.search(pattern, text)
         return match.group(1) if match else None
@@ -178,7 +194,7 @@ class OCRExtractor:
         Returns:
             RFC encontrado o None
         """
-        # RFC: 4 letras + 6 dígitos + 3 caracteres
+        # RFC: 4 letras + 6 d├¡gitos + 3 caracteres
         pattern = r'\b([A-Z]{4}\d{6}[A-Z0-9]{3})\b'
         match = re.search(pattern, text.upper())
         return match.group(1) if match else None
@@ -223,15 +239,15 @@ class OCRExtractor:
     
     def extract_phone(self, text: str) -> Optional[str]:
         """
-        Extrae teléfono del texto.
+        Extrae tel├®fono del texto.
         
         Args:
             text: Texto donde buscar
         
         Returns:
-            Teléfono encontrado o None
+            Tel├®fono encontrado o None
         """
-        # Teléfono mexicano: 10 dígitos
+        # Tel├®fono mexicano: 10 d├¡gitos
         pattern = r'\b(\d{10})\b'
         match = re.search(pattern, text)
         return match.group(1) if match else None
@@ -258,19 +274,19 @@ class OCRExtractor:
     
     def extract_from_screenshot(self, screenshot_path: str) -> Dict[str, any]:
         """
-        Extrae datos de un screenshot de página web.
+        Extrae datos de un screenshot de p├ígina web.
         
         Args:
             screenshot_path: Ruta al screenshot
         
         Returns:
-            Diccionario con datos extraídos
+            Diccionario con datos extra├¡dos
         """
         print(f"  [OCR] Extrayendo texto de {screenshot_path}...")
         text = self.extract_from_image(screenshot_path)
         data = self.extract_all_data(text)
         
-        print(f"  [OCR] Texto extraído: {len(text)} caracteres")
+        print(f"  [OCR] Texto extra├¡do: {len(text)} caracteres")
         if data["curp"]:
             print(f"  [OCR] CURP encontrada: {data['curp']}")
         if data["nss"]:
