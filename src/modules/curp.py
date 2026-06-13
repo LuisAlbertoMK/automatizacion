@@ -20,6 +20,7 @@ import asyncio
 from pathlib import Path
 from playwright.async_api import Page, TimeoutError as PwTimeout
 from modules.base import BaseModule, OUTPUT_DIR, TIMEOUT, HEADLESS
+from exceptions import CURPError
 
 try:
     from utils.ocr import OCRExtractor
@@ -52,9 +53,6 @@ ESTADOS = {
     "NACIDO EN EXTRANJERO": "NE",
 }
 
-
-class CURPError(Exception):
-    pass
 
 
 class CURPModule(BaseModule):

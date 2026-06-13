@@ -58,8 +58,7 @@ except ImportError:
     pass
 
 
-class FreeCaptchaError(Exception):
-    pass
+from exceptions import FreeCaptchaError
 
 
 class FreeCaptchaSolver:

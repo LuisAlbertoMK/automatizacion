@@ -21,20 +21,13 @@ import asyncio
 from pathlib import Path
 from playwright.async_api import Page, TimeoutError as PwTimeout
 from modules.base import BaseModule, OUTPUT_DIR, TIMEOUT, HEADLESS
+from exceptions import TenenciaError
 
 try:
     from utils.ocr import OCRExtractor
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
-
-
-PORTAL_URL = "https://sfpya.edomexico.gob.mx/"
-TENENCIA_URL = "https://sfpya.edomexico.gob.mx/controlv/faces/cv/consultas/ConsultaPagos/ConsultaPagos.xhtml"
-
-
-class TenenciaError(Exception):
-    pass
 
 
 class TenenciaModule(BaseModule):

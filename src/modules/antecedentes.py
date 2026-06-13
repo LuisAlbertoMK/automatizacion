@@ -21,19 +21,13 @@ import asyncio
 from pathlib import Path
 from playwright.async_api import Page, TimeoutError as PwTimeout
 from modules.base import BaseModule, OUTPUT_DIR, TIMEOUT, HEADLESS
+from exceptions import AntecedentesError
 
 try:
     from utils.ocr import OCRExtractor
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
-
-
-PORTAL_URL = "https://constancias.oadprs.gob.mx/"
-
-
-class AntecedentesError(Exception):
-    pass
 
 
 class AntecedentesModule(BaseModule):

@@ -13,6 +13,7 @@ import os
 import re
 from typing import Optional, Dict
 import tempfile
+from exceptions import VoiceInputError
 
 try:
     import whisper
@@ -22,10 +23,6 @@ try:
     WHISPER_AVAILABLE = True
 except ImportError:
     WHISPER_AVAILABLE = False
-
-
-class VoiceInputError(Exception):
-    pass
 
 
 class VoiceInput:

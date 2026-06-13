@@ -20,6 +20,7 @@ from pathlib import Path
 from cryptography.fernet import Fernet, InvalidToken
 import base64
 import hashlib
+from exceptions import StorageError
 
 
 DATA_FILE = Path(os.getenv("OUTPUT_DIR", "./data")) / "perfiles.json"
@@ -29,7 +30,7 @@ def _get_cipher() -> Fernet:
     """Deriva una clave Fernet desde STORAGE_KEY del .env"""
     raw_key = os.getenv("STORAGE_KEY")
     if not raw_key:
-        raise ValueError(
+        raise StorageError(
             "STORAGE_KEY no configurada en config.env. "
             "Generá una con: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )

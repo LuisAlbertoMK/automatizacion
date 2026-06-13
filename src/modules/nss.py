@@ -22,6 +22,7 @@ from pathlib import Path
 from playwright.async_api import TimeoutError as PwTimeout
 
 from modules.base import BaseModule, OUTPUT_DIR, TIMEOUT, HEADLESS
+from exceptions import NSSError
 
 try:
     from utils.ocr import OCRExtractor
@@ -43,10 +44,6 @@ PORTAL_URL = (
 
 # Site key de reCAPTCHA del portal IMSS (fallback si no se detecta dinámicamente)
 RECAPTCHA_SITE_KEY_FALLBACK = "6LfFGgkTAAAAAMDDVFwSuYPKqI9Kc_qp9c2qXxlz"
-
-
-class NSSError(Exception):
-    pass
 
 
 class NSSModule(BaseModule):

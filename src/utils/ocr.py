@@ -12,27 +12,8 @@ Funcionalidades:
 import os
 import re
 from pathlib import Path
-from typing import Optional, Dict, List
-import pytesseract
-from PIL import Image, ImageEnhance, ImageFilter
-import io
-
-# Configurar ruta de Tesseract en Windows
-# Si está instalado en la ruta por defecto
-TESSERACT_PATHS = [
-    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
-    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
-    r"C:\Users\Public\Tesseract-OCR\tesseract.exe",
-]
-
-for path in TESSERACT_PATHS:
-    if os.path.exists(path):
-        pytesseract.pytesseract.tesseract_cmd = path
-        break
-
-
-class OCRError(Exception):
-    pass
+from PIL import Image
+from exceptions import OCRError
 
 
 class OCRExtractor:

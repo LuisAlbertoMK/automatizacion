@@ -321,19 +321,34 @@ class BaseModule:
             except Exception:
                 pass
 
-    # ── Logging ───────────────────────────────────────────────────
+    # ── Logging estructurado ─────────────────────────────────────
     def log(self, msg: str):
-        print(f"  [{self.name}] {msg}")
+        """Info genérica."""
+        if hasattr(self, '_logger') and self._logger:
+            self._logger.info(msg)
+        else:
+            print(f"  [{self.name}] {msg}")
 
     def debug(self, msg: str):
-        if os.getenv("VERBOSE", "false").lower() == "true":
+        """Debug (solo si VERBOSE)."""
+        if hasattr(self, '_logger') and self._logger:
+            self._logger.debug(msg)
+        elif os.getenv("VERBOSE", "false").lower() == "true":
             print(f"  [DEBUG][{self.name}] {msg}")
 
     def warn(self, msg: str):
-        print(f"  [{self.name}] \u26a0 {msg}")
+        """Advertencia."""
+        if hasattr(self, '_logger') and self._logger:
+            self._logger.warn(msg)
+        else:
+            print(f"  [{self.name}] \u26a0 {msg}")
 
     def error(self, msg: str):
-        print(f"  [{self.name}] \u274c {msg}")
+        """Error."""
+        if hasattr(self, '_logger') and self._logger:
+            self._logger.error(msg)
+        else:
+            print(f"  [{self.name}] \u274c {msg}")
 
     # ── HTML parsing helpers ─────────────────────────────────────
     def extract_curp_from_html(self, html: str) -> str | None:

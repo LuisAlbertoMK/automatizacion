@@ -18,10 +18,7 @@ import re
 import time
 import email
 from imapclient import IMAPClient
-
-
-class MailReaderError(Exception):
-    pass
+from exceptions import MailReaderError
 
 
 class MailReader:

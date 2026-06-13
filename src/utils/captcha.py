@@ -10,16 +10,9 @@ Soporta:
 
 import os
 import time
-import base64
 import requests
-from pathlib import Path
-
-
-BASE_URL = "https://2captcha.com"
-
-
-class CaptchaError(Exception):
-    pass
+from dotenv import load_dotenv
+from exceptions import CaptchaError
 
 
 class CaptchaSolver:
