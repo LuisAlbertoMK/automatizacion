@@ -10,6 +10,20 @@ from playwright.async_api import async_playwright, Page, TimeoutError as PwTimeo
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "./output"))
 TIMEOUT = int(os.getenv("TIMEOUT", "60")) * 1000
 HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"
+REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", "2.0"))
+"""Segundos mínimos entre requests a portales (rate limiting)."""
+
+_last_request_time = 0.0
+
+
+async def _rate_limit():
+    """Espera si es necesario para respetar REQUEST_DELAY entre requests."""
+    global _last_request_time
+    now = time.time()
+    elapsed = now - _last_request_time
+    if elapsed < REQUEST_DELAY:
+        await asyncio.sleep(REQUEST_DELAY - elapsed)
+    _last_request_time = time.time()
 
 
 class BaseModule:
@@ -73,7 +87,8 @@ class BaseModule:
             pass
 
     async def goto(self, page: Page, url: str, fallback_url: str = None):
-        """Navega a URL con fallback."""
+        """Navega a URL con fallback y rate limiting."""
+        await _rate_limit()
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT)
         except Exception:
