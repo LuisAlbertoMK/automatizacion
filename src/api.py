@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from fastapi import FastAPI, HTTPException, Query, Request  # noqa: F401
+    from fastapi import APIRouter, FastAPI, HTTPException, Query, Request  # noqa: F401
     from pydantic import BaseModel
     FASTAPI_AVAILABLE = True
 except ImportError:
@@ -79,13 +79,24 @@ class ProfileData(BaseModel):
     placa: Optional[str] = None
 
 
-# ── App ────────────────────────────────────────────────────
+# ── App & Routers ─────────────────────────────────────────────
 
 app = FastAPI(
     title="Agente de Trámites GOB.MX",
     description="API REST para automatizar trámites gubernamentales mexicanos",
     version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_tags=[
+        {"name": "system", "description": "Health check e información general"},
+        {"name": "tramites", "description": "Consultas de trámites (CURP, NSS)"},
+        {"name": "perfiles", "description": "Gestión de perfiles de usuario"},
+    ],
 )
+
+system_router = APIRouter(tags=["system"])
+tramites_router = APIRouter(tags=["tramites"])
+perfiles_router = APIRouter(tags=["perfiles"])
 
 if SLOWAPI_AVAILABLE:
     limiter = Limiter(key_func=get_remote_address)
@@ -100,6 +111,7 @@ else:
         def limit(self, *args, **kwargs):
             return _noop
     limiter = _NoopLimiter()
+
 
 
 def _get_solver():
@@ -117,9 +129,10 @@ def _get_solver():
         return None
 
 
-@app.get("/")
+@system_router.get("/", summary="Información de la API")
 @limiter.limit(_rate_limit("LIGHT", "30/minute"))
 def root(request: Request):
+    """Endpoint raíz — muestra metadatos de la app y lista de endpoints disponibles."""
     return {
         "app": "Agente de Trámites GOB.MX",
         "version": "1.0.0",
@@ -133,16 +146,17 @@ def root(request: Request):
     }
 
 
-@app.get("/health")
+@system_router.get("/health", summary="Health check")
 @limiter.limit(_rate_limit("LIGHT", "30/minute"))
 def health(request: Request):
+    """Verifica que la API esté operativa."""
     return {"status": "ok"}
 
 
-@app.post("/curp")
+@tramites_router.post("/curp", summary="Consultar CURP")
 @limiter.limit(_rate_limit("CURP", "5/minute"))
 async def consultar_curp(request: Request, req: CurpRequest):
-    """Consulta CURP vía RENAPO."""
+    """Consulta una CURP en RENAPO y devuelve los datos de la persona."""
     solver = _get_solver()
     modulo = CURPModule(captcha_solver=solver)
     try:
@@ -152,10 +166,10 @@ async def consultar_curp(request: Request, req: CurpRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/nss")
+@tramites_router.post("/nss", summary="Obtener NSS del IMSS")
 @limiter.limit(_rate_limit("NSS", "5/minute"))
 async def consultar_nss(request: Request, req: NssRequest):
-    """Obtiene NSS del IMSS."""
+    """Obtiene el NSS de una persona a través del IMSS usando CURP y correo."""
     solver = _get_solver()
     modulo = NSSModule(captcha_solver=solver)
     try:
@@ -167,16 +181,25 @@ async def consultar_nss(request: Request, req: NssRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/perfiles")
+@perfiles_router.get("/perfiles", summary="Listar perfiles guardados")
 @limiter.limit(_rate_limit("PERFILES", "10/minute"))
 def listar_perfiles(request: Request):
+    """Devuelve la lista de todos los alias de perfiles guardados localmente."""
     perfiles = list_profiles()
     return {"perfiles": perfiles}
 
 
-@app.post("/perfiles")
+@perfiles_router.post("/perfiles", summary="Guardar un perfil")
 @limiter.limit(_rate_limit("PERFILES", "10/minute"))
 def guardar_perfil(request: Request, data: ProfileData):
+    """Guarda un perfil con datos persona (CURP, correo, nombre) bajo un alias."""
     profile = {k: v for k, v in data.model_dump().items() if v and k != "alias"}
     save_profile(data.alias, profile)
     return {"success": True, "alias": data.alias}
+
+
+# ── Registrar routers (después de definir todas las rutas) ───
+
+app.include_router(system_router)
+app.include_router(tramites_router)
+app.include_router(perfiles_router)

@@ -163,3 +163,32 @@ class TestNSS:
         data = response.json()
         assert data["success"] is True
         assert data["data"]["nss"] == "12345678901"
+
+
+# ── Rate limiting ──────────────────────────────────────────────────────────────
+
+class TestRateLimiting:
+    """Verifica que slowapi aplica 429 cuando se excede el límite."""
+
+    def test_root_rate_limit_after_40_requests(self):
+        """Endpoint / (30/min) debe dar 429 tras exceder el límite."""
+        client = TestClient(app)
+        statuses = {}
+        for _ in range(45):
+            response = client.get("/")
+            statuses[response.status_code] = statuses.get(response.status_code, 0) + 1
+
+        assert 200 in statuses, "Debe haber respuestas exitosas"
+        assert 429 in statuses, "Debe rate-limitear después de 30 requests"
+        assert statuses[200] >= 25, "Debe permitir ~30 requests antes de limitar"
+
+    def test_health_rate_limit_independent(self):
+        """/health tiene su propio contador (30/min) independiente de /."""
+        client = TestClient(app)
+        statuses = {}
+        for _ in range(40):
+            response = client.get("/health")
+            statuses[response.status_code] = statuses.get(response.status_code, 0) + 1
+
+        assert 200 in statuses
+        assert 429 in statuses
