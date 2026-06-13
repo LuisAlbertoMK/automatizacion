@@ -9,12 +9,11 @@ Uso:
     python health_check.py --json      # Salida JSON
 """
 
-import sys
-import os
-import json
 import argparse
 import importlib
+import os
 import subprocess
+import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -74,12 +73,12 @@ def main():
     print("=" * 50)
 
     # ── Python ──
-    print(f"\n[Python]")
+    print("\n[Python]")
     print(f"  Version: {sys.version.split()[0]}")
     print(f"  Path: {sys.executable}")
 
     # ── Dependencias críticas ──
-    print(f"\n[Dependencias]")
+    print("\n[Dependencias]")
     check("playwright", "Playwright", critical=True)
     check("requests", "Requests", critical=True)
     check("dotenv", "python-dotenv", critical=True)
@@ -88,7 +87,7 @@ def main():
     check("cryptography", "Cryptography", critical=True)
 
     # ── Dependencias opcionales ──
-    print(f"\n[Opcionales]")
+    print("\n[Opcionales]")
     check("pytesseract", "Tesseract OCR")
     check("imapclient", "IMAPClient")
     check("whisper", "Whisper (voz)")
@@ -98,7 +97,7 @@ def main():
     check("onnxruntime", "ONNX Runtime")
 
     # ── Módulos del proyecto ──
-    print(f"\n[Módulos src/]")
+    print("\n[Módulos src/]")
     checks = [
         ("modules.base", "BaseModule"),
         ("modules.curp", "CURPModule"),
@@ -115,14 +114,14 @@ def main():
         check(mod, name, critical=True)
 
     # ── Configuración ──
-    print(f"\n[Configuración]")
+    print("\n[Configuración]")
     check_env("CAPTCHA_API_KEY", critical=False)
     check_env("STORAGE_KEY", critical=True)
     check_env("IMAP_EMAIL", critical=False)
     check_env("HEADLESS", critical=False)
 
     # ── Git ──
-    print(f"\n[Git]")
+    print("\n[Git]")
     try:
         branch = subprocess.run(
             ["git", "branch", "--show-current"],
@@ -133,7 +132,7 @@ def main():
             ["git", "status", "--porcelain"],
             capture_output=True, text=True, timeout=5
         ).stdout.strip()
-        dirty = len([l for l in status.split("\n") if l.strip()]) if status else 0
+        dirty = len([ln for ln in status.split("\n") if ln.strip()]) if status else 0
         if dirty:
             print(f"  {WARN} {dirty} archivo(s) sin commit")
         else:

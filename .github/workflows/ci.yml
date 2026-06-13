@@ -28,21 +28,29 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system ruff
-          uv pip install --system -r requirements.txt
+          uv pip install --system ruff pytest-cov
+          uv pip install --system -e ".[test,web]"
 
       - name: Lint with ruff
-        run: ruff check src/ main.py main_multimodal.py health_check.py --ignore E501,F401,E402
+        run: ruff check src/ tests/ app.py health_check.py
 
       - name: Check compilation
-        run: python -m compileall -q src/ main.py main_multimodal.py health_check.py
+        run: python -m compileall -q src/ app.py health_check.py
 
-      - name: Tests unitarios
+      - name: Tests unitarios + coverage
         env:
           CAPTCHA_API_KEY: test
           STORAGE_KEY: test_key_for_ci
         run: |
-          python -m pytest tests/ -v --tb=short -x || echo "Algunos tests requieren entorno local"
+          python -m pytest tests/ -v --tb=short -x --cov=src --cov-report=term-missing --cov-report=xml | head -80
+
+      - name: Upload coverage to Codecov (optional)
+        uses: codecov/codecov-action@v5
+        if: github.ref == 'refs/heads/master'
+        continue-on-error: true
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false
 
       - name: Health check
         run: python health_check.py --quick 2>&1 || true

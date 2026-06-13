@@ -37,6 +37,8 @@ web = [
 test = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.24.0",
+    "pytest-cov>=7.0.0",
+    "httpx>=0.28.0",
 ]
 dev = [
     "pytest>=8.0.0",
@@ -54,6 +56,29 @@ include = ["modules*", "utils*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
+addopts = "-q --tb=short"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["*/tests/*", "*/__pycache__/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "def _handle_shutdown",
+    "except ImportError",
+    "except Exception:",
+    "if FREE_SOLVER_AVAILABLE",
+    "if IMSS_SOLVER_AVAILABLE",
+    "if OCR_AVAILABLE",
+    "if MAIL_AVAILABLE",
+    "if FASTAPI_AVAILABLE",
+    "if WHISPER_AVAILABLE",
+]
+
+[tool.coverage.html]
+directory = "coverage_html"
 
 [tool.ruff]
 line-length = 100
