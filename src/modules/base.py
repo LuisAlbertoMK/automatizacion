@@ -3,9 +3,17 @@ modules/base.py
 Clase base para todos los módulos de trámites.
 Centraliza: selectors, captcha, PDF, logging, browser lifecycle.
 """
-import os, re, time, asyncio, json, subprocess, platform
+import asyncio
+import json
+import os
+import platform
+import re
+import subprocess
+import time
 from pathlib import Path
-from playwright.async_api import async_playwright, Page, TimeoutError as PwTimeout
+
+from playwright.async_api import Page, async_playwright
+from playwright.async_api import TimeoutError as PwTimeout
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "./output"))
 TIMEOUT = int(os.getenv("TIMEOUT", "60")) * 1000
@@ -148,7 +156,7 @@ class BaseModule:
             self.log("Sin CAPTCHA de imagen detectado")
             return False
 
-        self.log(f"CAPTCHA de imagen detectado, descargando...")
+        self.log("CAPTCHA de imagen detectado, descargando...")
 
         # Obtener src de la imagen
         src = await captcha_img.get_attribute("src")
@@ -181,7 +189,7 @@ class BaseModule:
         if not solution:
             solution = os.getenv("CAPTCHA_VALUE", "").strip()
             if solution:
-                self.log(f"CAPTCHA desde variable de entorno")
+                self.log("CAPTCHA desde variable de entorno")
 
         if not solution:
             self.warn("Sin solución de CAPTCHA")

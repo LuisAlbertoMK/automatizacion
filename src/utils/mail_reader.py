@@ -13,11 +13,13 @@ CONFIGURACIÓN GMAIL:
   4. Usa esa contraseña de 16 chars en IMAP_PASSWORD
 """
 
+import email
 import os
 import re
 import time
-import email
+
 from imapclient import IMAPClient
+
 from exceptions import MailReaderError
 
 
@@ -106,7 +108,7 @@ class MailReader:
         # Buscar links de verificación
         links = re.findall(r"https?://[^\s\"<>]+", body)
         verification_link = next(
-            (l for l in links if "verif" in l.lower() or "confirm" in l.lower() or "token" in l.lower()),
+            (link for link in links if "verif" in link.lower() or "confirm" in link.lower() or "token" in link.lower()),
             links[0] if links else None,
         )
 

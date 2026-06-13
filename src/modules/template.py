@@ -14,15 +14,10 @@ Ejemplo:
             ...
 """
 
-import os
-import re
 import time
-import asyncio
-from pathlib import Path
-from playwright.async_api import TimeoutError as PwTimeout
-from modules.base import BaseModule, OUTPUT_DIR, TIMEOUT, HEADLESS
-from exceptions import ModuleError
 
+from exceptions import ModuleError
+from modules.base import BaseModule
 
 # ── Config específica del trámite ──────────────────────────
 # TODO: Cambiar URL, selectors y site_key

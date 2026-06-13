@@ -14,14 +14,15 @@ Estructura de un perfil:
 }
 """
 
-import os
-import json
-from pathlib import Path
-from cryptography.fernet import Fernet, InvalidToken
 import base64
 import hashlib
-from exceptions import StorageError
+import json
+import os
+from pathlib import Path
 
+from cryptography.fernet import Fernet, InvalidToken
+
+from exceptions import StorageError
 
 DATA_FILE = Path(os.getenv("OUTPUT_DIR", "./data")) / "perfiles.json"
 

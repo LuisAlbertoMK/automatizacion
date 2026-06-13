@@ -14,17 +14,18 @@ Flujo:
 Tiempo estimado: 45-90 segundos
 """
 
-import os
-import re
-import time
 import asyncio
-from pathlib import Path
-from playwright.async_api import Page, TimeoutError as PwTimeout
-from modules.base import BaseModule, OUTPUT_DIR, TIMEOUT, HEADLESS
+import time
+
+from playwright.async_api import Page
+
 from exceptions import AntecedentesError
+from modules.base import OUTPUT_DIR, TIMEOUT, BaseModule
+
+PORTAL_URL = "https://constancias.oadprs.gob.mx/"
 
 try:
-    from utils.ocr import OCRExtractor
+    from utils.ocr import OCRExtractor  # noqa: F401
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
@@ -239,7 +240,7 @@ class AntecedentesModule(BaseModule):
                 "tipo": "antecedentes",
             }
             save_profile(f"antecedentes_{curp}", profile)
-            print(f"  [ANTECEDENTES] Credenciales guardadas de forma segura \u2713")
+            print("  [ANTECEDENTES] Credenciales guardadas de forma segura \u2713")
         except Exception as e:
             print(f"  [ANTECEDENTES] \u26a0 No se pudieron guardar credenciales: {e}")
-            print(f"  [ANTECEDENTES] Record\u00e1 tus credenciales para usos futuros.")
+            print("  [ANTECEDENTES] Record\u00e1 tus credenciales para usos futuros.")

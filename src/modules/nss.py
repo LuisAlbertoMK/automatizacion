@@ -14,24 +14,25 @@ Flujo:
 Tiempo estimado: 30–60 segundos (depende del correo del IMSS)
 """
 
+import asyncio
 import os
 import re
 import time
-import asyncio
 from pathlib import Path
+
 from playwright.async_api import TimeoutError as PwTimeout
 
-from modules.base import BaseModule, OUTPUT_DIR, TIMEOUT, HEADLESS
 from exceptions import NSSError
+from modules.base import TIMEOUT, BaseModule
 
 try:
-    from utils.ocr import OCRExtractor
+    from utils.ocr import OCRExtractor  # noqa: F401
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
 
 try:
-    from captcha_solver_imss import IMSCaptchaSolver, CaptchaStore
+    from captcha_solver_imss import CaptchaStore, IMSCaptchaSolver  # noqa: F401
     IMSS_SOLVER_AVAILABLE = True
 except ImportError:
     IMSS_SOLVER_AVAILABLE = False
@@ -424,8 +425,8 @@ class NSSModule(BaseModule):
             msg = error_msg.group(0) if error_msg else "CAPTCHA inválido"
             self.error(f"Error detectado en respuesta: '{msg}'")
             raise NSSError(
-                f"CAPTCHA inválido. El portal rechazó el código ingresado. "
-                f"Intentá de nuevo verificando bien los caracteres."
+                "CAPTCHA inválido. El portal rechazó el código ingresado. "
+                "Intentá de nuevo verificando bien los caracteres."
             )
 
         # Cuarto: verificar mensaje de éxito

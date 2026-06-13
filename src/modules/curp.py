@@ -13,17 +13,19 @@ Flujo:
 Tiempo estimado automatizado: 15-30 segundos
 """
 
+import asyncio
 import os
 import re
 import time
-import asyncio
-from pathlib import Path
-from playwright.async_api import Page, TimeoutError as PwTimeout
-from modules.base import BaseModule, OUTPUT_DIR, TIMEOUT, HEADLESS
+
+from playwright.async_api import Page
+from playwright.async_api import TimeoutError as PwTimeout
+
 from exceptions import CURPError
+from modules.base import OUTPUT_DIR, TIMEOUT, BaseModule
 
 try:
-    from utils.ocr import OCRExtractor
+    from utils.ocr import OCRExtractor  # noqa: F401
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
@@ -184,7 +186,7 @@ class CURPModule(BaseModule):
         ], curp.upper().strip())
 
         if filled:
-            print(f"  [CURP] CURP ingresada \u2713")
+            print("  [CURP] CURP ingresada \u2713")
             return
 
         # Si llegamos aquí, intentar un enfoque más agresivo
@@ -194,7 +196,7 @@ class CURPModule(BaseModule):
             for inp_info in inputs:
                 if "curp" in (inp_info["name"] + inp_info["id"] + inp_info["placeholder"]).lower():
                     await inp_info["element"].fill(curp.upper().strip())
-                    print(f"  [CURP] CURP ingresada en campo detectado \u2713")
+                    print("  [CURP] CURP ingresada en campo detectado \u2713")
                     return
         except Exception as e:
             print(f"  [DEBUG] Error en enfoque alternativo: {e}")

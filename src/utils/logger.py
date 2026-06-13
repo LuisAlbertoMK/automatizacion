@@ -4,15 +4,15 @@ Logging centralizado y métricas de trámites.
 Reemplaza los print() dispersos por un sistema estructurado.
 """
 
-import os
 import json
-import time
 import logging
-from pathlib import Path
+import os
+import time
 from datetime import datetime
+from pathlib import Path
 from typing import Optional
-from colorama import Fore, Style
 
+from colorama import Fore, Style
 
 # ── Directorio de logs ──────────────────────────────────────────────────
 LOG_DIR = Path(os.getenv("LOG_DIR", "./logs"))

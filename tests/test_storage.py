@@ -9,8 +9,13 @@ os.environ["STORAGE_KEY"] = "test-key-32-chars-for-aes!xx"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from utils.storage import save_profile, load_profile, list_profiles, DATA_FILE  # noqa: E402
-from utils.storage import _save_all  # noqa: E402
+from utils.storage import (  # noqa: E402
+    DATA_FILE,
+    _save_all,  # noqa: E402
+    list_profiles,
+    load_profile,
+    save_profile,
+)
 
 
 @pytest.fixture(autouse=True)

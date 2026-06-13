@@ -8,14 +8,14 @@ Soporta:
   - reCAPTCHA v3  (usado por INE, SAT)
 """
 
-import os
-import time
 import asyncio
 import base64
-import requests
-from pathlib import Path
-from exceptions import CaptchaError
+import os
+import time
 
+import requests
+
+from exceptions import CaptchaError
 
 BASE_URL = "https://2captcha.com"
 
@@ -100,7 +100,7 @@ class CaptchaSolver:
             print("  [captcha] [!] Modo SEMIAUTOM├üTICO activado")
             print("  [captcha] Resuelve el reCAPTCHA manualmente en el navegador")
             return "MANUAL"  # Se├▒al para que el m├│dulo espere
-        
+
         params = {
             "key": self.api_key,
             "method": "userrecaptcha",
@@ -143,7 +143,7 @@ class CaptchaSolver:
             print("  [captcha] [!] Modo SEMIAUTOM├üTICO activado")
             print("  [captcha] reCAPTCHA v3 se resolver├í autom├íticamente por el navegador")
             return "MANUAL"
-        
+
         params = {
             "key": self.api_key,
             "method": "userrecaptcha",

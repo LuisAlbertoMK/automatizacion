@@ -14,17 +14,20 @@ Flujo:
 Tiempo estimado: 20-40 segundos
 """
 
-import os
+import asyncio
 import re
 import time
-import asyncio
-from pathlib import Path
-from playwright.async_api import Page, TimeoutError as PwTimeout
-from modules.base import BaseModule, OUTPUT_DIR, TIMEOUT, HEADLESS
+
+from playwright.async_api import Page
+
 from exceptions import TenenciaError
+from modules.base import OUTPUT_DIR, BaseModule
+
+TENENCIA_URL = "https://sfpya.edomexico.gob.mx/"
+PORTAL_URL = "https://sfpya.edomexico.gob.mx/"
 
 try:
-    from utils.ocr import OCRExtractor
+    from utils.ocr import OCRExtractor  # noqa: F401
     OCR_AVAILABLE = True
 except ImportError:
     OCR_AVAILABLE = False
@@ -140,11 +143,11 @@ class TenenciaModule(BaseModule):
 
         if not filled:
             raise TenenciaError("No se encontr\u00f3 el campo de placa en el portal")
-        print(f"  [TENENCIA] Placa ingresada \u2713")
+        print("  [TENENCIA] Placa ingresada \u2713")
 
     async def _ingresar_serie(self, page: Page, numero_serie: str):
         """Ingresa el n\u00famero de serie/VIN."""
-        print(f"  [TENENCIA] Ingresando n\u00famero de serie...")
+        print("  [TENENCIA] Ingresando n\u00famero de serie...")
 
         filled = await self.fill_field(page, [
             "input[name='serie']",
@@ -157,7 +160,7 @@ class TenenciaModule(BaseModule):
         ], numero_serie)
 
         if filled:
-            print(f"  [TENENCIA] N\u00famero de serie ingresado \u2713")
+            print("  [TENENCIA] N\u00famero de serie ingresado \u2713")
         else:
             print("  [TENENCIA] \u26a0 Campo de serie no encontrado (puede ser opcional)")
 

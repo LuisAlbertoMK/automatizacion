@@ -10,15 +10,17 @@ Uso:
     python main.py --perfil juan_garcia         # Con perfil guardado
 """
 
+import argparse
+import asyncio
 import os
 import re
-import sys
 import signal
-import asyncio
-import argparse
+import sys
 from pathlib import Path
+
+from colorama import Fore, Style
+from colorama import init as colorama_init
 from dotenv import load_dotenv
-from colorama import Fore, Style, init as colorama_init
 
 # ── Agregar src/ al path ──────────────────────────────────────────────────────
 sys.path.insert(0, str(Path(__file__).parent))
@@ -53,13 +55,13 @@ def _listar_tramites():
 
 
 # ── Importar módulos del agente ───────────────────────────────────────────────
-from utils.captcha  import CaptchaSolver, CaptchaError
-from utils.storage  import save_profile, load_profile, list_profiles
-from modules.curp   import CURPModule
-from modules.nss    import NSSModule
+from modules.curp import CURPModule  # noqa: E402
+from modules.nss import NSSModule  # noqa: E402
+from utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
+from utils.storage import list_profiles, load_profile, save_profile  # noqa: E402
 
 try:
-    from utils.mail_reader import MailReader, MailReaderError
+    from utils.mail_reader import MailReader, MailReaderError  # noqa: F401
     MAIL_AVAILABLE = True
 except ImportError:
     MAIL_AVAILABLE = False
@@ -176,14 +178,14 @@ class Agente:
         # Si el NSS fue enviado al correo, mostrar instrucciones claras
         if resultado.get("nss") == "ENVIADO_AL_CORREO":
             print(f"\n{Fore.GREEN}{'━'*50}")
-            print(f"  SOLICITUD ENVIADA CON ÉXITO")
+            print("  SOLICITUD ENVIADA CON ÉXITO")
             print(f"{'━'*50}{Style.RESET_ALL}")
             print(f"  El IMSS envió el NSS al correo: {correo}")
             print()
             print(f"  {Fore.YELLOW}Para obtenerlo automáticamente la próxima vez:{Style.RESET_ALL}")
-            print(f"  1. Configurá IMAP en config.env:")
+            print("  1. Configurá IMAP en config.env:")
             print(f"     IMAP_EMAIL={correo}")
-            print(f"     IMAP_PASSWORD=tu_contraseña_de_aplicación")
+            print("     IMAP_PASSWORD=tu_contraseña_de_aplicación")
             print()
             print(f"  {Fore.CYAN}O revisá manualmente tu bandeja de entrada.{Style.RESET_ALL}")
             print(f"{Fore.GREEN}{'━'*50}{Style.RESET_ALL}\n")
@@ -224,7 +226,7 @@ class Agente:
 
         # Resumen
         print(f"\n{Fore.GREEN}{'━'*50}")
-        print(f"  RESUMEN FINAL")
+        print("  RESUMEN FINAL")
         print(f"{'━'*50}{Style.RESET_ALL}")
         print(f"  CURP:  {res_curp.get('curp', '—')}")
         print(f"  NSS:   {res_nss.get('nss', '—')}")

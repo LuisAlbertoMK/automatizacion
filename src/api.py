@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 try:
-    from fastapi import FastAPI, HTTPException, Query
+    from fastapi import FastAPI, HTTPException, Query  # noqa: F401
     from pydantic import BaseModel
     FASTAPI_AVAILABLE = True
 except ImportError:
@@ -23,6 +23,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).parent))
 
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).parent.parent / "config.env")
 
 
@@ -32,11 +33,10 @@ if not FASTAPI_AVAILABLE:
     _sys.exit(1)
 
 
-from modules.curp import CURPModule
-from modules.nss import NSSModule
-from utils.captcha import CaptchaSolver, CaptchaError
-from utils.storage import save_profile, load_profile, list_profiles
-
+from modules.curp import CURPModule  # noqa: E402
+from modules.nss import NSSModule  # noqa: E402
+from utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
+from utils.storage import list_profiles, save_profile  # noqa: E402
 
 # ── Models ─────────────────────────────────────────────────
 

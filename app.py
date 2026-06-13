@@ -8,11 +8,11 @@ Uso:
     docker compose --profile api run --service-ports app
 """
 
+import asyncio
 import os
 import sys
-import asyncio
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
@@ -21,12 +21,11 @@ from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / "config.env")
 
-from modules.orchestrator import listar_tramites
-from modules.curp import CURPModule
-from modules.nss import NSSModule
-from utils.storage import save_profile, load_profile, list_profiles, delete_profile
-from utils.captcha import CaptchaSolver, CaptchaError
-
+from modules.curp import CURPModule  # noqa: E402
+from modules.nss import NSSModule  # noqa: E402
+from modules.orchestrator import listar_tramites  # noqa: E402
+from utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
+from utils.storage import delete_profile, list_profiles, load_profile, save_profile  # noqa: E402
 
 # ── Config ──────────────────────────────────────────────────
 st.set_page_config(

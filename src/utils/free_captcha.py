@@ -12,17 +12,14 @@ Modo de uso:
     token = await solver.solve_recaptcha_v2_audio(page, site_key, page_url)
 """
 
-import io
-import re
-import os
-import time
 import asyncio
+import io
+import os
+import re
 import tempfile
 from pathlib import Path
-from typing import Optional
 
 from PIL import Image
-
 
 TESSERACT_PATHS = [
     r"C:\Program Files\Tesseract-OCR\tesseract.exe",
@@ -58,7 +55,7 @@ except ImportError:
     pass
 
 
-from exceptions import FreeCaptchaError
+from exceptions import FreeCaptchaError  # noqa: E402
 
 
 class FreeCaptchaSolver:
@@ -222,7 +219,7 @@ class FreeCaptchaSolver:
                 print("  [FreeCaptcha] No se encontró enlace de audio")
                 return "MANUAL"
 
-            print(f"  [FreeCaptcha] Descargando audio...")
+            print("  [FreeCaptcha] Descargando audio...")
             resp = reqs.get(audio_link, timeout=30)
             audio_bytes = resp.content
 

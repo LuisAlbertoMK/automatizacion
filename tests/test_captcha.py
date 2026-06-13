@@ -2,16 +2,16 @@
 
 import os
 import sys
-from unittest.mock import patch, Mock, AsyncMock
+from unittest.mock import Mock, patch
 
-import requests
 import pytest
+import requests
 
 os.environ["CAPTCHA_API_KEY"] = "test_api_key_12345"
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
-from utils.captcha import CaptchaSolver, CaptchaError  # noqa: E402
+from utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
 
 
 @pytest.fixture
