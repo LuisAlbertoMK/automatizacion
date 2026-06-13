@@ -12,6 +12,7 @@ Uso:
 import sys
 import os
 import json
+import argparse
 import importlib
 import subprocess
 from pathlib import Path
@@ -21,6 +22,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 OK = "\033[92m[OK]\033[0m"
 FAIL = "\033[91m[FAIL]\033[0m"
 WARN = "\033[93m[WARN]\033[0m"
+QUICK = False
 
 
 def check(module: str, name: str = "", critical: bool = False) -> bool:
@@ -53,6 +55,13 @@ def check_env(key: str, critical: bool = False) -> bool:
 
 
 def main():
+    global QUICK
+    parser = argparse.ArgumentParser(description="Health Check del Agente de Trámites")
+    parser.add_argument("--quick", action="store_true", help="Solo checks críticos")
+    parser.add_argument("--json", action="store_true", help="Salida JSON")
+    args = parser.parse_args()
+    QUICK = args.quick
+
     load_dotenv = None
     try:
         from dotenv import load_dotenv

@@ -1,0 +1,40 @@
+version: "3.9"
+
+services:
+  tramites:
+    build: .
+    image: agente-tramites-gobmx:latest
+    container_name: tramites
+    env_file:
+      - config.env
+    environment:
+      - HEADLESS=true
+      - REQUEST_DELAY=2.0
+      - LOG_DIR=/app/logs
+      - OUTPUT_DIR=/app/output
+    volumes:
+      - ./output:/app/output
+      - ./logs:/app/logs
+      - ./data:/app/data
+    stdin_open: true
+    tty: true
+    command: ["--help"]
+
+  # ── API REST (opcional) ──
+  api:
+    build: .
+    container_name: tramites-api
+    env_file:
+      - config.env
+    environment:
+      - HEADLESS=true
+      - REQUEST_DELAY=2.0
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./output:/app/output
+      - ./logs:/app/logs
+      - ./data:/app/data
+    command: ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    profiles:
+      - api

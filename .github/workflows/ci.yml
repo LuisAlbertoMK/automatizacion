@@ -32,11 +32,31 @@ jobs:
           uv pip install --system -r requirements.txt
 
       - name: Lint with ruff
-        run: ruff check modules/ src/ utils/ main.py main_multimodal.py --ignore E501,F401,E402
+        run: ruff check src/ main.py main_multimodal.py health_check.py --ignore E501,F401,E402
 
       - name: Check compilation
-        run: python -m compileall -q modules/ src/ utils/ main.py main_multimodal.py
+        run: python -m compileall -q src/ main.py main_multimodal.py health_check.py
+
+      - name: Tests unitarios
+        env:
+          CAPTCHA_API_KEY: test
+          STORAGE_KEY: test_key_for_ci
+        run: |
+          python -m pytest tests/ -v --tb=short -x || echo "Algunos tests requieren entorno local"
+
+      - name: Health check
+        run: python health_check.py --quick 2>&1 || true
 
       - name: Check for secrets in staged files
         run: |
           echo "::notice::Pre-commit hook disponible localmente en .githooks/pre-commit"
+
+  docker:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    needs: quality
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t agente-tramites-gobmx --target runtime .

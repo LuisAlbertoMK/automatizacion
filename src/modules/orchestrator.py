@@ -27,6 +27,25 @@ TramiteType = Literal["curp", "nss", "antecedentes", "tenencia", "ambos"]
 InputMode = Literal["text", "voice", "image", "auto"]
 
 
+TRAMITES_REGISTRADOS = {
+    "curp":          {"modulo": "CURPModule",       "estado": "✅ Producción", "tiempo": "~16s"},
+    "nss":           {"modulo": "NSSModule",        "estado": "✅ Producción", "tiempo": "~30-60s"},
+    "antecedentes":  {"modulo": "AntecedentesModule", "estado": "🔶 Escrito", "tiempo": "~45-90s"},
+    "tenencia":      {"modulo": "TenenciaModule",   "estado": "🔶 Escrito",   "tiempo": "~20-40s"},
+    # ── Próximos ──
+    "rfc":           {"modulo": None, "estado": "📋 Planificado", "tiempo": "—"},
+    "semanas_imss":  {"modulo": None, "estado": "📋 Planificado", "tiempo": "—"},
+    "pasaporte":     {"modulo": None, "estado": "📋 Planificado", "tiempo": "—"},
+    "ine":           {"modulo": None, "estado": "📋 Planificado", "tiempo": "—"},
+    "licencia":      {"modulo": None, "estado": "📋 Planificado", "tiempo": "—"},
+}
+
+
+def listar_tramites() -> dict:
+    """Retorna todos los trámites con su estado."""
+    return dict(TRAMITES_REGISTRADOS)
+
+
 class TramitesOrchestrator:
     """Orquestador de trámites gubernamentales con entrada multimodal."""
     
