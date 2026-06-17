@@ -37,6 +37,8 @@ def _make_mock_locator(visible=True, count=1):
     first.is_visible = AsyncMock(return_value=visible)
     first.fill = AsyncMock()
     first.click = AsyncMock()
+    first.get_attribute = AsyncMock(return_value="http://example.com/img.png")
+    first.text_content = AsyncMock(return_value="")
     loc.first = first
     return loc
 
@@ -129,6 +131,27 @@ class TestLogging:
         captured = capsys.readouterr()
         assert "se rompió" in captured.out
 
+    def test_debug_with_logger(self, module):
+        """Line 358: _logger.debug."""
+        logger = MagicMock()
+        module._logger = logger
+        module.debug("debug via logger")
+        logger.debug.assert_called_once_with("debug via logger")
+
+    def test_warn_with_logger(self, module):
+        """Line 365: _logger.warn."""
+        logger = MagicMock()
+        module._logger = logger
+        module.warn("warn via logger")
+        logger.warn.assert_called_once_with("warn via logger")
+
+    def test_error_with_logger(self, module):
+        """Line 372: _logger.error."""
+        logger = MagicMock()
+        module._logger = logger
+        module.error("error via logger")
+        logger.error.assert_called_once_with("error via logger")
+
 
 # ── Rate Limiting ─────────────────────────────────────────────────────────────
 
@@ -150,6 +173,19 @@ class TestRateLimit:
         base_mod._last_request_time = 0.0
         await base_mod._rate_limit()
         assert base_mod._last_request_time > 0
+
+    @pytest.mark.asyncio
+    async def test_second_call_within_window_waits(self):
+        """Line 33: if elapsed < REQUEST_DELAY, sleeps."""
+        import modules.base as base_mod
+        base_mod._last_request_time = 100.0
+        old_delay = base_mod.REQUEST_DELAY
+        base_mod.REQUEST_DELAY = 10.0
+        with patch("modules.base.time.time", return_value=105.0):
+            with patch("modules.base.asyncio.sleep", AsyncMock()) as mock_sleep:
+                await base_mod._rate_limit()
+                mock_sleep.assert_awaited_once_with(5.0)
+        base_mod.REQUEST_DELAY = old_delay
 
 
 # ── Extractores HTML ──────────────────────────────────────────────────────────
@@ -233,6 +269,113 @@ class TestClickFirst:
         result = await module.click_first(mock_page, ["#btn"], wait_nav=True)
         assert result is True
 
+    @pytest.mark.asyncio
+    async def test_click_pw_timeout_returns_true(self, module, mock_page):
+        """Lines 136-138: PwTimeout en navigation, sigue.
+        __aexit__ debe retornar None/falsy para NO suprimir la excepción."""
+        from playwright.async_api import TimeoutError as PwTimeout
+        loc = MagicMock()
+        loc.count = AsyncMock(return_value=1)
+        loc.first.is_visible = AsyncMock(return_value=True)
+        loc.first.click = AsyncMock(side_effect=PwTimeout("timeout"))
+        mock_page.locator.side_effect = lambda sel: loc
+        mock_page.expect_navigation = MagicMock()
+        mock_page.expect_navigation.return_value.__aenter__ = AsyncMock()
+        mock_page.expect_navigation.return_value.__aexit__ = AsyncMock(return_value=None)
+        result = await module.click_first(mock_page, ["#btn"], wait_nav=True)
+        assert result is True
+
+
+# ── Resolve Image Captcha ──────────────────────────────────────────────────────
+
+class TestResolveImageCaptcha:
+    """Lines 146-198: resolve_image_captcha branches."""
+
+    def _make_loc(self, count=1, src="http://example.com/captcha.png"):
+        """Helper: locator personalizado para resolve_image_captcha."""
+        loc = MagicMock()
+        loc.count = AsyncMock(return_value=count)
+        first = MagicMock()
+        first.get_attribute = AsyncMock(return_value=src)
+        loc.first = first
+        return loc
+
+    @pytest.mark.asyncio
+    async def test_no_captcha_detected(self, module, mock_page):
+        """Line 157: sin CAPTCHA de imagen → False."""
+        mock_page.locator.side_effect = lambda sel: self._make_loc(count=0)
+        result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_no_src_attribute(self, module, mock_page):
+        """Line 163-164: imagen sin src → False."""
+        mock_page.locator.side_effect = lambda sel: self._make_loc(src=None)
+        result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_download_fails(self, module, mock_page):
+        """Line 177-179: error descargando CAPTCHA → False."""
+        mock_page.locator.side_effect = lambda sel: self._make_loc()
+        with patch("requests.get") as mock_get:
+            mock_get.side_effect = Exception("Connection error")
+            result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_solver_resolves(self, module, mock_page):
+        """Line 183-185: solver resuelve → fill_field."""
+        mock_page.locator.side_effect = lambda sel: self._make_loc()
+        solver = MagicMock()
+        solver.solve_image.return_value = "ABC123"
+        module.solver = solver
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MagicMock(content=b"img_data")
+            with patch.object(module, "fill_field", AsyncMock(return_value=True)) as mock_fill:
+                result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
+        assert result is True
+        mock_fill.assert_awaited_once_with(mock_page, ["#captcha-input"], "ABC123")
+
+    @pytest.mark.asyncio
+    async def test_solver_fails_env_var_fallback(self, module, mock_page):
+        """Lines 189-192: solver falla, CAPTCHA_VALUE env → fill_field."""
+        mock_page.locator.side_effect = lambda sel: self._make_loc()
+        solver = MagicMock()
+        solver.solve_image.side_effect = Exception("Solver fail")
+        module.solver = solver
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MagicMock(content=b"img_data")
+            with patch("modules.base.os.getenv", return_value="ENV_VAL"):
+                with patch.object(module, "fill_field", AsyncMock(return_value=True)) as mock_fill:
+                    result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
+        assert result is True
+        mock_fill.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_no_solution_nowhere(self, module, mock_page):
+        """Lines 194-196: sin solución → False."""
+        mock_page.locator.side_effect = lambda sel: self._make_loc()
+        module.solver = None
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MagicMock(content=b"img_data")
+            with patch("modules.base.os.getenv", return_value=""):
+                result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_relative_src_constructs_full_url(self, module, mock_page):
+        """Lines 166-169: src relativa → construye URL completa."""
+        mock_page.locator.side_effect = lambda sel: self._make_loc(src="/captcha/img.png")
+        mock_page.url = "https://gob.mx/tramite"
+        with patch("requests.get") as mock_get:
+            mock_get.return_value = MagicMock(content=b"img_data")
+            with patch.object(module, "fill_field", AsyncMock(return_value=False)):
+                await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
+        mock_get.assert_called_once()
+        args, _ = mock_get.call_args
+        assert args[0] == "https://gob.mx/captcha/img.png"
+
 
 # ── Debug Screenshot ──────────────────────────────────────────────────────────
 
@@ -249,6 +392,43 @@ class TestDebugScreenshot:
         with patch("modules.base.HEADLESS", False):
             await module.debug_screenshot(mock_page, "test.png")
         mock_page.screenshot.assert_called_once()
+
+
+# ── Find Visible Inputs ───────────────────────────────────────────────────────
+
+class TestFindVisibleInputs:
+    """Lines 327-336: find_visible_inputs."""
+
+    @pytest.mark.asyncio
+    async def test_finds_visible_inputs(self, module, mock_page):
+        """Encuentra inputs visibles."""
+        async def get_attr(name):
+            return {"name": "curp", "id": "", "placeholder": ""}.get(name, "")
+        inp1 = MagicMock()
+        inp1.is_visible = AsyncMock(return_value=True)
+        inp1.get_attribute = get_attr
+        inp2 = MagicMock()
+        inp2.is_visible = AsyncMock(return_value=False)
+        inp2.get_attribute = AsyncMock(return_value="")
+        mock_page.query_selector_all = AsyncMock(return_value=[inp1, inp2])
+        result = await module.find_visible_inputs(mock_page)
+        assert len(result) == 1
+        assert result[0]["name"] == "curp"
+
+    @pytest.mark.asyncio
+    async def test_filters_by_keyword(self, module, mock_page):
+        """Filtra inputs por keyword."""
+        async def get_attr(name):
+            return {"name": "curp_input", "id": "", "placeholder": ""}.get(name, "")
+        inp = MagicMock()
+        inp.is_visible = AsyncMock(return_value=True)
+        inp.get_attribute = get_attr
+        mock_page.query_selector_all = AsyncMock(return_value=[inp])
+        result = await module.find_visible_inputs(mock_page, keyword="curp")
+        assert len(result) == 1
+        # keyword no match
+        result2 = await module.find_visible_inputs(mock_page, keyword="nss")
+        assert len(result2) == 0
 
 
 # ── Open PDF ──────────────────────────────────────────────────────────────────
@@ -306,6 +486,16 @@ class TestDetectSiteKey:
         result = await module.detect_site_key(mock_page)
         assert result is None
 
+    @pytest.mark.asyncio
+    async def test_detect_from_json_in_content(self, module, mock_page):
+        """Line 238: sitekey vía regex en script JSON."""
+        mock_page.evaluate = AsyncMock(return_value=None)
+        mock_page.content = AsyncMock(
+            return_value='<script>{"sitekey": "JSON_KEY_123"}</script>'
+        )
+        result = await module.detect_site_key(mock_page)
+        assert result == "JSON_KEY_123"
+
 
 # ── Inject reCAPTCHA Token ────────────────────────────────────────────────────
 
@@ -337,6 +527,118 @@ class TestWaitRecaptcha:
         with patch("modules.base.asyncio.sleep"):
             result = await module.wait_for_recaptcha(mock_page, max_wait=1)
         assert result is False
+
+    @pytest.mark.asyncio
+    async def test_wait_recaptcha_prints_every_10s(self, module, mock_page, capsys):
+        """Line 220: print cada 10s de espera."""
+        # Retorna vacío 11 veces (22s a interval 2s), timeout en 20s
+        mock_page.evaluate = AsyncMock(return_value="")
+        with patch("modules.base.asyncio.sleep"):
+            await module.wait_for_recaptcha(mock_page, max_wait=20)
+        captured = capsys.readouterr()
+        # Debería imprimir status a los ~10s y ~20s (múltiplos de 10)
+        assert "Esperando..." in captured.out
+
+
+# ── Download PDF ──────────────────────────────────────────────────────────────
+
+class TestDownloadPDF:
+    """Lines 263-308: download_pdf with selector, fallback, and failure paths."""
+
+    @pytest.fixture
+    def mock_download(self):
+        dl = MagicMock()
+        dl.save_as = AsyncMock()
+        return dl
+
+    class _AsyncContextMock:
+        """Context manager async mock con __aenter__/__aexit__ en la clase."""
+        def __init__(self, enter_return):
+            self._enter_return = enter_return
+        async def __aenter__(self):
+            return self._enter_return
+        async def __aexit__(self, *args):
+            pass
+
+    def _make_expect_download(self, mock_download):
+        """Crea context manager + info para page.expect_download.
+        info.value debe ser un objeto coroutine (await info.value, no info.value()).
+        __aenter__/__aexit__ van en la clase (no instancia) por protocolo."""
+        async def _val():
+            return mock_download
+        info = MagicMock()
+        info.value = _val()  # coroutine object
+        return self._AsyncContextMock(info)
+
+    @pytest.mark.asyncio
+    async def test_download_via_selector(self, module, mock_page, mock_download):
+        """Line 271-277: descarga exitosa por selector."""
+        mock_page.locator.side_effect = lambda sel: _make_mock_locator(count=1, visible=True)
+        mock_page.expect_download.return_value = self._make_expect_download(mock_download)
+        with patch.object(module, "open_pdf"):
+            result = await module.download_pdf(mock_page, ["#btn"], Path("out.pdf"))
+        assert result == Path("out.pdf")
+        mock_download.save_as.assert_awaited_once_with(Path("out.pdf"))
+
+    @pytest.mark.asyncio
+    async def test_download_via_selector_fails_then_fallback(self, module, mock_page, mock_download):
+        """Lines 278-280: inner except en selector, fallback succeed."""
+        mock_page.locator = MagicMock()  # reset side_effect
+        loc = MagicMock()
+        loc.count = AsyncMock(return_value=1)
+        loc.first = MagicMock()
+        loc.first.is_visible = AsyncMock(return_value=True)
+        loc.first.click = AsyncMock(side_effect=Exception("click fail"))
+        mock_page.locator.side_effect = lambda sel: loc
+        # Fallback link
+        link = MagicMock()
+        link.is_visible = AsyncMock(return_value=True)
+        link.text_content = AsyncMock(return_value="descargar pdf")
+        async def get_attr(name):
+            return {"href": "/file.pdf", "onclick": ""}.get(name, "")
+        link.get_attribute = get_attr
+        link.click = AsyncMock()
+        mock_page.query_selector_all = AsyncMock(return_value=[link])
+        mock_page.expect_download.return_value = self._make_expect_download(mock_download)
+        with patch.object(module, "open_pdf"):
+            result = await module.download_pdf(mock_page, ["#btn"], Path("out.pdf"))
+        assert result == Path("out.pdf")
+
+    @pytest.mark.asyncio
+    async def test_selector_exception_fallback(self, module, mock_page, mock_download):
+        """Line 278-280: selector falla → fallback con keywords."""
+        # page.locator(sel) raises Exception → caught, fallback tried
+        mock_page.locator.side_effect = Exception("nope")
+        # Fallback link matches keyword "pdf"
+        link = MagicMock()
+        link.is_visible = AsyncMock(return_value=True)
+        link.text_content = AsyncMock(return_value="Descargar PDF")
+        async def get_attr(name):
+            return {"href": "/file.pdf", "onclick": ""}.get(name, "")
+        link.get_attribute = get_attr
+        link.click = AsyncMock()
+        mock_page.query_selector_all = AsyncMock(return_value=[link])
+        mock_page.expect_download.return_value = self._make_expect_download(mock_download)
+        with patch.object(module, "open_pdf"):
+            result = await module.download_pdf(mock_page, ["#btn"], Path("out.pdf"))
+        assert result == Path("out.pdf")
+
+    @pytest.mark.asyncio
+    async def test_no_download_found_anywhere(self, module, mock_page):
+        """Lines 307-308: sin botón de descarga → None."""
+        mock_page.locator.side_effect = lambda sel: _make_mock_locator(count=0)
+        mock_page.query_selector_all = AsyncMock(return_value=[])
+        result = await module.download_pdf(mock_page, ["#btn"], Path("out.pdf"))
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_fallback_exception_caught(self, module, mock_page):
+        """Line 304-305: fallback exception → debug log."""
+        mock_page.locator.side_effect = lambda sel: _make_mock_locator(count=0)
+        mock_page.query_selector_all = AsyncMock(side_effect=Exception("DOM error"))
+        with patch("modules.base.os.getenv", return_value="true"):  # VERBOSE
+            result = await module.download_pdf(mock_page, ["#btn"], Path("out.pdf"))
+        assert result is None
 
 
 # ── Goto ──────────────────────────────────────────────────────────────────────

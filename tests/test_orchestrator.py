@@ -2,6 +2,9 @@
 
 import sys
 from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -12,6 +15,59 @@ TRAMITES_ESPERADOS = [
     "rfc", "semanas_imss", "pasaporte", "ine", "licencia",
 ]
 
+# ── Mock Module Helper ────────────────────────────────────────────────────────
+
+def _make_mock_module():
+    mod = MagicMock()
+    mod.consultar = AsyncMock(return_value={"status": "ok"})
+    return mod
+
+
+# ── Fixtures con módulos mockeados ────────────────────────────────────────────
+
+@pytest.fixture
+def mock_multimodal():
+    mm = MagicMock()
+    mm.get_curp = MagicMock(return_value="CURP_MOCK")
+    mm.get_email = MagicMock(return_value="mock@test.com")
+    mm.get_placa = MagicMock(return_value="ABC123")
+    mm.voice = True
+    mm.ocr = True
+    return mm
+
+
+@pytest.fixture
+def orchestrator():
+    """Crea TramitesOrchestrator con todos los módulos mockeados."""
+    with (
+        patch("modules.orchestrator.CURPModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.NSSModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.AntecedentesModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.TenenciaModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.MULTIMODAL_AVAILABLE", False),
+    ):
+        from modules.orchestrator import TramitesOrchestrator
+        orch = TramitesOrchestrator()
+        return orch
+
+
+@pytest.fixture
+def orchestrator_multimodal(mock_multimodal):
+    """TramitesOrchestrator con entrada multimodal."""
+    with (
+        patch("modules.orchestrator.CURPModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.NSSModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.AntecedentesModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.TenenciaModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.MULTIMODAL_AVAILABLE", True),
+        patch("modules.orchestrator.MultimodalInput", return_value=mock_multimodal),
+    ):
+        from modules.orchestrator import TramitesOrchestrator
+        orch = TramitesOrchestrator()
+        return orch
+
+
+# ── Tests ─────────────────────────────────────────────────────────────────────
 
 class TestListarTramites:
     def test_listar_returns_all(self):
@@ -44,3 +100,298 @@ class TestListarTramites:
     def test_planificados_tienen_modulo_none(self):
         for nombre in ["rfc", "semanas_imss", "pasaporte", "ine", "licencia"]:
             assert TRAMITES_REGISTRADOS[nombre]["modulo"] is None
+
+
+class TestTramitesOrchestratorInit:
+    """Lines 52-82: __init__ con y sin multimodal."""
+
+    def test_init_sets_modules(self, orchestrator):
+        assert orchestrator.curp_module is not None
+        assert orchestrator.nss_module is not None
+        assert orchestrator.antecedentes_module is not None
+        assert orchestrator.tenencia_module is not None
+
+    def test_init_multimodal_not_available(self, orchestrator):
+        assert orchestrator.multimodal is None
+
+    def test_init_multimodal_available(self, orchestrator_multimodal):
+        assert orchestrator_multimodal.multimodal is not None
+
+
+class TestEjecutarTramite:
+    """Lines 84-116: dispatch a métodos internos."""
+
+    @pytest.mark.asyncio
+    async def test_ejecutar_curp(self, orchestrator):
+        with patch("builtins.input", return_value="CURP123456HDF"):
+            result = await orchestrator.ejecutar_tramite("curp")
+        assert result == {"status": "ok"}
+        orchestrator.curp_module.consultar.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_ejecutar_nss(self, orchestrator):
+        with patch("builtins.input", side_effect=["CURP123456HDF", "test@test.com"]):
+            result = await orchestrator.ejecutar_tramite("nss")
+        assert result == {"status": "ok"}
+        orchestrator.nss_module.consultar.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_ejecutar_antecedentes(self, orchestrator):
+        with patch("builtins.input", side_effect=["CURP123456HDF", "test@test.com", "n"]):
+            result = await orchestrator.ejecutar_tramite("antecedentes")
+        assert result == {"status": "ok"}
+        orchestrator.antecedentes_module.consultar.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_ejecutar_tenencia(self, orchestrator):
+        with patch("builtins.input", side_effect=["ABC123", "n"]):
+            result = await orchestrator.ejecutar_tramite("tenencia")
+        assert result == {"status": "ok"}
+        orchestrator.tenencia_module.consultar.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_ejecutar_ambos(self, orchestrator):
+        with patch("builtins.input", side_effect=["CURP123456HDF", "test@test.com"]):
+            result = await orchestrator.ejecutar_tramite("ambos")
+        assert "curp" in result
+        assert "nss" in result
+
+    @pytest.mark.asyncio
+    async def test_ejecutar_invalido(self, orchestrator):
+        with pytest.raises(ValueError, match="no soportado"):
+            await orchestrator.ejecutar_tramite("invalido")
+
+
+class TestEjecutarCurp:
+    """Lines 118-125: _ejecutar_curp con y sin multimodal."""
+
+    @pytest.mark.asyncio
+    async def test_sin_multimodal(self, orchestrator):
+        with patch("builtins.input", return_value="CURP123456HDF"):
+            result = await orchestrator._ejecutar_curp("text")
+        assert result == {"status": "ok"}
+        orchestrator.curp_module.consultar.assert_awaited_once_with(curp="CURP123456HDF")
+
+    @pytest.mark.asyncio
+    async def test_con_multimodal(self, orchestrator_multimodal):
+        result = await orchestrator_multimodal._ejecutar_curp("text")
+        assert result == {"status": "ok"}
+        orchestrator_multimodal.multimodal.get_curp.assert_called_once_with(mode="text")
+
+
+class TestEjecutarNss:
+    """Lines 127-136: _ejecutar_nss con y sin multimodal."""
+
+    @pytest.mark.asyncio
+    async def test_sin_multimodal(self, orchestrator):
+        inputs = ["CURP123456HDF", "test@test.com"]
+        with patch("builtins.input", side_effect=inputs):
+            result = await orchestrator._ejecutar_nss("text")
+        assert result == {"status": "ok"}
+        orchestrator.nss_module.consultar.assert_awaited_once_with(curp="CURP123456HDF", correo="test@test.com")
+
+    @pytest.mark.asyncio
+    async def test_con_multimodal(self, orchestrator_multimodal):
+        result = await orchestrator_multimodal._ejecutar_nss("text")
+        assert result == {"status": "ok"}
+        orchestrator_multimodal.multimodal.get_curp.assert_called_once()
+        orchestrator_multimodal.multimodal.get_email.assert_called_once()
+
+
+class TestEjecutarAmbos:
+    """Lines 179-212: _ejecutar_ambos ejecuta CURP + NSS."""
+
+    @pytest.mark.asyncio
+    async def test_ambos_sin_multimodal(self, orchestrator):
+        inputs = ["CURP123456HDF", "test@test.com"]
+        with patch("builtins.input", side_effect=inputs):
+            result = await orchestrator._ejecutar_ambos("text")
+        assert "curp" in result
+        assert "nss" in result
+        orchestrator.curp_module.consultar.assert_awaited_once()
+        orchestrator.nss_module.consultar.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_ambos_con_multimodal(self, orchestrator_multimodal):
+        result = await orchestrator_multimodal._ejecutar_ambos("text")
+        assert "curp" in result
+        assert "nss" in result
+        orchestrator_multimodal.multimodal.get_curp.assert_called_once()
+        orchestrator_multimodal.multimodal.get_email.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_ambos_con_pdf_path(self, orchestrator):
+        """Line 209: print PDF path cuando existe."""
+        from unittest.mock import AsyncMock
+
+        orchestrator.curp_module.consultar = AsyncMock(
+            return_value={"curp": "CURP123", "pdf_path": "/tmp/curp.pdf"}
+        )
+        orchestrator.nss_module.consultar = AsyncMock(
+            return_value={"nss": "12345678901"}
+        )
+        with patch("builtins.input", side_effect=["CURP123", "test@test.com"]):
+            result = await orchestrator._ejecutar_ambos("text")
+        assert result["curp"]["curp"] == "CURP123"
+        assert result["curp"]["pdf_path"] == "/tmp/curp.pdf"
+
+
+class TestEjecutarAntecedentes:
+    """Lines 138-158: _ejecutar_antecedentes con cuenta/no cuenta."""
+
+    @pytest.mark.asyncio
+    async def test_sin_cuenta(self, orchestrator):
+        inputs = ["CURP123456HDF", "test@test.com", "n"]
+        with patch("builtins.input", side_effect=inputs):
+            result = await orchestrator._ejecutar_antecedentes("text")
+        assert result == {"status": "ok"}
+        orchestrator.antecedentes_module.consultar.assert_awaited_once_with(
+            curp="CURP123456HDF", correo="test@test.com", password=None
+        )
+
+    @pytest.mark.asyncio
+    async def test_con_cuenta(self, orchestrator):
+        inputs = ["CURP123456HDF", "test@test.com", "s", "mypassword"]
+        with patch("builtins.input", side_effect=inputs):
+            result = await orchestrator._ejecutar_antecedentes("text")
+        assert result == {"status": "ok"}
+        orchestrator.antecedentes_module.consultar.assert_awaited_once_with(
+            curp="CURP123456HDF", correo="test@test.com", password="mypassword"
+        )
+
+    @pytest.mark.asyncio
+    async def test_con_multimodal(self, orchestrator_multimodal):
+        """Line 141-142: _ejecutar_antecedentes con multimodal."""
+        with patch("builtins.input", return_value="n"):
+            result = await orchestrator_multimodal._ejecutar_antecedentes("text")
+        assert result == {"status": "ok"}
+        orchestrator_multimodal.multimodal.get_curp.assert_called_once()
+        orchestrator_multimodal.multimodal.get_email.assert_called_once()
+
+
+class TestEjecutarTenencia:
+    """Lines 160-177: _ejecutar_tenencia con/sin número de serie."""
+
+    @pytest.mark.asyncio
+    async def test_sin_serie(self, orchestrator):
+        inputs = ["ABC123", "n"]
+        with patch("builtins.input", side_effect=inputs):
+            result = await orchestrator._ejecutar_tenencia("text")
+        assert result == {"status": "ok"}
+        orchestrator.tenencia_module.consultar.assert_awaited_once_with(
+            placa="ABC123", numero_serie=None
+        )
+
+    @pytest.mark.asyncio
+    async def test_con_serie(self, orchestrator):
+        inputs = ["ABC123", "s", "VIN123456"]
+        with patch("builtins.input", side_effect=inputs):
+            result = await orchestrator._ejecutar_tenencia("text")
+        assert result == {"status": "ok"}
+        orchestrator.tenencia_module.consultar.assert_awaited_once_with(
+            placa="ABC123", numero_serie="VIN123456"
+        )
+
+    @pytest.mark.asyncio
+    async def test_con_multimodal(self, orchestrator_multimodal):
+        """Line 163: _ejecutar_tenencia con multimodal."""
+        with patch("builtins.input", return_value="n"):
+            result = await orchestrator_multimodal._ejecutar_tenencia("text")
+        assert result == {"status": "ok"}
+        orchestrator_multimodal.multimodal.get_placa.assert_called_once()
+
+
+class TestModoInteractivo:
+    """Lines 216-274: menú interactivo."""
+
+    def test_exit_opcion_6(self, orchestrator):
+        """Option 6 exits."""
+        with patch("builtins.input", return_value="6"):
+            orchestrator.modo_interactivo()
+        # no exception = exited cleanly via break
+
+    def test_curp_opcion_1(self, orchestrator):
+        """Option 1 calls ejecutar_tramite('curp')."""
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=["1", "6"]):
+            with patch.object(orchestrator, "ejecutar_tramite", mock_et):
+                orchestrator.modo_interactivo()
+        mock_et.assert_any_call("curp", "text")
+
+    def test_nss_opcion_2(self, orchestrator):
+        """Option 2 calls ejecutar_tramite('nss')."""
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=["2", "6"]):
+            with patch.object(orchestrator, "ejecutar_tramite", mock_et):
+                orchestrator.modo_interactivo()
+        mock_et.assert_any_call("nss", "text")
+
+    def test_antecedentes_opcion_3(self, orchestrator):
+        """Option 3 calls ejecutar_tramite('antecedentes')."""
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=["3", "6"]):
+            with patch.object(orchestrator, "ejecutar_tramite", mock_et):
+                orchestrator.modo_interactivo()
+        mock_et.assert_any_call("antecedentes", "text")
+
+    def test_tenencia_opcion_4(self, orchestrator):
+        """Option 4 calls ejecutar_tramite('tenencia')."""
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=["4", "6"]):
+            with patch.object(orchestrator, "ejecutar_tramite", mock_et):
+                orchestrator.modo_interactivo()
+        mock_et.assert_any_call("tenencia", "text")
+
+    def test_ambos_opcion_5(self, orchestrator):
+        """Option 5 calls ejecutar_tramite('ambos')."""
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=["5", "6"]):
+            with patch.object(orchestrator, "ejecutar_tramite", mock_et):
+                orchestrator.modo_interactivo()
+        mock_et.assert_any_call("ambos", "text")
+
+    def test_opcion_invalida(self, orchestrator):
+        """Invalid option prints message and continues."""
+        with patch("builtins.input", side_effect=["99", "6"]):
+            orchestrator.modo_interactivo()
+        # continues to next iteration, no crash
+
+    def test_keyboard_interrupt(self, orchestrator):
+        """KeyboardInterrupt caught during tramite."""
+        mock_et = AsyncMock(side_effect=KeyboardInterrupt)
+        with patch("builtins.input", side_effect=["1", "6"]):
+            with patch.object(orchestrator, "ejecutar_tramite", mock_et):
+                orchestrator.modo_interactivo()
+        # KeyboardInterrupt caught, loop continues to option 6
+
+    def test_exception_caught(self, orchestrator):
+        """Generic exception during tramite shows message."""
+        mock_et = AsyncMock(side_effect=ValueError("test error"))
+        with patch("builtins.input", side_effect=["1", "6"]):
+            with patch.object(orchestrator, "ejecutar_tramite", mock_et):
+                orchestrator.modo_interactivo()
+        # Error printed, loop continues to option 6
+
+    def test_multimodal_selecciona_texto(self, orchestrator_multimodal):
+        """Multimodal: opción 1 (texto) por defecto."""
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=["1", "1", "6"]):
+            with patch.object(orchestrator_multimodal, "ejecutar_tramite", mock_et):
+                orchestrator_multimodal.modo_interactivo()
+        mock_et.assert_any_call("curp", "text")
+
+    def test_multimodal_selecciona_voz(self, orchestrator_multimodal):
+        """Multimodal: opción 2 (voz)."""
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=["1", "2", "6"]):
+            with patch.object(orchestrator_multimodal, "ejecutar_tramite", mock_et):
+                orchestrator_multimodal.modo_interactivo()
+        mock_et.assert_any_call("curp", "voice")
+
+    def test_multimodal_selecciona_imagen(self, orchestrator_multimodal):
+        """Multimodal: opción 3 (imagen)."""
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=["1", "3", "6"]):
+            with patch.object(orchestrator_multimodal, "ejecutar_tramite", mock_et):
+                orchestrator_multimodal.modo_interactivo()
+        mock_et.assert_any_call("curp", "image")

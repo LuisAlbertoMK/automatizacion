@@ -1,5 +1,6 @@
 """Tests para src/api.py — API REST FastAPI con TestClient."""
 
+import os
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -192,3 +193,16 @@ class TestRateLimiting:
 
         assert 200 in statuses
         assert 429 in statuses
+
+
+class TestRateLimit:
+    """Line 58-60: _rate_limit helper."""
+
+    def test_rate_limit_from_env(self):
+        with patch.dict(os.environ, {"RATE_LIMIT_TEST": "10/minute"}):
+            from api import _rate_limit
+            assert _rate_limit("TEST", "5/minute") == "10/minute"
+
+    def test_rate_limit_default(self):
+        from api import _rate_limit
+        assert _rate_limit("NONEXISTENT", "5/minute") == "5/minute"
