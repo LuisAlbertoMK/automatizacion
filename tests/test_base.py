@@ -17,14 +17,20 @@ from modules.base import OUTPUT_DIR, TIMEOUT, BaseModule  # noqa: E402
 @pytest.fixture
 def module():
     """BaseModule sin captcha solver ni OCR."""
-    with patch("utils.ocr.OCRExtractor"):
+    with (
+        patch("utils.ocr.OCRExtractor"),
+        patch("utils.logger.get_logger", return_value=None),
+    ):
         yield BaseModule(captcha_solver=None, use_ocr=False, name="TestModule")
 
 
 @pytest.fixture
 def module_with_ocr():
     """BaseModule con OCR cargado."""
-    with patch("utils.ocr.OCRExtractor") as mock_ocr:
+    with (
+        patch("utils.ocr.OCRExtractor") as mock_ocr,
+        patch("utils.logger.get_logger", return_value=None),
+    ):
         mock_ocr.return_value = MagicMock()
         yield BaseModule(captcha_solver=None, use_ocr=True, name="OcrModule")
 
@@ -80,7 +86,10 @@ class TestInit:
 
     def test_init_with_captcha_solver(self):
         solver = MagicMock()
-        with patch("utils.ocr.OCRExtractor"):
+        with (
+            patch("utils.ocr.OCRExtractor"),
+            patch("utils.logger.get_logger", return_value=None),
+        ):
             m = BaseModule(captcha_solver=solver, use_ocr=False)
         assert m.solver == solver
 

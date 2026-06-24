@@ -20,6 +20,7 @@ import re
 import time
 from pathlib import Path
 
+import requests
 from playwright.async_api import TimeoutError as PwTimeout
 
 from exceptions import NSSError
@@ -232,8 +233,6 @@ class NSSModule(BaseModule):
           3. Fallback a FreeCaptchaSolver
           4. Fallback a CAPTCHA_VALUE (manual)
         """
-        import requests as reqs
-
         captcha_img = await page.query_selector(
             "img[src*='Captcha'], img[src*='captcha'], "
             "img[src*='CaptchaServlet'], img[src*='captchaServlet']"
@@ -254,7 +253,7 @@ class NSSModule(BaseModule):
 
         self.log("CAPTCHA de imagen detectado, descargando...")
         try:
-            resp = reqs.get(src, timeout=15, headers={
+            resp = requests.get(src, timeout=15, headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             })
             resp.raise_for_status()
@@ -266,9 +265,20 @@ class NSSModule(BaseModule):
 
         # ── 1. Pipeline IMSCaptchaSolver ──
         valor = ""
-        from captcha_solver_imss import IMSCaptchaSolver
-        ims_solver = IMSCaptchaSolver(verbose=False)
-        ims_result = ims_solver.solve(img_bytes)
+        if IMSS_SOLVER_AVAILABLE:
+            try:
+                from captcha_solver_imss import IMSCaptchaSolver
+                ims_solver = IMSCaptchaSolver(verbose=False)
+                loop = asyncio.get_running_loop()
+                ims_result = await loop.run_in_executor(
+                    None, ims_solver.solve, img_bytes
+                )
+            except Exception as e:
+                self.warn(f"IMSCaptchaSolver falló: {e}")
+                ims_result = {"success": False, "score": 0}
+        else:
+            self.debug("IMSCaptchaSolver no disponible, saltando...")
+            ims_result = {"success": False, "score": 0}
 
         if ims_result["success"] and ims_result["score"] >= 0.5:
             valor = ims_result["value"]
@@ -330,7 +340,10 @@ class NSSModule(BaseModule):
 
             if auto_mode:
                 self.log("Modo AUTOMÁTICO - Resolviendo CAPTCHA...")
-                token = self.solver.solve_recaptcha_v2(site_key, PORTAL_URL, auto=True)
+                loop = asyncio.get_running_loop()
+                token = await loop.run_in_executor(
+                    None, self.solver.solve_recaptcha_v2, site_key, PORTAL_URL, True
+                )
                 if token and token != "MANUAL":
                     await self.inject_recaptcha_token(page, token)
                 else:

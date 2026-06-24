@@ -211,10 +211,10 @@ class TramitesOrchestrator:
 
         return resultados
 
-    def modo_interactivo(self):
-        """Modo interactivo con menú de opciones."""
+    async def modo_interactivo(self):
+        """Modo interactivo con menú de opciones (async)."""
         print("\n" + "="*60)
-        print("  🤖 SISTEMA DE TRÁMITES GUBERNAMENTALES")
+        print("  SISTEMA DE TRÁMITES GUBERNAMENTALES")
         print("  Entrada Multimodal: Texto, Voz, Imagen")
         print("="*60)
 
@@ -256,15 +256,15 @@ class TramitesOrchestrator:
             # Ejecutar trámite
             try:
                 if opcion == "1":
-                    asyncio.run(self.ejecutar_tramite("curp", modo))
+                    await self.ejecutar_tramite("curp", modo)
                 elif opcion == "2":
-                    asyncio.run(self.ejecutar_tramite("nss", modo))
+                    await self.ejecutar_tramite("nss", modo)
                 elif opcion == "3":
-                    asyncio.run(self.ejecutar_tramite("antecedentes", modo))
+                    await self.ejecutar_tramite("antecedentes", modo)
                 elif opcion == "4":
-                    asyncio.run(self.ejecutar_tramite("tenencia", modo))
+                    await self.ejecutar_tramite("tenencia", modo)
                 elif opcion == "5":
-                    asyncio.run(self.ejecutar_tramite("ambos", modo))
+                    await self.ejecutar_tramite("ambos", modo)
                 else:
                     print("  Opción inválida")
 
@@ -272,3 +272,7 @@ class TramitesOrchestrator:
                 print("\n  Trámite cancelado")
             except Exception as e:
                 print(f"  Error: {e}")
+
+    def modo_interactivo_sync(self):
+        """Wrapper sincrónico para modo_interactivo (usa asyncio.run internamente)."""
+        asyncio.run(self.modo_interactivo())

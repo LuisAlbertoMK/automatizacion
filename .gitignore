@@ -40,3 +40,11 @@ Thumbs.db
 
 # Synthetic dataset
 data/synthetic/
+
+# Runtime output (PDFs, generated files)
+output/
+
+# Coverage artifacts
+.coverage
+coverage_html/
+coverage.xml

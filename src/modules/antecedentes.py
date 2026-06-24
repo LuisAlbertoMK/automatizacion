@@ -115,11 +115,16 @@ class AntecedentesModule(BaseModule):
             name="Constancia"
         )
 
-        return {
+        nueva_password = getattr(self, '_generated_password', None)
+        result = {
             "constancia_path": str(pdf_path) if pdf_path else None,
             "curp": curp,
             "correo": correo,
         }
+        if nueva_password:
+            result["_nueva_password"] = nueva_password
+            print(f"  [ANTECEDENTES] ⚠️ Guardá esta contraseña: {nueva_password}")
+        return result
 
     async def _login(self, page: Page, correo: str, password: str):
         """Login con cuenta existente."""
@@ -149,6 +154,7 @@ class AntecedentesModule(BaseModule):
     async def _registrar_cuenta(self, page: Page, curp: str, correo: str, datos: dict):
         """Registra nueva cuenta."""
         print("  [ANTECEDENTES] Registrando nueva cuenta...")
+        self._generated_password = None
 
         # Buscar bot\u00f3n de registro
         await self.click_first(page, [
@@ -162,7 +168,13 @@ class AntecedentesModule(BaseModule):
             await self.fill_field(page, ["input[name='curp']"], curp)
             await self.fill_field(page, ["input[name='email']", "input[type='email']"], correo)
 
-            password = datos.get("password", f"Auto{curp[:4]}2026!")
+            if "password" in datos:
+                password = datos["password"]
+            else:
+                import secrets
+                suffix = secrets.token_hex(4)  # 8 chars aleatorios
+                password = f"Auto{curp[:4]}{suffix}!"
+            self._generated_password = password
             await self.fill_field(page, ["input[name='password']", "input[type='password']"], password)
 
             self._guardar_credenciales(curp, correo, password)

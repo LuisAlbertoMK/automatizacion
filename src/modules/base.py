@@ -12,6 +12,7 @@ import subprocess
 import time
 from pathlib import Path
 
+import requests
 from playwright.async_api import Page, async_playwright
 from playwright.async_api import TimeoutError as PwTimeout
 
@@ -63,6 +64,12 @@ class BaseModule:
                 self.ocr = OCRExtractor()
             except ImportError:
                 pass
+        # Inicializar logger estructurado
+        try:
+            from utils.logger import get_logger
+            self._logger = get_logger(name)
+        except Exception:
+            self._logger = None
 
     async def launch_browser(self):
         """Lanza browser con configuración anti-detección."""
@@ -97,12 +104,23 @@ class BaseModule:
     async def goto(self, page: Page, url: str, fallback_url: str = None):
         """Navega a URL con fallback y rate limiting."""
         await _rate_limit()
+        last_error = None
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT)
-        except Exception:
+            await asyncio.sleep(2)
+            return
+        except Exception as e:
+            last_error = e
             if fallback_url:
-                await page.goto(fallback_url, wait_until="domcontentloaded", timeout=TIMEOUT)
-        await asyncio.sleep(2)
+                try:
+                    await page.goto(fallback_url, wait_until="domcontentloaded", timeout=TIMEOUT)
+                    await asyncio.sleep(2)
+                    return
+                except Exception as e2:
+                    last_error = e2
+        raise RuntimeError(
+            f"No se pudo navegar a {url} (fallback: {fallback_url}): {last_error}"
+        ) from last_error
 
     async def fill_field(self, page: Page, selectors: list, value: str) -> bool:
         """Llena un campo probando múltiples selectores. Retorna True si encontró alguno."""
@@ -143,8 +161,6 @@ class BaseModule:
     async def resolve_image_captcha(self, page: Page, img_selectors: list, input_selectors: list,
                                      numeric: bool = True, captcha_name: str = "captcha") -> bool:
         """Detecta y resuelve CAPTCHA de imagen. Retorna True si lo resolvió."""
-        import requests as reqs
-
         captcha_img = None
         for sel in img_selectors:
             loc = page.locator(sel)
@@ -169,7 +185,7 @@ class BaseModule:
             src = f"{parsed.scheme}://{parsed.netloc}{src}"
 
         try:
-            resp = reqs.get(src, timeout=15, headers={
+            resp = requests.get(src, timeout=15, headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
             })
             resp.raise_for_status()
@@ -181,7 +197,10 @@ class BaseModule:
         solution = None
         if self.solver:
             try:
-                solution = self.solver.solve_image(img_bytes, numeric=numeric)
+                loop = asyncio.get_running_loop()
+                solution = await loop.run_in_executor(
+                    None, self.solver.solve_image, img_bytes, numeric
+                )
                 self.log(f"CAPTCHA resuelto: {solution}")
             except Exception as e:
                 self.warn(f"Solver falló: {e}")

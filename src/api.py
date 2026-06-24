@@ -34,9 +34,9 @@ load_dotenv(Path(__file__).parent.parent / "config.env")
 
 
 if not FASTAPI_AVAILABLE:
-    import sys as _sys
-    print("FastAPI no está instalado. Instalá con: pip install fastapi uvicorn")
-    _sys.exit(1)
+    raise ImportError(
+        "FastAPI no está instalado. Instalá con: pip install fastapi uvicorn"
+    )
 
 
 from modules.curp import CURPModule  # noqa: E402

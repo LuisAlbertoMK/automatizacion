@@ -10,20 +10,10 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 # ── FastAPI conditional ───────────────────────────────────────────────────────
-try:
-    from fastapi.testclient import TestClient
-    FASTAPI_AVAILABLE = True
-except ImportError:
-    FASTAPI_AVAILABLE = False
-    TestClient = None
+pytest.importorskip("fastapi", reason="pip install -e '.[web]'")
+from fastapi.testclient import TestClient
 
 from api import app  # noqa: E402
-
-pytestmark = pytest.mark.skipif(
-    not FASTAPI_AVAILABLE,
-    reason="fastapi no instalado (pip install -e '.[web]')"
-)
-
 
 # ── Fixture autouse para toda la clase: mockea módulos reales ─────────────────
 

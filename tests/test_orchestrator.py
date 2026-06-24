@@ -307,7 +307,7 @@ class TestModoInteractivo:
     def test_exit_opcion_6(self, orchestrator):
         """Option 6 exits."""
         with patch("builtins.input", return_value="6"):
-            orchestrator.modo_interactivo()
+            orchestrator.modo_interactivo_sync()
         # no exception = exited cleanly via break
 
     def test_curp_opcion_1(self, orchestrator):
@@ -315,7 +315,7 @@ class TestModoInteractivo:
         mock_et = AsyncMock(return_value={"status": "ok"})
         with patch("builtins.input", side_effect=["1", "6"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
-                orchestrator.modo_interactivo()
+                orchestrator.modo_interactivo_sync()
         mock_et.assert_any_call("curp", "text")
 
     def test_nss_opcion_2(self, orchestrator):
@@ -323,7 +323,7 @@ class TestModoInteractivo:
         mock_et = AsyncMock(return_value={"status": "ok"})
         with patch("builtins.input", side_effect=["2", "6"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
-                orchestrator.modo_interactivo()
+                orchestrator.modo_interactivo_sync()
         mock_et.assert_any_call("nss", "text")
 
     def test_antecedentes_opcion_3(self, orchestrator):
@@ -331,7 +331,7 @@ class TestModoInteractivo:
         mock_et = AsyncMock(return_value={"status": "ok"})
         with patch("builtins.input", side_effect=["3", "6"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
-                orchestrator.modo_interactivo()
+                orchestrator.modo_interactivo_sync()
         mock_et.assert_any_call("antecedentes", "text")
 
     def test_tenencia_opcion_4(self, orchestrator):
@@ -339,7 +339,7 @@ class TestModoInteractivo:
         mock_et = AsyncMock(return_value={"status": "ok"})
         with patch("builtins.input", side_effect=["4", "6"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
-                orchestrator.modo_interactivo()
+                orchestrator.modo_interactivo_sync()
         mock_et.assert_any_call("tenencia", "text")
 
     def test_ambos_opcion_5(self, orchestrator):
@@ -347,13 +347,13 @@ class TestModoInteractivo:
         mock_et = AsyncMock(return_value={"status": "ok"})
         with patch("builtins.input", side_effect=["5", "6"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
-                orchestrator.modo_interactivo()
+                orchestrator.modo_interactivo_sync()
         mock_et.assert_any_call("ambos", "text")
 
     def test_opcion_invalida(self, orchestrator):
         """Invalid option prints message and continues."""
         with patch("builtins.input", side_effect=["99", "6"]):
-            orchestrator.modo_interactivo()
+            orchestrator.modo_interactivo_sync()
         # continues to next iteration, no crash
 
     def test_keyboard_interrupt(self, orchestrator):
@@ -361,7 +361,7 @@ class TestModoInteractivo:
         mock_et = AsyncMock(side_effect=KeyboardInterrupt)
         with patch("builtins.input", side_effect=["1", "6"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
-                orchestrator.modo_interactivo()
+                orchestrator.modo_interactivo_sync()
         # KeyboardInterrupt caught, loop continues to option 6
 
     def test_exception_caught(self, orchestrator):
@@ -369,7 +369,7 @@ class TestModoInteractivo:
         mock_et = AsyncMock(side_effect=ValueError("test error"))
         with patch("builtins.input", side_effect=["1", "6"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
-                orchestrator.modo_interactivo()
+                orchestrator.modo_interactivo_sync()
         # Error printed, loop continues to option 6
 
     def test_multimodal_selecciona_texto(self, orchestrator_multimodal):
@@ -377,7 +377,7 @@ class TestModoInteractivo:
         mock_et = AsyncMock(return_value={"status": "ok"})
         with patch("builtins.input", side_effect=["1", "1", "6"]):
             with patch.object(orchestrator_multimodal, "ejecutar_tramite", mock_et):
-                orchestrator_multimodal.modo_interactivo()
+                orchestrator_multimodal.modo_interactivo_sync()
         mock_et.assert_any_call("curp", "text")
 
     def test_multimodal_selecciona_voz(self, orchestrator_multimodal):
@@ -385,7 +385,7 @@ class TestModoInteractivo:
         mock_et = AsyncMock(return_value={"status": "ok"})
         with patch("builtins.input", side_effect=["1", "2", "6"]):
             with patch.object(orchestrator_multimodal, "ejecutar_tramite", mock_et):
-                orchestrator_multimodal.modo_interactivo()
+                orchestrator_multimodal.modo_interactivo_sync()
         mock_et.assert_any_call("curp", "voice")
 
     def test_multimodal_selecciona_imagen(self, orchestrator_multimodal):
@@ -393,5 +393,5 @@ class TestModoInteractivo:
         mock_et = AsyncMock(return_value={"status": "ok"})
         with patch("builtins.input", side_effect=["1", "3", "6"]):
             with patch.object(orchestrator_multimodal, "ejecutar_tramite", mock_et):
-                orchestrator_multimodal.modo_interactivo()
+                orchestrator_multimodal.modo_interactivo_sync()
         mock_et.assert_any_call("curp", "image")
