@@ -61,11 +61,11 @@ class OCRExtractor:
             Texto extra├¡do
         """
         try:
-            img = Image.open(image_path)
-            # Preprocesar imagen para mejor OCR
-            img = self._preprocess_image(img)
-            text = pytesseract.image_to_string(img, lang=lang)
-            return text.strip()
+            with Image.open(image_path) as img:
+                # Preprocesar imagen para mejor OCR
+                img = self._preprocess_image(img)
+                text = pytesseract.image_to_string(img, lang=lang)
+                return text.strip()
         except Exception as e:
             raise OCRError(f"Error extrayendo texto de imagen: {e}")
 
@@ -81,10 +81,10 @@ class OCRExtractor:
             Texto extra├¡do
         """
         try:
-            img = Image.open(io.BytesIO(image_bytes))
-            img = self._preprocess_image(img)
-            text = pytesseract.image_to_string(img, lang=lang)
-            return text.strip()
+            with Image.open(io.BytesIO(image_bytes)) as img:
+                img = self._preprocess_image(img)
+                text = pytesseract.image_to_string(img, lang=lang)
+                return text.strip()
         except Exception as e:
             raise OCRError(f"Error extrayendo texto de bytes: {e}")
 

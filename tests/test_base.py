@@ -348,14 +348,15 @@ class TestResolveImageCaptcha:
 
     @pytest.mark.asyncio
     async def test_solver_fails_env_var_fallback(self, module, mock_page):
-        """Lines 189-192: solver falla, CAPTCHA_VALUE env → fill_field."""
+        """Lines 189-192: solver falla, CAPTCHA_VALUE env (DEBUG mode) → fill_field."""
         mock_page.locator.side_effect = lambda sel: self._make_loc()
         solver = MagicMock()
         solver.solve_image.side_effect = Exception("Solver fail")
         module.solver = solver
         with patch("requests.get") as mock_get:
             mock_get.return_value = MagicMock(content=b"img_data")
-            with patch("modules.base.os.getenv", return_value="ENV_VAL"):
+            with patch("modules.base.os.getenv") as mock_env:
+                mock_env.side_effect = lambda k, d="": {"DEBUG": "true", "CAPTCHA_VALUE": "ENV_VAL"}.get(k, d)
                 with patch.object(module, "fill_field", AsyncMock(return_value=True)) as mock_fill:
                     result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
         assert result is True
@@ -446,26 +447,30 @@ class TestOpenPDF:
     @patch("platform.system", return_value="Windows")
     @patch("os.startfile")
     def test_open_pdf_windows(self, mock_startfile, mock_platform, module):
-        module.open_pdf(Path("test.pdf"))
+        with patch("modules.base.HEADLESS", False):
+            module.open_pdf(Path("test.pdf"))
         mock_startfile.assert_called_once_with("test.pdf")
 
     @patch("platform.system", return_value="Darwin")
     @patch("subprocess.run")
     def test_open_pdf_darwin(self, mock_run, mock_platform, module):
-        module.open_pdf(Path("test.pdf"))
+        with patch("modules.base.HEADLESS", False):
+            module.open_pdf(Path("test.pdf"))
         mock_run.assert_called_once_with(["open", "test.pdf"])
 
     @patch("platform.system", return_value="Linux")
     @patch("subprocess.run")
     def test_open_pdf_linux(self, mock_run, mock_platform, module):
-        module.open_pdf(Path("test.pdf"))
+        with patch("modules.base.HEADLESS", False):
+            module.open_pdf(Path("test.pdf"))
         mock_run.assert_called_once_with(["xdg-open", "test.pdf"])
 
     @patch("platform.system", return_value="Windows")
     @patch("os.startfile")
     def test_open_pdf_failure_does_not_crash(self, mock_startfile, mock_platform, module, capsys):
         mock_startfile.side_effect = Exception("No hay visor PDF")
-        module.open_pdf(Path("test.pdf"))  # no debe crashear
+        with patch("modules.base.HEADLESS", False):
+            module.open_pdf(Path("test.pdf"))  # no debe crashear
         captured = capsys.readouterr()
         assert "No hay visor PDF" in captured.out or "abrir" in captured.out
 

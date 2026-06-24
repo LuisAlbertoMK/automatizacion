@@ -20,6 +20,11 @@ RUN playwright install firefox
 COPY . .
 RUN pip install -e . --no-deps 2>/dev/null || true
 
+# ── Non-root user ──────────────────────────────────────────
+RUN useradd --create-home --uid 1000 appuser && \
+    chown -R appuser:appuser /app
+USER appuser
+
 # ── Health check ───────────────────────────────────────────
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s \
   CMD python health_check.py --quick || exit 1

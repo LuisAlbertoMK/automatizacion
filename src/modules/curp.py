@@ -102,10 +102,11 @@ class CURPModule(BaseModule):
 
         # Tomar screenshot para debug
         try:
-            await page.screenshot(path="debug_portal.png")
-            print("  [DEBUG] Screenshot guardado: debug_portal.png")
-        except Exception:
-            pass
+            debug_path = str(OUTPUT_DIR / "debug_portal.png")
+            await page.screenshot(path=debug_path)
+            print(f"  [DEBUG] Screenshot guardado: {debug_path}")
+        except Exception as e:
+            print(f"  [DEBUG] Error guardando screenshot: {e}")
 
         # ── 2. Elegir modalidad de consulta ───────────────────────
         if curp:

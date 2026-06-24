@@ -55,7 +55,7 @@ class TestTramiteLogger:
         log = TramiteLogger("test_mod")
         with patch.object(log._logger, "error") as mock_err:
             log.error("test msg")
-        mock_err.assert_called_once_with("test msg")
+        mock_err.assert_called_once_with("test msg", exc_info=False)
 
     def test_debug_not_verbose_skips_print(self):
         log = TramiteLogger("test_mod", verbose=False)

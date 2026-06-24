@@ -71,9 +71,9 @@ class TramiteLogger:
         self._print("warning", msg)
         self._logger.warning(msg)
 
-    def error(self, msg: str):
+    def error(self, msg: str, exc_info: bool = False):
         self._print("error", msg)
-        self._logger.error(msg)
+        self._logger.error(msg, exc_info=exc_info)
 
     def debug(self, msg: str):
         if self.verbose:

@@ -30,7 +30,11 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from dotenv import load_dotenv
 
+from utils.logger import get_logger
+
 load_dotenv(Path(__file__).parent.parent / "config.env")
+
+logger = get_logger("API")
 
 
 if not FASTAPI_AVAILABLE:
@@ -162,8 +166,9 @@ async def consultar_curp(request: Request, req: CurpRequest):
     try:
         resultado = await modulo.consultar(curp=req.curp.upper())
         return {"success": True, "data": resultado}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.error("Error en consulta CURP", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
 @tramites_router.post("/nss", summary="Obtener NSS del IMSS")
@@ -177,8 +182,9 @@ async def consultar_nss(request: Request, req: NssRequest):
             curp=req.curp.upper(), correo=req.correo
         )
         return {"success": True, "data": resultado}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        logger.error("Error en consulta NSS", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
 @perfiles_router.get("/perfiles", summary="Listar perfiles guardados")

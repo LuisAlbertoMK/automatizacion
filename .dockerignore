@@ -1,0 +1,39 @@
+# Security — secrets & config
+config.env
+.env
+*.env
+
+# Debug artifacts
+*.png
+*.log
+
+# Data & output
+logs/
+output/
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage_html/
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.githooks/
+
+# IDE
+.idea/
+.vscode/
+
+# Container
+Dockerfile
+docker-compose.yml
+
+# Docs
+*.md

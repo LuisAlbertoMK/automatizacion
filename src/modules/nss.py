@@ -253,9 +253,12 @@ class NSSModule(BaseModule):
 
         self.log("CAPTCHA de imagen detectado, descargando...")
         try:
-            resp = requests.get(src, timeout=15, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            })
+            loop = asyncio.get_running_loop()
+            resp = await loop.run_in_executor(
+                None, lambda: requests.get(src, timeout=15, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                })
+            )
             resp.raise_for_status()
             img_bytes = resp.content
             self.debug(f"Imagen descargada: {len(img_bytes)} bytes")
@@ -299,11 +302,11 @@ class NSSModule(BaseModule):
             except Exception:
                 pass
 
-        # ── 3. Fallback: variable de entorno (manual) ──
-        if not valor:
+        # ── 3. Fallback: variable de entorno (solo DEBUG) ──
+        if not valor and os.getenv("DEBUG", "false").lower() == "true":
             valor = os.getenv("CAPTCHA_VALUE", "").strip()
             if valor:
-                self.debug(f"CAPTCHA desde variable de entorno: '{valor}'")
+                self.debug(f"CAPTCHA desde variable de entorno (DEBUG): '{valor}'")
 
         if not valor:
             self.warn("Sin CAPTCHA, continuando...")

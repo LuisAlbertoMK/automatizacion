@@ -16,6 +16,8 @@ import requests
 from playwright.async_api import Page, async_playwright
 from playwright.async_api import TimeoutError as PwTimeout
 
+from exceptions import ModuleError
+
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "./output"))
 TIMEOUT = int(os.getenv("TIMEOUT", "60")) * 1000
 HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"
@@ -94,12 +96,12 @@ class BaseModule:
         """Cierra browser y playwright."""
         try:
             await browser.close()
-        except Exception:
-            pass
+        except Exception as e:
+            self.debug(f"Error cerrando browser: {e}")
         try:
             await p.__aexit__(None, None, None)
-        except Exception:
-            pass
+        except Exception as e:
+            self.debug(f"Error cerrando playwright: {e}")
 
     async def goto(self, page: Page, url: str, fallback_url: str = None):
         """Navega a URL con fallback y rate limiting."""
@@ -118,7 +120,7 @@ class BaseModule:
                     return
                 except Exception as e2:
                     last_error = e2
-        raise RuntimeError(
+        raise ModuleError(
             f"No se pudo navegar a {url} (fallback: {fallback_url}): {last_error}"
         ) from last_error
 
@@ -132,7 +134,8 @@ class BaseModule:
                     await loc.first.fill(value)
                     await asyncio.sleep(0.3)
                     return True
-            except Exception:
+            except Exception as e:
+                self.debug(f"fill_field: selector {sel} falló: {e}")
                 continue
         return False
 
@@ -154,7 +157,8 @@ class BaseModule:
             except PwTimeout:
                 self.debug(f"Navigation timeout en {sel}, continuando...")
                 return True
-            except Exception:
+            except Exception as e:
+                self.debug(f"click_first: selector {sel} falló: {e}")
                 continue
         return False
 
@@ -185,9 +189,12 @@ class BaseModule:
             src = f"{parsed.scheme}://{parsed.netloc}{src}"
 
         try:
-            resp = requests.get(src, timeout=15, headers={
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-            })
+            loop = asyncio.get_running_loop()
+            resp = await loop.run_in_executor(
+                None, lambda: requests.get(src, timeout=15, headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                })
+            )
             resp.raise_for_status()
             img_bytes = resp.content
         except Exception as e:
@@ -205,10 +212,10 @@ class BaseModule:
             except Exception as e:
                 self.warn(f"Solver falló: {e}")
 
-        if not solution:
+        if not solution and os.getenv("DEBUG", "false").lower() == "true":
             solution = os.getenv("CAPTCHA_VALUE", "").strip()
             if solution:
-                self.log("CAPTCHA desde variable de entorno")
+                self.log("CAPTCHA desde variable de entorno (DEBUG mode)")
 
         if not solution:
             self.warn("Sin solución de CAPTCHA")
@@ -237,8 +244,8 @@ class BaseModule:
                     return True
                 if elapsed % 10 == 0:
                     print(f"  {tag} [..] Esperando... ({elapsed}s/{max_wait}s)")
-            except Exception:
-                pass
+            except Exception as e:
+                self.debug(f"Error checking reCAPTCHA: {e}")
 
         self.warn(f"Timeout: reCAPTCHA no resuelto en {max_wait}s")
         return False
@@ -258,8 +265,8 @@ class BaseModule:
             match = re.search(r"data-sitekey=['\"]([^'\"]+)['\"]", content)
             if match:
                 return match.group(1)
-        except Exception:
-            pass
+        except Exception as e:
+            self.debug(f"Error detectando site key: {e}")
         return None
 
     async def inject_recaptcha_token(self, page: Page, token: str):
@@ -295,9 +302,10 @@ class BaseModule:
                         self.open_pdf(output_path)
                         return output_path
                     except Exception as e:
-                        self.debug(f"Error con selector {sel}: {e}")
+                        self.debug(f"download_pdf: error con selector {sel}: {e}")
                         continue
-            except Exception:
+            except Exception as e:
+                self.debug(f"download_pdf: locator error en {sel}: {e}")
                 continue
 
         # Fallback: buscar cualquier link/botón visible con keywords
@@ -318,7 +326,8 @@ class BaseModule:
                             self.log(f"{name} descargado: {output_path} [OK]")
                             self.open_pdf(output_path)
                             return output_path
-                        except Exception:
+                        except Exception as e:
+                            self.debug(f"download_pdf: fallback click falló: {e}")
                             continue
         except Exception as e:
             self.debug(f"Error en fallback de descarga: {e}")
@@ -327,7 +336,10 @@ class BaseModule:
         return None
 
     def open_pdf(self, pdf_path: Path):
-        """Abre PDF con visor predeterminado."""
+        """Abre PDF con visor predeterminado (solo si no es headless)."""
+        if HEADLESS:
+            self.debug(f"Headless mode — omitiendo open_pdf: {pdf_path}")
+            return
         try:
             sistema = platform.system()
             if sistema == "Windows":
