@@ -12,7 +12,8 @@ from modules.orchestrator import TRAMITES_REGISTRADOS, listar_tramites  # noqa: 
 
 TRAMITES_ESPERADOS = [
     "curp", "nss", "antecedentes", "tenencia",
-    "rfc", "semanas_imss", "pasaporte", "ine", "licencia",
+    "rfc", "acta_nacimiento", "pasaporte", "semanas",
+    "control_confianza", "buro", "circulo", "cita_ine", "cita_sat",
 ]
 
 # ── Mock Module Helper ────────────────────────────────────────────────────────
@@ -44,6 +45,15 @@ def orchestrator():
         patch("modules.orchestrator.NSSModule", return_value=_make_mock_module()),
         patch("modules.orchestrator.AntecedentesModule", return_value=_make_mock_module()),
         patch("modules.orchestrator.TenenciaModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.RFCModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.ActaNacimientoModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.PasaporteModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.SemanasModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.ControlConfianzaModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.BuroModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.CirculoModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.CitaINEModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.CitaSATModule", return_value=_make_mock_module()),
         patch("modules.orchestrator.MULTIMODAL_AVAILABLE", False),
     ):
         from modules.orchestrator import TramitesOrchestrator
@@ -59,6 +69,15 @@ def orchestrator_multimodal(mock_multimodal):
         patch("modules.orchestrator.NSSModule", return_value=_make_mock_module()),
         patch("modules.orchestrator.AntecedentesModule", return_value=_make_mock_module()),
         patch("modules.orchestrator.TenenciaModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.RFCModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.ActaNacimientoModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.PasaporteModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.SemanasModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.ControlConfianzaModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.BuroModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.CirculoModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.CitaINEModule", return_value=_make_mock_module()),
+        patch("modules.orchestrator.CitaSATModule", return_value=_make_mock_module()),
         patch("modules.orchestrator.MULTIMODAL_AVAILABLE", True),
         patch("modules.orchestrator.MultimodalInput", return_value=mock_multimodal),
     ):
@@ -97,9 +116,11 @@ class TestListarTramites:
     def test_nss_estado_produccion(self):
         assert TRAMITES_REGISTRADOS["nss"]["estado"] == "✅ Producción"
 
-    def test_planificados_tienen_modulo_none(self):
-        for nombre in ["rfc", "semanas_imss", "pasaporte", "ine", "licencia"]:
-            assert TRAMITES_REGISTRADOS[nombre]["modulo"] is None
+    def test_migrados_tienen_modulo(self):
+        """Trámites migrados deben tener módulo asignado."""
+        for nombre in ["rfc", "acta_nacimiento", "pasaporte", "semanas",
+                        "control_confianza", "buro", "circulo", "cita_ine", "cita_sat"]:
+            assert TRAMITES_REGISTRADOS[nombre]["modulo"] is not None, f"{nombre} debería tener módulo"
 
 
 class TestTramitesOrchestratorInit:
@@ -110,6 +131,12 @@ class TestTramitesOrchestratorInit:
         assert orchestrator.nss_module is not None
         assert orchestrator.antecedentes_module is not None
         assert orchestrator.tenencia_module is not None
+        assert orchestrator.rfc_module is not None
+        assert orchestrator.acta_nacimiento_module is not None
+        assert orchestrator.pasaporte_module is not None
+        assert orchestrator.semanas_module is not None
+        assert orchestrator.buro_module is not None
+        assert orchestrator.circulo_module is not None
 
     def test_init_multimodal_not_available(self, orchestrator):
         assert orchestrator.multimodal is None
@@ -304,16 +331,16 @@ class TestEjecutarTenencia:
 class TestModoInteractivo:
     """Lines 216-274: menú interactivo."""
 
-    def test_exit_opcion_6(self, orchestrator):
-        """Option 6 exits."""
-        with patch("builtins.input", return_value="6"):
+    def test_exit_opcion_0(self, orchestrator):
+        """Option 0 exits."""
+        with patch("builtins.input", return_value="0"):
             orchestrator.modo_interactivo_sync()
         # no exception = exited cleanly via break
 
     def test_curp_opcion_1(self, orchestrator):
         """Option 1 calls ejecutar_tramite('curp')."""
         mock_et = AsyncMock(return_value={"status": "ok"})
-        with patch("builtins.input", side_effect=["1", "6"]):
+        with patch("builtins.input", side_effect=["1", "0"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
                 orchestrator.modo_interactivo_sync()
         mock_et.assert_any_call("curp", "text")
@@ -321,7 +348,7 @@ class TestModoInteractivo:
     def test_nss_opcion_2(self, orchestrator):
         """Option 2 calls ejecutar_tramite('nss')."""
         mock_et = AsyncMock(return_value={"status": "ok"})
-        with patch("builtins.input", side_effect=["2", "6"]):
+        with patch("builtins.input", side_effect=["2", "0"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
                 orchestrator.modo_interactivo_sync()
         mock_et.assert_any_call("nss", "text")
@@ -329,7 +356,7 @@ class TestModoInteractivo:
     def test_antecedentes_opcion_3(self, orchestrator):
         """Option 3 calls ejecutar_tramite('antecedentes')."""
         mock_et = AsyncMock(return_value={"status": "ok"})
-        with patch("builtins.input", side_effect=["3", "6"]):
+        with patch("builtins.input", side_effect=["3", "0"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
                 orchestrator.modo_interactivo_sync()
         mock_et.assert_any_call("antecedentes", "text")
@@ -337,7 +364,7 @@ class TestModoInteractivo:
     def test_tenencia_opcion_4(self, orchestrator):
         """Option 4 calls ejecutar_tramite('tenencia')."""
         mock_et = AsyncMock(return_value={"status": "ok"})
-        with patch("builtins.input", side_effect=["4", "6"]):
+        with patch("builtins.input", side_effect=["4", "0"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
                 orchestrator.modo_interactivo_sync()
         mock_et.assert_any_call("tenencia", "text")
@@ -345,37 +372,37 @@ class TestModoInteractivo:
     def test_ambos_opcion_5(self, orchestrator):
         """Option 5 calls ejecutar_tramite('ambos')."""
         mock_et = AsyncMock(return_value={"status": "ok"})
-        with patch("builtins.input", side_effect=["5", "6"]):
+        with patch("builtins.input", side_effect=["5", "0"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
                 orchestrator.modo_interactivo_sync()
         mock_et.assert_any_call("ambos", "text")
 
     def test_opcion_invalida(self, orchestrator):
         """Invalid option prints message and continues."""
-        with patch("builtins.input", side_effect=["99", "6"]):
+        with patch("builtins.input", side_effect=["99", "0"]):
             orchestrator.modo_interactivo_sync()
         # continues to next iteration, no crash
 
     def test_keyboard_interrupt(self, orchestrator):
         """KeyboardInterrupt caught during tramite."""
         mock_et = AsyncMock(side_effect=KeyboardInterrupt)
-        with patch("builtins.input", side_effect=["1", "6"]):
+        with patch("builtins.input", side_effect=["1", "0"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
                 orchestrator.modo_interactivo_sync()
-        # KeyboardInterrupt caught, loop continues to option 6
+        # KeyboardInterrupt caught, loop continues to option 0
 
     def test_exception_caught(self, orchestrator):
         """Generic exception during tramite shows message."""
         mock_et = AsyncMock(side_effect=ValueError("test error"))
-        with patch("builtins.input", side_effect=["1", "6"]):
+        with patch("builtins.input", side_effect=["1", "0"]):
             with patch.object(orchestrator, "ejecutar_tramite", mock_et):
                 orchestrator.modo_interactivo_sync()
-        # Error printed, loop continues to option 6
+        # Error printed, loop continues to option 0
 
     def test_multimodal_selecciona_texto(self, orchestrator_multimodal):
         """Multimodal: opción 1 (texto) por defecto."""
         mock_et = AsyncMock(return_value={"status": "ok"})
-        with patch("builtins.input", side_effect=["1", "1", "6"]):
+        with patch("builtins.input", side_effect=["1", "1", "0"]):
             with patch.object(orchestrator_multimodal, "ejecutar_tramite", mock_et):
                 orchestrator_multimodal.modo_interactivo_sync()
         mock_et.assert_any_call("curp", "text")
@@ -383,7 +410,7 @@ class TestModoInteractivo:
     def test_multimodal_selecciona_voz(self, orchestrator_multimodal):
         """Multimodal: opción 2 (voz)."""
         mock_et = AsyncMock(return_value={"status": "ok"})
-        with patch("builtins.input", side_effect=["1", "2", "6"]):
+        with patch("builtins.input", side_effect=["1", "2", "0"]):
             with patch.object(orchestrator_multimodal, "ejecutar_tramite", mock_et):
                 orchestrator_multimodal.modo_interactivo_sync()
         mock_et.assert_any_call("curp", "voice")
@@ -391,7 +418,7 @@ class TestModoInteractivo:
     def test_multimodal_selecciona_imagen(self, orchestrator_multimodal):
         """Multimodal: opción 3 (imagen)."""
         mock_et = AsyncMock(return_value={"status": "ok"})
-        with patch("builtins.input", side_effect=["1", "3", "6"]):
+        with patch("builtins.input", side_effect=["1", "3", "0"]):
             with patch.object(orchestrator_multimodal, "ejecutar_tramite", mock_et):
                 orchestrator_multimodal.modo_interactivo_sync()
         mock_et.assert_any_call("curp", "image")

@@ -9,8 +9,17 @@ Todo corre local en tu PC. Sin modelos de pago externos (aunque 2captcha es opci
 |---|---|---|---|
 | **CURP** (consulta + PDF) | RENAPO | ~16s | ✅ Producción |
 | **NSS IMSS** | Portal IMSS | ~30-60s | ✅ Producción |
+| **RFC SAT** | SAT | ~30s | ⚙️ Migrado |
+| **Acta de Nacimiento** | RENAPO | ~30-60s | ⚙️ Migrado |
+| **Cita Pasaporte SRE** | SRE | ~2-5min | ⚙️ Migrado |
+| **Semanas Cotizadas IMSS** | IMSS | ~30s | ⚙️ Migrado |
 | Antecedentes No Penales | — | ~45-90s | 🔶 Escrito |
 | Tenencia Vehicular | — | ~20-40s | 🔶 Escrito |
+| Control de Confianza | SESNSP | ~10-30min | ⚙️ Migrado |
+| Buró de Crédito | burondecredito.com.mx | ~5-10min | ⚙️ Migrado |
+| Círculo de Crédito | circulondecredito.com.mx | ~5-10min | ⚙️ Migrado |
+| Cita INE | INE | ~5min | ⚙️ Migrado |
+| Cita SAT | SAT | ~5min | ⚙️ Migrado |
 
 ---
 
@@ -76,6 +85,15 @@ src/
 │   ├── nss.py            # Módulo NSS IMSS
 │   ├── antecedentes.py   # Antecedentes No Penales
 │   ├── tenencia.py       # Tenencia Vehicular
+│   ├── rfc.py            # RFC SAT ⚙️ Migrado
+│   ├── acta_nacimiento.py # Acta de Nacimiento RENAPO ⚙️ Migrado
+│   ├── pasaporte.py      # Cita Pasaporte SRE ⚙️ Migrado
+│   ├── semanas.py        # Semanas Cotizadas IMSS ⚙️ Migrado
+│   ├── control_confianza.py # Control de Confianza SESNSP ⚙️ Migrado
+│   ├── buro.py           # Buró de Crédito ⚙️ Migrado
+│   ├── circulo.py        # Círculo de Crédito ⚙️ Migrado
+│   ├── cita_ine.py       # Cita INE ⚙️ Migrado
+│   ├── cita_sat.py       # Cita SAT ⚙️ Migrado
 │   ├── orchestrator.py   # Orquestador multimodal
 │   └── template.py       # Template para nuevos trámites
 └── utils/

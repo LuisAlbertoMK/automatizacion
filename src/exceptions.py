@@ -71,6 +71,51 @@ class AntecedentesError(ModuleError):
     pass
 
 
+class RFCError(ModuleError):
+    """Error en módulo RFC SAT."""
+    pass
+
+
+class ActaNacimientoError(ModuleError):
+    """Error en módulo Acta de Nacimiento."""
+    pass
+
+
+class PasaporteError(ModuleError):
+    """Error en módulo Cita Pasaporte SRE."""
+    pass
+
+
+class SemanasError(ModuleError):
+    """Error en módulo Semanas Cotizadas IMSS."""
+    pass
+
+
+class ControlConfianzaError(ModuleError):
+    """Error en módulo Control de Confianza."""
+    pass
+
+
+class BuroError(ModuleError):
+    """Error en módulo Buró de Crédito."""
+    pass
+
+
+class CirculoError(ModuleError):
+    """Error en módulo Círculo de Crédito."""
+    pass
+
+
+class CitaINEerror(ModuleError):
+    """Error en módulo Cita INE."""
+    pass
+
+
+class CitaSATError(ModuleError):
+    """Error en módulo Cita SAT."""
+    pass
+
+
 # ── Almacenamiento ─────────────────────────────────────────────────────────
 
 class StorageError(TramiteError):

@@ -55,8 +55,17 @@ def _listar_tramites():
 
 
 # ── Importar módulos del agente ───────────────────────────────────────────────
+from modules.acta_nacimiento import ActaNacimientoModule  # noqa: E402
+from modules.buro import BuroModule  # noqa: E402
+from modules.circulo import CirculoModule  # noqa: E402
+from modules.cita_ine import CitaINEModule  # noqa: E402
+from modules.cita_sat import CitaSATModule  # noqa: E402
+from modules.control_confianza import ControlConfianzaModule  # noqa: E402
 from modules.curp import CURPModule  # noqa: E402
 from modules.nss import NSSModule  # noqa: E402
+from modules.pasaporte import PasaporteModule  # noqa: E402
+from modules.rfc import RFCModule  # noqa: E402
+from modules.semanas import SemanasModule  # noqa: E402
 from utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
 from utils.storage import list_profiles, load_profile, save_profile  # noqa: E402
 
@@ -75,20 +84,31 @@ except ImportError:
 
 # ─────────────────────────────────────────────────────────────────────────────
 BANNER = f"""
-{Fore.CYAN}╔══════════════════════════════════════════════════════╗
-║  🤖  Agente de Trámites GOB.MX  — v1.0  (mar 2026)  ║
-║  Módulos activos: CURP · NSS IMSS                    ║
-╚══════════════════════════════════════════════════════╝{Style.RESET_ALL}
+{Fore.CYAN}╔════════════════════════════════════════════════════════════════╗
+║  🤖  Agente de Trámites GOB.MX  — v2.0  (jun 2026)          ║
+║  Módulos: CURP · NSS · RFC · Acta · Pasaporte · Semanas      ║
+║           Antecedentes · Tenencia · ControlConf · Buró        ║
+║           Círculo · CitaINE · CitaSAT                         ║
+╚════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}
 """
 
 AYUDA = f"""
 {Fore.YELLOW}Comandos disponibles:{Style.RESET_ALL}
-  curp        -> Consultar y descargar CURP
-  nss         -> Obtener NSS del IMSS
-  ambos       -> CURP + NSS en una sola operación
-  perfil      -> Ver, guardar o cargar un perfil
-  ayuda       -> Mostrar esta pantalla
-  salir       -> Salir del programa
+  curp             -> Consultar y descargar CURP
+  nss              -> Obtener NSS del IMSS
+  rfc              -> Consultar RFC SAT
+  acta             -> Descargar Acta de Nacimiento
+  pasaporte        -> Cita de Pasaporte SRE
+  semanas          -> Semanas Cotizadas IMSS
+  control_confianza -> Control de Confianza SESNSP
+  buro             -> Buró de Crédito
+  circulo          -> Círculo de Crédito
+  cita_ine         -> Cita INE
+  cita_sat         -> Cita SAT
+  ambos            -> CURP + NSS en una sola operación
+  perfil           -> Ver, guardar o cargar un perfil
+  ayuda            -> Mostrar esta pantalla
+  salir            -> Salir del programa
 """
 
 
@@ -236,6 +256,109 @@ class Agente:
 
         return resultados
 
+    # ── RFC ───────────────────────────────────────────────────────────────────
+    async def tramite_rfc(self, perfil: dict = None) -> dict:
+        """Ejecuta consulta de RFC."""
+        print(f"\n{Fore.CYAN}━━━ TRÁMITE: RFC SAT ━━━{Style.RESET_ALL}")
+        curp = perfil.get("curp") if perfil else None
+        if not curp:
+            curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
+        nombre = input("  Nombre (opcional): ").strip() or (perfil or {}).get("nombre", "")
+        modulo = RFCModule(captcha_solver=self.solver)
+        resultado = await modulo.consultar(curp=curp, nombre=nombre)
+        self._mostrar_resultado("RFC", resultado)
+        return resultado
+
+    # ── ACTA ─────────────────────────────────────────────────────────────────
+    async def tramite_acta(self, perfil: dict = None) -> dict:
+        """Ejecuta descarga de Acta de Nacimiento."""
+        print(f"\n{Fore.CYAN}━━━ TRÁMITE: Acta de Nacimiento ━━━{Style.RESET_ALL}")
+        curp = perfil.get("curp") if perfil else None
+        if not curp:
+            curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
+        modulo = ActaNacimientoModule(captcha_solver=self.solver)
+        resultado = await modulo.consultar(curp=curp)
+        self._mostrar_resultado("Acta", resultado)
+        return resultado
+
+    # ── PASAPORTE ─────────────────────────────────────────────────────────────
+    async def tramite_pasaporte(self, perfil: dict = None) -> dict:
+        """Ejecuta cita de pasaporte."""
+        print(f"\n{Fore.CYAN}━━━ TRÁMITE: Cita Pasaporte SRE ━━━{Style.RESET_ALL}")
+        curp = perfil.get("curp") if perfil else None
+        if not curp:
+            curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
+        modulo = PasaporteModule(captcha_solver=self.solver)
+        resultado = await modulo.consultar(curp=curp, nombre=(perfil or {}).get("nombre", ""))
+        self._mostrar_resultado("Pasaporte", resultado)
+        return resultado
+
+    # ── SEMANAS ───────────────────────────────────────────────────────────────
+    async def tramite_semanas(self, perfil: dict = None) -> dict:
+        """Ejecuta consulta de semanas cotizadas."""
+        print(f"\n{Fore.CYAN}━━━ TRÁMITE: Semanas Cotizadas IMSS ━━━{Style.RESET_ALL}")
+        curp = perfil.get("curp") if perfil else None
+        if not curp:
+            curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
+        modulo = SemanasModule(captcha_solver=self.solver)
+        resultado = await modulo.consultar(curp=curp)
+        self._mostrar_resultado("Semanas", resultado)
+        return resultado
+
+    # ── CONTROL DE CONFIANZA ──────────────────────────────────────────────────
+    async def tramite_control_confianza(self, perfil: dict = None) -> dict:
+        """Ejecuta Control de Confianza."""
+        print(f"{Fore.YELLOW}⚠ Este trámite requiere intervención manual significativa{Style.RESET_ALL}")
+        print(f"\n{Fore.CYAN}━━━ TRÁMITE: Control de Confianza SESNSP ━━━{Style.RESET_ALL}")
+        curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
+        modulo = ControlConfianzaModule(captcha_solver=self.solver)
+        resultado = await modulo.consultar(curp=curp)
+        self._mostrar_resultado("Control de Confianza", resultado)
+        return resultado
+
+    # ── BURÓ ───────────────────────────────────────────────────────────────────
+    async def tramite_buro(self, perfil: dict = None) -> dict:
+        """Ejecuta consulta de Buró de Crédito."""
+        print(f"\n{Fore.CYAN}━━━ TRÁMITE: Buró de Crédito ━━━{Style.RESET_ALL}")
+        rfc = input("  RFC: ").strip().upper()
+        curp = input("  CURP: ").strip().upper()
+        modulo = BuroModule(captcha_solver=self.solver)
+        resultado = await modulo.consultar(rfc=rfc, curp=curp)
+        self._mostrar_resultado("Buró", resultado)
+        return resultado
+
+    # ── CÍRCULO ────────────────────────────────────────────────────────────────
+    async def tramite_circulo(self, perfil: dict = None) -> dict:
+        """Ejecuta consulta de Círculo de Crédito."""
+        print(f"\n{Fore.CYAN}━━━ TRÁMITE: Círculo de Crédito ━━━{Style.RESET_ALL}")
+        rfc = input("  RFC: ").strip().upper()
+        curp = input("  CURP: ").strip().upper()
+        modulo = CirculoModule(captcha_solver=self.solver)
+        resultado = await modulo.consultar(rfc=rfc, curp=curp)
+        self._mostrar_resultado("Círculo", resultado)
+        return resultado
+
+    # ── CITA INE ──────────────────────────────────────────────────────────────
+    async def tramite_cita_ine(self, perfil: dict = None) -> dict:
+        """Ejecuta cita INE."""
+        print(f"\n{Fore.CYAN}━━━ TRÁMITE: Cita INE ━━━{Style.RESET_ALL}")
+        curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
+        modulo = CitaINEModule(captcha_solver=self.solver)
+        resultado = await modulo.consultar(curp=curp)
+        self._mostrar_resultado("Cita INE", resultado)
+        return resultado
+
+    # ── CITA SAT ──────────────────────────────────────────────────────────────
+    async def tramite_cita_sat(self, perfil: dict = None) -> dict:
+        """Ejecuta cita SAT."""
+        print(f"\n{Fore.CYAN}━━━ TRÁMITE: Cita SAT ━━━{Style.RESET_ALL}")
+        rfc = input("  RFC: ").strip().upper()
+        curp = input("  CURP (opcional): ").strip().upper() or ""
+        modulo = CitaSATModule(captcha_solver=self.solver)
+        resultado = await modulo.consultar(rfc=rfc, curp=curp)
+        self._mostrar_resultado("Cita SAT", resultado)
+        return resultado
+
     # ── PERFILES ──────────────────────────────────────────────────────────────
     def gestionar_perfil(self):
         """Menú de gestión de perfiles."""
@@ -339,6 +462,24 @@ async def modo_interactivo():
                 await agente.tramite_curp(perfil=perfil_activo)
             elif cmd == "nss":
                 await agente.tramite_nss(perfil=perfil_activo)
+            elif cmd == "rfc":
+                await agente.tramite_rfc(perfil=perfil_activo)
+            elif cmd == "acta":
+                await agente.tramite_acta(perfil=perfil_activo)
+            elif cmd == "pasaporte":
+                await agente.tramite_pasaporte(perfil=perfil_activo)
+            elif cmd == "semanas":
+                await agente.tramite_semanas(perfil=perfil_activo)
+            elif cmd in ("control_confianza", "control", "confianza"):
+                await agente.tramite_control_confianza(perfil=perfil_activo)
+            elif cmd in ("buro", "buro_credito"):
+                await agente.tramite_buro(perfil=perfil_activo)
+            elif cmd in ("circulo", "circulo_credito"):
+                await agente.tramite_circulo(perfil=perfil_activo)
+            elif cmd in ("cita_ine", "ine"):
+                await agente.tramite_cita_ine(perfil=perfil_activo)
+            elif cmd in ("cita_sat", "sat"):
+                await agente.tramite_cita_sat(perfil=perfil_activo)
             elif cmd in ("ambos", "todo", "nss+curp", "curp+nss"):
                 await agente.tramite_ambos(perfil=perfil_activo)
             elif cmd == "perfil":
@@ -392,6 +533,63 @@ async def modo_directo(args):
             curp=curp, correo=correo
         )
 
+    elif args.tramite == "rfc":
+        curp = args.curp or (perfil and perfil.get("curp"))
+        if not curp:
+            print("Error: se requiere --curp")
+            sys.exit(1)
+        await RFCModule(captcha_solver=agente.solver).consultar(curp=curp)
+
+    elif args.tramite == "acta_nacimiento":
+        curp = args.curp or (perfil and perfil.get("curp"))
+        if not curp:
+            print("Error: se requiere --curp")
+            sys.exit(1)
+        await ActaNacimientoModule(captcha_solver=agente.solver).consultar(curp=curp)
+
+    elif args.tramite == "pasaporte":
+        curp = args.curp or (perfil and perfil.get("curp"))
+        if not curp:
+            print("Error: se requiere --curp")
+            sys.exit(1)
+        await PasaporteModule(captcha_solver=agente.solver).consultar(curp=curp)
+
+    elif args.tramite == "semanas":
+        curp = args.curp or (perfil and perfil.get("curp"))
+        if not curp:
+            print("Error: se requiere --curp")
+            sys.exit(1)
+        await SemanasModule(captcha_solver=agente.solver).consultar(curp=curp)
+
+    elif args.tramite == "control_confianza":
+        curp = args.curp or (perfil and perfil.get("curp"))
+        if not curp:
+            print("Error: se requiere --curp")
+            sys.exit(1)
+        await ControlConfianzaModule(captcha_solver=agente.solver).consultar(curp=curp)
+
+    elif args.tramite == "buro":
+        rfc = args.rfc or input("RFC: ").strip().upper()
+        curp = args.curp or input("CURP: ").strip().upper()
+        await BuroModule(captcha_solver=agente.solver).consultar(rfc=rfc, curp=curp)
+
+    elif args.tramite == "circulo":
+        rfc = args.rfc or input("RFC: ").strip().upper()
+        curp = args.curp or input("CURP: ").strip().upper()
+        await CirculoModule(captcha_solver=agente.solver).consultar(rfc=rfc, curp=curp)
+
+    elif args.tramite == "cita_ine":
+        curp = args.curp or (perfil and perfil.get("curp"))
+        if not curp:
+            print("Error: se requiere --curp")
+            sys.exit(1)
+        await CitaINEModule(captcha_solver=agente.solver).consultar(curp=curp)
+
+    elif args.tramite == "cita_sat":
+        rfc = args.rfc or input("RFC: ").strip().upper()
+        curp = args.curp or ""
+        await CitaSATModule(captcha_solver=agente.solver).consultar(rfc=rfc, curp=curp)
+
 
 def _handle_shutdown(signum, frame):
     """Graceful shutdown — cierra tareas asíncronas sin corrupción.
@@ -407,8 +605,13 @@ def main():
     signal.signal(signal.SIGINT, _handle_shutdown)
 
     parser = argparse.ArgumentParser(description="Agente de Trámites GOB.MX")
-    parser.add_argument("--tramite", choices=["curp", "nss", "ambos"], help="Trámite a realizar")
+    parser.add_argument("--tramite", choices=[
+        "curp", "nss", "ambos", "rfc", "acta_nacimiento",
+        "pasaporte", "semanas", "control_confianza",
+        "buro", "circulo", "cita_ine", "cita_sat",
+    ], help="Trámite a realizar")
     parser.add_argument("--curp",    help="CURP de 18 caracteres")
+    parser.add_argument("--rfc",     help="RFC para trámites que lo requieran")
     parser.add_argument("--correo",  help="Correo electrónico")
     parser.add_argument("--perfil",  help="Alias de perfil guardado")
     parser.add_argument("--list-tramites", action="store_true", help="Listar todos los trámites disponibles")

@@ -11,9 +11,18 @@ Funcionalidades:
 import asyncio
 from typing import Literal
 
+from modules.acta_nacimiento import ActaNacimientoModule
 from modules.antecedentes import AntecedentesModule
+from modules.buro import BuroModule
+from modules.circulo import CirculoModule
+from modules.cita_ine import CitaINEModule
+from modules.cita_sat import CitaSATModule
+from modules.control_confianza import ControlConfianzaModule
 from modules.curp import CURPModule
 from modules.nss import NSSModule
+from modules.pasaporte import PasaporteModule
+from modules.rfc import RFCModule
+from modules.semanas import SemanasModule
 from modules.tenencia import TenenciaModule
 
 try:
@@ -23,21 +32,29 @@ except ImportError:
     MULTIMODAL_AVAILABLE = False
 
 
-TramiteType = Literal["curp", "nss", "antecedentes", "tenencia", "ambos"]
+TramiteType = Literal[
+    "curp", "nss", "antecedentes", "tenencia", "ambos",
+    "rfc", "acta_nacimiento", "pasaporte", "semanas",
+    "control_confianza", "buro", "circulo", "cita_ine", "cita_sat",
+]
 InputMode = Literal["text", "voice", "image", "auto"]
 
 
 TRAMITES_REGISTRADOS = {
-    "curp":          {"modulo": "CURPModule",       "estado": "✅ Producción", "tiempo": "~16s"},
-    "nss":           {"modulo": "NSSModule",        "estado": "✅ Producción", "tiempo": "~30-60s"},
-    "antecedentes":  {"modulo": "AntecedentesModule", "estado": "🔶 Escrito", "tiempo": "~45-90s"},
-    "tenencia":      {"modulo": "TenenciaModule",   "estado": "🔶 Escrito",   "tiempo": "~20-40s"},
-    # ── Próximos ──
-    "rfc":           {"modulo": None, "estado": "📋 Planificado", "tiempo": "—"},
-    "semanas_imss":  {"modulo": None, "estado": "📋 Planificado", "tiempo": "—"},
-    "pasaporte":     {"modulo": None, "estado": "📋 Planificado", "tiempo": "—"},
-    "ine":           {"modulo": None, "estado": "📋 Planificado", "tiempo": "—"},
-    "licencia":      {"modulo": None, "estado": "📋 Planificado", "tiempo": "—"},
+    "curp":              {"modulo": "CURPModule",             "estado": "✅ Producción",     "tiempo": "~16s"},
+    "nss":               {"modulo": "NSSModule",              "estado": "✅ Producción",     "tiempo": "~30-60s"},
+    "antecedentes":      {"modulo": "AntecedentesModule",     "estado": "🔶 Escrito",        "tiempo": "~45-90s"},
+    "tenencia":          {"modulo": "TenenciaModule",         "estado": "🔶 Escrito",        "tiempo": "~20-40s"},
+    # ── Migrados de tramites-auto (2026-06-25) ──
+    "rfc":               {"modulo": "RFCModule",              "estado": "⚙️ Migrado",       "tiempo": "~30s"},
+    "acta_nacimiento":   {"modulo": "ActaNacimientoModule",   "estado": "⚙️ Migrado",       "tiempo": "~30-60s"},
+    "pasaporte":         {"modulo": "PasaporteModule",        "estado": "⚙️ Migrado",       "tiempo": "~2-5min"},
+    "semanas":           {"modulo": "SemanasModule",          "estado": "⚙️ Migrado",       "tiempo": "~30s"},
+    "control_confianza": {"modulo": "ControlConfianzaModule", "estado": "⚙️ Migrado",       "tiempo": "~10-30min"},
+    "buro":              {"modulo": "BuroModule",             "estado": "⚙️ Migrado",       "tiempo": "~5-10min"},
+    "circulo":           {"modulo": "CirculoModule",          "estado": "⚙️ Migrado",       "tiempo": "~5-10min"},
+    "cita_ine":          {"modulo": "CitaINEModule",          "estado": "⚙️ Migrado",       "tiempo": "~5min"},
+    "cita_sat":          {"modulo": "CitaSATModule",          "estado": "⚙️ Migrado",       "tiempo": "~5min"},
 }
 
 
@@ -73,6 +90,17 @@ class TramitesOrchestrator:
             captcha_solver=captcha_solver,
             use_ocr=True
         )
+
+        # ── Módulos migrados de tramites-auto ──
+        self.rfc_module = RFCModule(captcha_solver=captcha_solver, use_ocr=True)
+        self.acta_nacimiento_module = ActaNacimientoModule(captcha_solver=captcha_solver, use_ocr=True)
+        self.pasaporte_module = PasaporteModule(captcha_solver=captcha_solver, use_ocr=True)
+        self.semanas_module = SemanasModule(captcha_solver=captcha_solver, use_ocr=True)
+        self.control_confianza_module = ControlConfianzaModule(captcha_solver=captcha_solver, use_ocr=True)
+        self.buro_module = BuroModule(captcha_solver=captcha_solver, use_ocr=True)
+        self.circulo_module = CirculoModule(captcha_solver=captcha_solver, use_ocr=True)
+        self.cita_ine_module = CitaINEModule(captcha_solver=captcha_solver, use_ocr=True)
+        self.cita_sat_module = CitaSATModule(captcha_solver=captcha_solver, use_ocr=True)
 
         # Entrada multimodal
         if MULTIMODAL_AVAILABLE:
@@ -111,6 +139,25 @@ class TramitesOrchestrator:
 
         elif tipo == "ambos":
             return await self._ejecutar_ambos(modo_entrada)
+
+        elif tipo == "rfc":
+            return await self._ejecutar_rfc(modo_entrada)
+        elif tipo == "acta_nacimiento":
+            return await self._ejecutar_acta(modo_entrada)
+        elif tipo == "pasaporte":
+            return await self._ejecutar_pasaporte(modo_entrada)
+        elif tipo == "semanas":
+            return await self._ejecutar_semanas(modo_entrada)
+        elif tipo == "control_confianza":
+            return await self._ejecutar_control_confianza(modo_entrada)
+        elif tipo == "buro":
+            return await self._ejecutar_buro(modo_entrada)
+        elif tipo == "circulo":
+            return await self._ejecutar_circulo(modo_entrada)
+        elif tipo == "cita_ine":
+            return await self._ejecutar_cita_ine(modo_entrada)
+        elif tipo == "cita_sat":
+            return await self._ejecutar_cita_sat(modo_entrada)
 
         else:
             raise ValueError(f"Tipo de trámite no soportado: {tipo}")
@@ -211,6 +258,109 @@ class TramitesOrchestrator:
 
         return resultados
 
+    async def _ejecutar_rfc(self, modo: InputMode) -> dict:
+        """Ejecuta consulta de RFC."""
+        if self.multimodal:
+            curp = self.multimodal.get_curp(mode=modo)
+        else:
+            curp = input("  CURP (18 caracteres): ").strip().upper()
+        nombre = input("  Nombre (opcional): ").strip() or ""
+        ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
+        ap_mat = input("  Apellido materno (opcional): ").strip() or ""
+        return await self.rfc_module.consultar(
+            curp=curp, nombre=nombre, apellido_paterno=ap_pat, apellido_materno=ap_mat
+        )
+
+    async def _ejecutar_acta(self, modo: InputMode) -> dict:
+        """Ejecuta descarga de Acta de Nacimiento."""
+        if self.multimodal:
+            curp = self.multimodal.get_curp(mode=modo)
+        else:
+            curp = input("  CURP (18 caracteres): ").strip().upper()
+        return await self.acta_nacimiento_module.consultar(curp=curp)
+
+    async def _ejecutar_pasaporte(self, modo: InputMode) -> dict:
+        """Ejecuta cita de pasaporte."""
+        if self.multimodal:
+            curp = self.multimodal.get_curp(mode=modo)
+        else:
+            curp = input("  CURP (18 caracteres): ").strip().upper()
+        nombre = input("  Nombre (opcional): ").strip() or ""
+        ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
+        ap_mat = input("  Apellido materno (opcional): ").strip() or ""
+        estado = input("  Estado/delegación (default MEX): ").strip() or "MEX"
+        tel = input("  Teléfono (opcional): ").strip() or ""
+        email = input("  Email (opcional): ").strip() or ""
+        return await self.pasaporte_module.consultar(
+            curp=curp, nombre=nombre, apellido_paterno=ap_pat,
+            apellido_materno=ap_mat, estado=estado, telefono=tel, email=email
+        )
+
+    async def _ejecutar_semanas(self, modo: InputMode) -> dict:
+        """Ejecuta consulta de semanas cotizadas."""
+        if self.multimodal:
+            curp = self.multimodal.get_curp(mode=modo)
+        else:
+            curp = input("  CURP (18 caracteres): ").strip().upper()
+        nss = input("  NSS (si lo tenés, opcional): ").strip() or ""
+        return await self.semanas_module.consultar(curp=curp, nss=nss)
+
+    async def _ejecutar_control_confianza(self, modo: InputMode) -> dict:
+        """Ejecuta Control de Confianza."""
+        curp = input("  CURP (18 caracteres): ").strip().upper()
+        rfc = input("  RFC (opcional): ").strip() or ""
+        nombre = input("  Nombre completo: ").strip() or ""
+        fecha_nac = input("  Fecha de nacimiento (DD/MM/YYYY): ").strip() or ""
+        edo_nac = input("  Estado de nacimiento: ").strip() or ""
+        return await self.control_confianza_module.consultar(
+            curp=curp, rfc=rfc, nombre=nombre,
+            fecha_nacimiento=fecha_nac, estado_nacimiento=edo_nac
+        )
+
+    async def _ejecutar_buro(self, modo: InputMode) -> dict:
+        """Ejecuta consulta de Buró de Crédito."""
+        rfc = input("  RFC: ").strip().upper()
+        curp = input("  CURP: ").strip().upper()
+        nombre = input("  Nombre (opcional): ").strip() or ""
+        ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
+        ap_mat = input("  Apellido materno (opcional): ").strip() or ""
+        fecha = input("  Fecha de nacimiento (DD/MM/YYYY, opcional): ").strip() or ""
+        return await self.buro_module.consultar(
+            rfc=rfc, curp=curp, nombre=nombre,
+            apellido_paterno=ap_pat, apellido_materno=ap_mat,
+            fecha_nacimiento=fecha
+        )
+
+    async def _ejecutar_circulo(self, modo: InputMode) -> dict:
+        """Ejecuta consulta de Círculo de Crédito."""
+        rfc = input("  RFC: ").strip().upper()
+        curp = input("  CURP: ").strip().upper()
+        nombre = input("  Nombre (opcional): ").strip() or ""
+        ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
+        ap_mat = input("  Apellido materno (opcional): ").strip() or ""
+        fecha = input("  Fecha de nacimiento (DD/MM/YYYY, opcional): ").strip() or ""
+        return await self.circulo_module.consultar(
+            rfc=rfc, curp=curp, nombre=nombre,
+            apellido_paterno=ap_pat, apellido_materno=ap_mat,
+            fecha_nacimiento=fecha
+        )
+
+    async def _ejecutar_cita_ine(self, modo: InputMode) -> dict:
+        """Ejecuta cita INE."""
+        if self.multimodal:
+            curp = self.multimodal.get_curp(mode=modo)
+        else:
+            curp = input("  CURP (18 caracteres): ").strip().upper()
+        nombre = input("  Nombre (opcional): ").strip() or ""
+        return await self.cita_ine_module.consultar(curp=curp, nombre=nombre)
+
+    async def _ejecutar_cita_sat(self, modo: InputMode) -> dict:
+        """Ejecuta cita SAT."""
+        rfc = input("  RFC: ").strip().upper()
+        curp = input("  CURP (opcional): ").strip().upper() or ""
+        email = input("  Email (opcional): ").strip() or ""
+        return await self.cita_sat_module.consultar(rfc=rfc, curp=curp, email=email)
+
     async def modo_interactivo(self):
         """Modo interactivo con menú de opciones (async)."""
         print("\n" + "="*60)
@@ -220,16 +370,27 @@ class TramitesOrchestrator:
 
         while True:
             print("\n  Trámites disponibles:")
-            print("  1) CURP - Consulta y descarga")
-            print("  2) NSS - Número de Seguridad Social")
-            print("  3) Antecedentes No Penales")
-            print("  4) Tenencia Vehicular")
-            print("  5) CURP + NSS (ambos)")
-            print("  6) Salir")
+            print("  1)  CURP - Consulta y descarga")
+            print("  2)  NSS - Número de Seguridad Social")
+            print("  3)  Antecedentes No Penales")
+            print("  4)  Tenencia Vehicular")
+            print("  5)  CURP + NSS (ambos)")
+            print("  ── Migrados ──")
+            print("  6)  RFC SAT")
+            print("  7)  Acta de Nacimiento (RENAPO)")
+            print("  8)  Cita Pasaporte SRE")
+            print("  9)  Semanas Cotizadas IMSS")
+            print("  10) Control de Confianza (SESNSP)")
+            print("  11) Buró de Crédito")
+            print("  12) Círculo de Crédito")
+            print("  13) Cita INE")
+            print("  14) Cita SAT")
+            print("  ──")
+            print("  0)  Salir")
 
             opcion = input("\n  Selecciona opción: ").strip()
 
-            if opcion == "6":
+            if opcion in ("0", "salir", "exit"):
                 print("  Hasta luego.")
                 break
 
@@ -265,6 +426,24 @@ class TramitesOrchestrator:
                     await self.ejecutar_tramite("tenencia", modo)
                 elif opcion == "5":
                     await self.ejecutar_tramite("ambos", modo)
+                elif opcion == "6":
+                    await self.ejecutar_tramite("rfc", modo)
+                elif opcion == "7":
+                    await self.ejecutar_tramite("acta_nacimiento", modo)
+                elif opcion == "8":
+                    await self.ejecutar_tramite("pasaporte", modo)
+                elif opcion == "9":
+                    await self.ejecutar_tramite("semanas", modo)
+                elif opcion == "10":
+                    await self.ejecutar_tramite("control_confianza", modo)
+                elif opcion == "11":
+                    await self.ejecutar_tramite("buro", modo)
+                elif opcion == "12":
+                    await self.ejecutar_tramite("circulo", modo)
+                elif opcion == "13":
+                    await self.ejecutar_tramite("cita_ine", modo)
+                elif opcion == "14":
+                    await self.ejecutar_tramite("cita_sat", modo)
                 else:
                     print("  Opción inválida")
 
