@@ -66,6 +66,13 @@ from modules.nss import NSSModule  # noqa: E402
 from modules.pasaporte import PasaporteModule  # noqa: E402
 from modules.rfc import RFCModule  # noqa: E402
 from modules.semanas import SemanasModule  # noqa: E402
+
+try:
+    from modules.documentos import CVGenerator, EscritoGenerator
+    DOCUMENTOS_AVAILABLE = True
+except ImportError:
+    DOCUMENTOS_AVAILABLE = False
+
 from utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
 from utils.storage import list_profiles, load_profile, save_profile  # noqa: E402
 
@@ -83,12 +90,14 @@ except ImportError:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+DOCS_MODULOS = "CV · Escritos" if DOCUMENTOS_AVAILABLE else ""
+
 BANNER = f"""
 {Fore.CYAN}╔════════════════════════════════════════════════════════════════╗
 ║  🤖  Agente de Trámites GOB.MX  — v2.0  (jun 2026)          ║
 ║  Módulos: CURP · NSS · RFC · Acta · Pasaporte · Semanas      ║
 ║           Antecedentes · Tenencia · ControlConf · Buró        ║
-║           Círculo · CitaINE · CitaSAT                         ║
+║           Círculo · CitaINE · CitaSAT · {DOCS_MODULOS:<27s}║
 ╚════════════════════════════════════════════════════════════════╝{Style.RESET_ALL}
 """
 
@@ -106,6 +115,8 @@ AYUDA = f"""
   cita_ine         -> Cita INE
   cita_sat         -> Cita SAT
   ambos            -> CURP + NSS en una sola operación
+  cv               -> Generar CV profesional con IA (Claude + .docx)
+  escrito          -> Generar carta/contrato/documento legal con IA
   perfil           -> Ver, guardar o cargar un perfil
   ayuda            -> Mostrar esta pantalla
   salir            -> Salir del programa
@@ -482,6 +493,18 @@ async def modo_interactivo():
                 await agente.tramite_cita_sat(perfil=perfil_activo)
             elif cmd in ("ambos", "todo", "nss+curp", "curp+nss"):
                 await agente.tramite_ambos(perfil=perfil_activo)
+            elif cmd in ("cv", "curriculum"):
+                if DOCUMENTOS_AVAILABLE:
+                    gen = CVGenerator()
+                    gen.generar_interactivo()
+                else:
+                    print("  python-docx no instalado. Ejecutá: pip install python-docx")
+            elif cmd in ("escrito", "carta", "documento"):
+                if DOCUMENTOS_AVAILABLE:
+                    gen = EscritoGenerator()
+                    gen.generar_interactivo()
+                else:
+                    print("  python-docx no instalado. Ejecutá: pip install python-docx")
             elif cmd == "perfil":
                 p = agente.gestionar_perfil()
                 if p:

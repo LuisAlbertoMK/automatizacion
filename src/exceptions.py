@@ -116,6 +116,28 @@ class CitaSATError(ModuleError):
     pass
 
 
+# ── Documentos / IA ───────────────────────────────────────────────────────
+
+class DocumentoError(TramiteError):
+    """Error base en generación de documentos."""
+    pass
+
+
+class CVError(DocumentoError):
+    """Error en generación de CV."""
+    pass
+
+
+class EscritoError(DocumentoError):
+    """Error en generación de escritos."""
+    pass
+
+
+class ClaudeError(TramiteError):
+    """Error en llamada a Anthropic Claude API."""
+    pass
+
+
 # ── Almacenamiento ─────────────────────────────────────────────────────────
 
 class StorageError(TramiteError):

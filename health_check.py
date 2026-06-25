@@ -95,6 +95,8 @@ def main():
     check("torch", "PyTorch (CNN captcha)")
     check("cv2", "OpenCV (CNN captcha)")
     check("onnxruntime", "ONNX Runtime")
+    check("docx", "python-docx (documentos)")
+    check("modules.documentos", "Documentos IA")
 
     # ── Módulos del proyecto ──
     print("\n[Módulos src/]")
@@ -118,6 +120,9 @@ def main():
         ("utils.storage", "Storage"),
         ("utils.logger", "Logger"),
         ("utils.mail_reader", "MailReader"),
+        ("utils.claude", "Claude API"),
+        ("modules.documentos.cv", "CVGenerator"),
+        ("modules.documentos.escrito", "EscritoGenerator"),
     ]
     for mod, name in checks:
         check(mod, name, critical=True)

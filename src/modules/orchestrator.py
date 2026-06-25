@@ -26,6 +26,12 @@ from modules.semanas import SemanasModule
 from modules.tenencia import TenenciaModule
 
 try:
+    from modules.documentos import CVGenerator, EscritoGenerator
+    DOCUMENTOS_AVAILABLE = True
+except ImportError:
+    DOCUMENTOS_AVAILABLE = False
+
+try:
     from utils.multimodal_input import MultimodalInput
     MULTIMODAL_AVAILABLE = True
 except ImportError:
@@ -361,6 +367,24 @@ class TramitesOrchestrator:
         email = input("  Email (opcional): ").strip() or ""
         return await self.cita_sat_module.consultar(rfc=rfc, curp=curp, email=email)
 
+    # ── Documentos ───────────────────────────────────────────────────────────
+
+    async def generar_cv_interactivo(self) -> dict:
+        """Genera CV profesional interactivo."""
+        if not DOCUMENTOS_AVAILABLE:
+            print("  Módulo de documentos no disponible. Instalá: pip install python-docx")
+            return {"status": "error", "error": "python-docx no instalado"}
+        gen = CVGenerator()
+        return gen.generar_interactivo()
+
+    async def generar_escrito_interactivo(self) -> dict:
+        """Genera escrito/carta interactivo."""
+        if not DOCUMENTOS_AVAILABLE:
+            print("  Módulo de documentos no disponible. Instalá: pip install python-docx")
+            return {"status": "error", "error": "python-docx no instalado"}
+        gen = EscritoGenerator()
+        return gen.generar_interactivo()
+
     async def modo_interactivo(self):
         """Modo interactivo con menú de opciones (async)."""
         print("\n" + "="*60)
@@ -385,6 +409,9 @@ class TramitesOrchestrator:
             print("  12) Círculo de Crédito")
             print("  13) Cita INE")
             print("  14) Cita SAT")
+            print("  ── Documentos ──")
+            print("  15) CV - Generar CV profesional con IA")
+            print("  16) Escrito - Carta / Contrato / Documento legal con IA")
             print("  ──")
             print("  0)  Salir")
 
@@ -444,6 +471,10 @@ class TramitesOrchestrator:
                     await self.ejecutar_tramite("cita_ine", modo)
                 elif opcion == "14":
                     await self.ejecutar_tramite("cita_sat", modo)
+                elif opcion == "15":
+                    await self.generar_cv_interactivo()
+                elif opcion == "16":
+                    await self.generar_escrito_interactivo()
                 else:
                     print("  Opción inválida")
 
