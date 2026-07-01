@@ -30,7 +30,8 @@ class CaptchaSolver:
         if not self.api_key:
             raise CaptchaError(
                 "No se encontro CAPTCHA_API_KEY. "
-                "Configurala en config.env o como variable de entorno."
+                "Configurala en config.env, como variable de entorno, "
+                "o en Windows Credential Manager (via utils/secrets_manager.py)"
             )
         self._verify_balance()
 

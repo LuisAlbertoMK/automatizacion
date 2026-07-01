@@ -38,7 +38,8 @@ class MailReader:
 
         if not self.email or not self.password:
             raise MailReaderError(
-                "IMAP_EMAIL e IMAP_PASSWORD no configurados en config.env"
+                "IMAP_EMAIL e IMAP_PASSWORD no configurados. "
+                "Configuralos en config.env o Windows Credential Manager"
             )
 
     def wait_for_imss_email(

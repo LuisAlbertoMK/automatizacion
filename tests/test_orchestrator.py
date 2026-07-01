@@ -38,52 +38,29 @@ def mock_multimodal():
 
 
 @pytest.fixture
-def orchestrator():
-    """Crea TramitesOrchestrator con todos los módulos mockeados."""
-    with (
-        patch("modules.orchestrator.CURPModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.NSSModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.AntecedentesModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.TenenciaModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.RFCModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.ActaNacimientoModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.PasaporteModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.SemanasModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.ControlConfianzaModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.BuroModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.CirculoModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.CitaINEModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.CitaSATModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.MULTIMODAL_AVAILABLE", False),
-    ):
-        from modules.orchestrator import TramitesOrchestrator
-        orch = TramitesOrchestrator()
-        return orch
+def _mock_modules():
+    """Pre-poblado del cache lazy con módulos mockeados."""
+    return {t: _make_mock_module() for t in TRAMITES_ESPERADOS}
 
 
 @pytest.fixture
-def orchestrator_multimodal(mock_multimodal):
-    """TramitesOrchestrator con entrada multimodal."""
-    with (
-        patch("modules.orchestrator.CURPModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.NSSModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.AntecedentesModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.TenenciaModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.RFCModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.ActaNacimientoModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.PasaporteModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.SemanasModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.ControlConfianzaModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.BuroModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.CirculoModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.CitaINEModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.CitaSATModule", return_value=_make_mock_module()),
-        patch("modules.orchestrator.MULTIMODAL_AVAILABLE", True),
-        patch("modules.orchestrator.MultimodalInput", return_value=mock_multimodal),
-    ):
-        from modules.orchestrator import TramitesOrchestrator
+def orchestrator(_mock_modules):
+    """Crea TramitesOrchestrator con todos los módulos mockeados."""
+    from modules.orchestrator import TramitesOrchestrator
+    with patch("modules.orchestrator.MULTIMODAL_AVAILABLE", False):
         orch = TramitesOrchestrator()
-        return orch
+    orch._modules = _mock_modules
+    return orch
+
+
+@pytest.fixture
+def orchestrator_multimodal(mock_multimodal, _mock_modules):
+    """TramitesOrchestrator con entrada multimodal."""
+    from modules.orchestrator import TramitesOrchestrator
+    with patch("modules.orchestrator.MultimodalInput", return_value=mock_multimodal):
+        orch = TramitesOrchestrator()
+    orch._modules = _mock_modules
+    return orch
 
 
 # ── Tests ─────────────────────────────────────────────────────────────────────
@@ -127,16 +104,16 @@ class TestTramitesOrchestratorInit:
     """Lines 52-82: __init__ con y sin multimodal."""
 
     def test_init_sets_modules(self, orchestrator):
-        assert orchestrator.curp_module is not None
-        assert orchestrator.nss_module is not None
-        assert orchestrator.antecedentes_module is not None
-        assert orchestrator.tenencia_module is not None
-        assert orchestrator.rfc_module is not None
-        assert orchestrator.acta_nacimiento_module is not None
-        assert orchestrator.pasaporte_module is not None
-        assert orchestrator.semanas_module is not None
-        assert orchestrator.buro_module is not None
-        assert orchestrator.circulo_module is not None
+        assert "curp" in orchestrator._modules
+        assert "nss" in orchestrator._modules
+        assert "antecedentes" in orchestrator._modules
+        assert "tenencia" in orchestrator._modules
+        assert "rfc" in orchestrator._modules
+        assert "acta_nacimiento" in orchestrator._modules
+        assert "pasaporte" in orchestrator._modules
+        assert "semanas" in orchestrator._modules
+        assert "buro" in orchestrator._modules
+        assert "circulo" in orchestrator._modules
 
     def test_init_multimodal_not_available(self, orchestrator):
         assert orchestrator.multimodal is None
@@ -153,28 +130,28 @@ class TestEjecutarTramite:
         with patch("builtins.input", return_value="CURP123456HDF"):
             result = await orchestrator.ejecutar_tramite("curp")
         assert result == {"status": "ok"}
-        orchestrator.curp_module.consultar.assert_awaited_once()
+        orchestrator._modules["curp"].consultar.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_ejecutar_nss(self, orchestrator):
         with patch("builtins.input", side_effect=["CURP123456HDF", "test@test.com"]):
             result = await orchestrator.ejecutar_tramite("nss")
         assert result == {"status": "ok"}
-        orchestrator.nss_module.consultar.assert_awaited_once()
+        orchestrator._modules["nss"].consultar.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_ejecutar_antecedentes(self, orchestrator):
         with patch("builtins.input", side_effect=["CURP123456HDF", "test@test.com", "n"]):
             result = await orchestrator.ejecutar_tramite("antecedentes")
         assert result == {"status": "ok"}
-        orchestrator.antecedentes_module.consultar.assert_awaited_once()
+        orchestrator._modules["antecedentes"].consultar.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_ejecutar_tenencia(self, orchestrator):
         with patch("builtins.input", side_effect=["ABC123", "n"]):
             result = await orchestrator.ejecutar_tramite("tenencia")
         assert result == {"status": "ok"}
-        orchestrator.tenencia_module.consultar.assert_awaited_once()
+        orchestrator._modules["tenencia"].consultar.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_ejecutar_ambos(self, orchestrator):
@@ -197,7 +174,7 @@ class TestEjecutarCurp:
         with patch("builtins.input", return_value="CURP123456HDF"):
             result = await orchestrator._ejecutar_curp("text")
         assert result == {"status": "ok"}
-        orchestrator.curp_module.consultar.assert_awaited_once_with(curp="CURP123456HDF")
+        orchestrator._modules["curp"].consultar.assert_awaited_once_with(curp="CURP123456HDF")
 
     @pytest.mark.asyncio
     async def test_con_multimodal(self, orchestrator_multimodal):
@@ -215,7 +192,7 @@ class TestEjecutarNss:
         with patch("builtins.input", side_effect=inputs):
             result = await orchestrator._ejecutar_nss("text")
         assert result == {"status": "ok"}
-        orchestrator.nss_module.consultar.assert_awaited_once_with(curp="CURP123456HDF", correo="test@test.com")
+        orchestrator._modules["nss"].consultar.assert_awaited_once_with(curp="CURP123456HDF", correo="test@test.com")
 
     @pytest.mark.asyncio
     async def test_con_multimodal(self, orchestrator_multimodal):
@@ -235,8 +212,8 @@ class TestEjecutarAmbos:
             result = await orchestrator._ejecutar_ambos("text")
         assert "curp" in result
         assert "nss" in result
-        orchestrator.curp_module.consultar.assert_awaited_once()
-        orchestrator.nss_module.consultar.assert_awaited_once()
+        orchestrator._modules["curp"].consultar.assert_awaited_once()
+        orchestrator._modules["nss"].consultar.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_ambos_con_multimodal(self, orchestrator_multimodal):
@@ -251,10 +228,10 @@ class TestEjecutarAmbos:
         """Line 209: print PDF path cuando existe."""
         from unittest.mock import AsyncMock
 
-        orchestrator.curp_module.consultar = AsyncMock(
+        orchestrator._modules["curp"].consultar = AsyncMock(
             return_value={"curp": "CURP123", "pdf_path": "/tmp/curp.pdf"}
         )
-        orchestrator.nss_module.consultar = AsyncMock(
+        orchestrator._modules["nss"].consultar = AsyncMock(
             return_value={"nss": "12345678901"}
         )
         with patch("builtins.input", side_effect=["CURP123", "test@test.com"]):
@@ -272,7 +249,7 @@ class TestEjecutarAntecedentes:
         with patch("builtins.input", side_effect=inputs):
             result = await orchestrator._ejecutar_antecedentes("text")
         assert result == {"status": "ok"}
-        orchestrator.antecedentes_module.consultar.assert_awaited_once_with(
+        orchestrator._modules["antecedentes"].consultar.assert_awaited_once_with(
             curp="CURP123456HDF", correo="test@test.com", password=None
         )
 
@@ -282,7 +259,7 @@ class TestEjecutarAntecedentes:
         with patch("builtins.input", side_effect=inputs):
             result = await orchestrator._ejecutar_antecedentes("text")
         assert result == {"status": "ok"}
-        orchestrator.antecedentes_module.consultar.assert_awaited_once_with(
+        orchestrator._modules["antecedentes"].consultar.assert_awaited_once_with(
             curp="CURP123456HDF", correo="test@test.com", password="mypassword"
         )
 
@@ -305,7 +282,7 @@ class TestEjecutarTenencia:
         with patch("builtins.input", side_effect=inputs):
             result = await orchestrator._ejecutar_tenencia("text")
         assert result == {"status": "ok"}
-        orchestrator.tenencia_module.consultar.assert_awaited_once_with(
+        orchestrator._modules["tenencia"].consultar.assert_awaited_once_with(
             placa="ABC123", numero_serie=None
         )
 
@@ -315,7 +292,7 @@ class TestEjecutarTenencia:
         with patch("builtins.input", side_effect=inputs):
             result = await orchestrator._ejecutar_tenencia("text")
         assert result == {"status": "ok"}
-        orchestrator.tenencia_module.consultar.assert_awaited_once_with(
+        orchestrator._modules["tenencia"].consultar.assert_awaited_once_with(
             placa="ABC123", numero_serie="VIN123456"
         )
 

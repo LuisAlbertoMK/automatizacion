@@ -49,7 +49,7 @@ def call_claude(
     if not api_key or not api_key.startswith("sk-ant-"):
         raise ClaudeError(
             "ANTHROPIC_API_KEY no configurada o inválida.\n"
-            "  1. Creá un archivo config.env con ANTHROPIC_API_KEY=sk-ant-...\n"
+            "  1. Configurá ANTHROPIC_API_KEY en config.env o Windows Credential Manager\n"
             "  2. Obtené tu API key en https://console.anthropic.com"
         )
 

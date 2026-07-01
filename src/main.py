@@ -27,6 +27,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 # ── Cargar configuración ──────────────────────────────────────────────────────
 load_dotenv("config.env")
+from utils.secrets_manager import init_secrets  # noqa: E402
+
+init_secrets()
 colorama_init(autoreset=True)
 
 
@@ -206,9 +209,10 @@ class Agente:
             print(f"  El IMSS envió el NSS al correo: {correo_safe}")
             print()
             print(f"  {Fore.YELLOW}Para obtenerlo automáticamente la próxima vez:{Style.RESET_ALL}")
-            print("  1. Configurá IMAP en config.env:")
+            print("  1. Configurá IMAP en config.env o Credential Manager:")
             print(f"     IMAP_EMAIL={correo_safe}")
             print("     IMAP_PASSWORD=tu_contraseña_de_aplicación")
+            print("     O: python -c \"from utils.secrets_manager import store_secret; store_secret('IMAP_EMAIL', '...')\"")
             print()
             print(f"  {Fore.CYAN}O revisá manualmente tu bandeja de entrada.{Style.RESET_ALL}")
             print(f"{Fore.GREEN}{'━'*50}{Style.RESET_ALL}\n")

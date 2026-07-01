@@ -7,17 +7,17 @@
     "trend": "up",
     "last_updated": "2026-07-01",
     "dimensions": {
-      "code_quality": 7.0,
+      "code_quality": 7.5,
       "test_coverage": 7.5,
-      "security": 7.0,
-      "architecture": 6.5,
+      "security": 8.0,
+      "architecture": 7.5,
       "error_handling": 7.5,
-      "performance": 7.3,
+      "performance": 7.5,
       "documentation": 6.0,
-      "maintainability": 6.5,
-      "observability": 7.0,
-      "config_mgmt": 7.0,
-      "devops": 7.5
+      "maintainability": 7.0,
+      "observability": 7.5,
+      "config_mgmt": 7.5,
+      "devops": 8.0
     }
   },
   "audit": {
@@ -26,7 +26,9 @@
     "re_verifiers": 3,
     "fixes_applied": 17,
     "tests_before": 386,
-    "tests_after": 365,
+    "tests_after": 399,
+    "batches_verified": 6,
+    "batches_gap": "orchestrator.py lazy imports pending",
     "status": "clean"
   }
 }

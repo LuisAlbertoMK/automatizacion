@@ -18,6 +18,9 @@ from dotenv import load_dotenv
 
 # Cargar configuración
 load_dotenv("config.env")
+from utils.secrets_manager import init_secrets  # noqa: E402
+
+init_secrets()
 
 # Agregar path del proyecto
 sys.path.insert(0, str(Path(__file__).parent))

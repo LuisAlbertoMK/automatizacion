@@ -32,7 +32,8 @@ def _get_cipher() -> Fernet:
     raw_key = os.getenv("STORAGE_KEY")
     if not raw_key:
         raise StorageError(
-            "STORAGE_KEY no configurada en config.env. "
+            "STORAGE_KEY no configurada. "
+            "Configurala en config.env o Windows Credential Manager. "
             "Generá una con: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )
     # PBKDF2 key stretching -> 32 bytes -> base64url para Fernet

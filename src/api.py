@@ -36,6 +36,9 @@ from dotenv import load_dotenv
 from utils.logger import get_logger
 
 load_dotenv(Path(__file__).parent.parent / "config.env")
+from utils.secrets_manager import init_secrets  # noqa: E402
+
+init_secrets()
 
 logger = get_logger("API")
 

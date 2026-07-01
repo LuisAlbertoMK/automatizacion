@@ -9,27 +9,8 @@ Funcionalidades:
 """
 
 import asyncio
+import importlib
 from typing import Literal
-
-from modules.acta_nacimiento import ActaNacimientoModule
-from modules.antecedentes import AntecedentesModule
-from modules.buro import BuroModule
-from modules.circulo import CirculoModule
-from modules.cita_ine import CitaINEModule
-from modules.cita_sat import CitaSATModule
-from modules.control_confianza import ControlConfianzaModule
-from modules.curp import CURPModule
-from modules.nss import NSSModule
-from modules.pasaporte import PasaporteModule
-from modules.rfc import RFCModule
-from modules.semanas import SemanasModule
-from modules.tenencia import TenenciaModule
-
-try:
-    from modules.documentos import CVGenerator, EscritoGenerator
-    DOCUMENTOS_AVAILABLE = True
-except ImportError:
-    DOCUMENTOS_AVAILABLE = False
 
 try:
     from utils.multimodal_input import MultimodalInput
@@ -72,6 +53,22 @@ def listar_tramites() -> dict:
 class TramitesOrchestrator:
     """Orquestador de trámites gubernamentales con entrada multimodal."""
 
+    _MODULE_REGISTRY = {
+        "curp":              ("modules.curp", "CURPModule"),
+        "nss":               ("modules.nss", "NSSModule"),
+        "antecedentes":      ("modules.antecedentes", "AntecedentesModule"),
+        "tenencia":          ("modules.tenencia", "TenenciaModule"),
+        "rfc":               ("modules.rfc", "RFCModule"),
+        "acta_nacimiento":   ("modules.acta_nacimiento", "ActaNacimientoModule"),
+        "pasaporte":         ("modules.pasaporte", "PasaporteModule"),
+        "semanas":           ("modules.semanas", "SemanasModule"),
+        "control_confianza": ("modules.control_confianza", "ControlConfianzaModule"),
+        "buro":              ("modules.buro", "BuroModule"),
+        "circulo":           ("modules.circulo", "CirculoModule"),
+        "cita_ine":          ("modules.cita_ine", "CitaINEModule"),
+        "cita_sat":          ("modules.cita_sat", "CitaSATModule"),
+    }
+
     def __init__(self, captcha_solver=None, mail_reader=None, voice_model="base"):
         """
         Inicializa el orquestador.
@@ -81,32 +78,9 @@ class TramitesOrchestrator:
             mail_reader: Lector de correos (opcional)
             voice_model: Modelo de Whisper para voz
         """
-        # Módulos de trámites
-        self.curp_module = CURPModule(captcha_solver=captcha_solver, use_ocr=True)
-        self.nss_module = NSSModule(
-            captcha_solver=captcha_solver,
-            mail_reader=mail_reader,
-            use_ocr=True
-        )
-        self.antecedentes_module = AntecedentesModule(
-            captcha_solver=captcha_solver,
-            use_ocr=True
-        )
-        self.tenencia_module = TenenciaModule(
-            captcha_solver=captcha_solver,
-            use_ocr=True
-        )
-
-        # ── Módulos migrados de tramites-auto ──
-        self.rfc_module = RFCModule(captcha_solver=captcha_solver, use_ocr=True)
-        self.acta_nacimiento_module = ActaNacimientoModule(captcha_solver=captcha_solver, use_ocr=True)
-        self.pasaporte_module = PasaporteModule(captcha_solver=captcha_solver, use_ocr=True)
-        self.semanas_module = SemanasModule(captcha_solver=captcha_solver, use_ocr=True)
-        self.control_confianza_module = ControlConfianzaModule(captcha_solver=captcha_solver, use_ocr=True)
-        self.buro_module = BuroModule(captcha_solver=captcha_solver, use_ocr=True)
-        self.circulo_module = CirculoModule(captcha_solver=captcha_solver, use_ocr=True)
-        self.cita_ine_module = CitaINEModule(captcha_solver=captcha_solver, use_ocr=True)
-        self.cita_sat_module = CitaSATModule(captcha_solver=captcha_solver, use_ocr=True)
+        self._captcha_solver = captcha_solver
+        self._mail_reader = mail_reader
+        self._modules: dict[str, object] = {}  # cache lazy
 
         # Entrada multimodal
         if MULTIMODAL_AVAILABLE:
@@ -114,6 +88,20 @@ class TramitesOrchestrator:
         else:
             self.multimodal = None
             print("  [ORCHESTRATOR] [!] Entrada multimodal no disponible")
+
+    def _get_module(self, tramite: str) -> object:
+        """Importa y cachea módulos bajo demanda."""
+        if tramite in self._modules:
+            return self._modules[tramite]
+        module_path, class_name = self._MODULE_REGISTRY[tramite]
+        mod = importlib.import_module(module_path)
+        cls = getattr(mod, class_name)
+        kwargs = {"captcha_solver": self._captcha_solver, "use_ocr": True}
+        if tramite == "nss":
+            kwargs["mail_reader"] = self._mail_reader
+        instance = cls(**kwargs)
+        self._modules[tramite] = instance
+        return instance
 
     async def ejecutar_tramite(self, tipo: TramiteType, modo_entrada: InputMode = "text") -> dict:
         """
@@ -175,7 +163,7 @@ class TramitesOrchestrator:
         else:
             curp = input("  CURP (18 caracteres): ").strip().upper()
 
-        return await self.curp_module.consultar(curp=curp)
+        return await self._get_module("curp").consultar(curp=curp)
 
     async def _ejecutar_nss(self, modo: InputMode) -> dict:
         """Ejecuta trámite de NSS."""
@@ -186,7 +174,7 @@ class TramitesOrchestrator:
             curp = input("  CURP: ").strip().upper()
             correo = input("  Correo electrónico: ").strip()
 
-        return await self.nss_module.consultar(curp=curp, correo=correo)
+        return await self._get_module("nss").consultar(curp=curp, correo=correo)
 
     async def _ejecutar_antecedentes(self, modo: InputMode) -> dict:
         """Ejecuta trámite de Antecedentes No Penales."""
@@ -204,7 +192,7 @@ class TramitesOrchestrator:
         if tiene_cuenta == "s":
             password = input("  Contraseña: ").strip()
 
-        return await self.antecedentes_module.consultar(
+        return await self._get_module("antecedentes").consultar(
             curp=curp,
             correo=correo,
             password=password
@@ -224,7 +212,7 @@ class TramitesOrchestrator:
         if tiene_serie == "s":
             numero_serie = input("  Número de serie: ").strip()
 
-        return await self.tenencia_module.consultar(
+        return await self._get_module("tenencia").consultar(
             placa=placa,
             numero_serie=numero_serie
         )
@@ -244,12 +232,12 @@ class TramitesOrchestrator:
 
         # CURP
         print("\n  [1/2] Ejecutando CURP...")
-        res_curp = await self.curp_module.consultar(curp=curp)
+        res_curp = await self._get_module("curp").consultar(curp=curp)
         resultados["curp"] = res_curp
 
         # NSS
         print("\n  [2/2] Ejecutando NSS...")
-        res_nss = await self.nss_module.consultar(curp=curp, correo=correo)
+        res_nss = await self._get_module("nss").consultar(curp=curp, correo=correo)
         resultados["nss"] = res_nss
 
         # Resumen
@@ -274,7 +262,7 @@ class TramitesOrchestrator:
         nombre = input("  Nombre (opcional): ").strip() or ""
         ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
         ap_mat = input("  Apellido materno (opcional): ").strip() or ""
-        return await self.rfc_module.consultar(
+        return await self._get_module("rfc").consultar(
             curp=curp, nombre=nombre, apellido_paterno=ap_pat, apellido_materno=ap_mat
         )
 
@@ -284,7 +272,7 @@ class TramitesOrchestrator:
             curp = self.multimodal.get_curp(mode=modo)
         else:
             curp = input("  CURP (18 caracteres): ").strip().upper()
-        return await self.acta_nacimiento_module.consultar(curp=curp)
+        return await self._get_module("acta_nacimiento").consultar(curp=curp)
 
     async def _ejecutar_pasaporte(self, modo: InputMode) -> dict:
         """Ejecuta cita de pasaporte."""
@@ -298,7 +286,7 @@ class TramitesOrchestrator:
         estado = input("  Estado/delegación (default MEX): ").strip() or "MEX"
         tel = input("  Teléfono (opcional): ").strip() or ""
         email = input("  Email (opcional): ").strip() or ""
-        return await self.pasaporte_module.consultar(
+        return await self._get_module("pasaporte").consultar(
             curp=curp, nombre=nombre, apellido_paterno=ap_pat,
             apellido_materno=ap_mat, estado=estado, telefono=tel, email=email
         )
@@ -310,7 +298,7 @@ class TramitesOrchestrator:
         else:
             curp = input("  CURP (18 caracteres): ").strip().upper()
         nss = input("  NSS (si lo tenés, opcional): ").strip() or ""
-        return await self.semanas_module.consultar(curp=curp, nss=nss)
+        return await self._get_module("semanas").consultar(curp=curp, nss=nss)
 
     async def _ejecutar_control_confianza(self, modo: InputMode) -> dict:
         """Ejecuta Control de Confianza."""
@@ -319,7 +307,7 @@ class TramitesOrchestrator:
         nombre = input("  Nombre completo: ").strip() or ""
         fecha_nac = input("  Fecha de nacimiento (DD/MM/YYYY): ").strip() or ""
         edo_nac = input("  Estado de nacimiento: ").strip() or ""
-        return await self.control_confianza_module.consultar(
+        return await self._get_module("control_confianza").consultar(
             curp=curp, rfc=rfc, nombre=nombre,
             fecha_nacimiento=fecha_nac, estado_nacimiento=edo_nac
         )
@@ -332,7 +320,7 @@ class TramitesOrchestrator:
         ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
         ap_mat = input("  Apellido materno (opcional): ").strip() or ""
         fecha = input("  Fecha de nacimiento (DD/MM/YYYY, opcional): ").strip() or ""
-        return await self.buro_module.consultar(
+        return await self._get_module("buro").consultar(
             rfc=rfc, curp=curp, nombre=nombre,
             apellido_paterno=ap_pat, apellido_materno=ap_mat,
             fecha_nacimiento=fecha
@@ -346,7 +334,7 @@ class TramitesOrchestrator:
         ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
         ap_mat = input("  Apellido materno (opcional): ").strip() or ""
         fecha = input("  Fecha de nacimiento (DD/MM/YYYY, opcional): ").strip() or ""
-        return await self.circulo_module.consultar(
+        return await self._get_module("circulo").consultar(
             rfc=rfc, curp=curp, nombre=nombre,
             apellido_paterno=ap_pat, apellido_materno=ap_mat,
             fecha_nacimiento=fecha
@@ -359,20 +347,22 @@ class TramitesOrchestrator:
         else:
             curp = input("  CURP (18 caracteres): ").strip().upper()
         nombre = input("  Nombre (opcional): ").strip() or ""
-        return await self.cita_ine_module.consultar(curp=curp, nombre=nombre)
+        return await self._get_module("cita_ine").consultar(curp=curp, nombre=nombre)
 
     async def _ejecutar_cita_sat(self, modo: InputMode) -> dict:
         """Ejecuta cita SAT."""
         rfc = input("  RFC: ").strip().upper()
         curp = input("  CURP (opcional): ").strip().upper() or ""
         email = input("  Email (opcional): ").strip() or ""
-        return await self.cita_sat_module.consultar(rfc=rfc, curp=curp, email=email)
+        return await self._get_module("cita_sat").consultar(rfc=rfc, curp=curp, email=email)
 
     # ── Documentos ───────────────────────────────────────────────────────────
 
     async def generar_cv_interactivo(self) -> dict:
         """Genera CV profesional interactivo."""
-        if not DOCUMENTOS_AVAILABLE:
+        try:
+            from modules.documentos import CVGenerator
+        except ImportError:
             print("  Módulo de documentos no disponible. Instalá: pip install python-docx")
             return {"status": "error", "error": "python-docx no instalado"}
         gen = CVGenerator()
@@ -380,7 +370,9 @@ class TramitesOrchestrator:
 
     async def generar_escrito_interactivo(self) -> dict:
         """Genera escrito/carta interactivo."""
-        if not DOCUMENTOS_AVAILABLE:
+        try:
+            from modules.documentos import EscritoGenerator
+        except ImportError:
             print("  Módulo de documentos no disponible. Instalá: pip install python-docx")
             return {"status": "error", "error": "python-docx no instalado"}
         gen = EscritoGenerator()
