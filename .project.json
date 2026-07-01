@@ -2,21 +2,21 @@
   "name": "agente-tramites-gobmx",
   "version": "1.0.0",
   "score": {
-    "current": 7.5,
+    "current": 8.0,
     "previous": 7.0,
     "trend": "up",
     "last_updated": "2026-07-01",
     "dimensions": {
       "code_quality": 7.5,
       "test_coverage": 7.5,
-      "security": 8.0,
-      "architecture": 7.5,
+      "security": 8.5,
+      "architecture": 8.0,
       "error_handling": 7.5,
       "performance": 7.5,
       "documentation": 6.0,
-      "maintainability": 7.0,
+      "maintainability": 7.5,
       "observability": 7.5,
-      "config_mgmt": 7.5,
+      "config_mgmt": 8.0,
       "devops": 8.0
     }
   },
@@ -28,7 +28,7 @@
     "tests_before": 386,
     "tests_after": 399,
     "batches_verified": 6,
-    "batches_gap": "orchestrator.py lazy imports pending",
+    "batches_gap": "none - cycle complete",
     "status": "clean"
   }
 }
