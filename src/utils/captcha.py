@@ -21,32 +21,39 @@ BASE_URL = "https://2captcha.com"
 
 
 class CaptchaSolver:
+    _balance_cache: float | None = None
+    _balance_ts: float = 0
+    _balance_ttl: float = 60.0
+
     def __init__(self, api_key: str = None):
         self.api_key = api_key or os.getenv("CAPTCHA_API_KEY", "")
         if not self.api_key:
             raise CaptchaError(
-                "No se encontr+¦ CAPTCHA_API_KEY. "
-                "Config+¦rala en config.env o como variable de entorno."
+                "No se encontro CAPTCHA_API_KEY. "
+                "Configurala en config.env o como variable de entorno."
             )
         self._verify_balance()
 
     def _verify_balance(self):
-        """Verifica que haya saldo suficiente en 2captcha."""
+        """Verifica saldo en 2captcha con cache de 60s."""
+        now = time.monotonic()
+        if now - self._balance_ts < self._balance_ttl and self._balance_cache is not None:
+            return
         try:
             r = requests.get(
                 f"{BASE_URL}/res.php",
                 params={"key": self.api_key, "action": "getbalance"},
                 timeout=10,
             )
-            balance = float(r.text)
-            if balance < 0.001:
+            self._balance_cache = float(r.text)
+            self._balance_ts = now
+            if self._balance_cache < 0.001:
                 raise CaptchaError(
-                    f"Saldo insuficiente en 2captcha: ${balance:.4f} USD. "
+                    f"Saldo insuficiente en 2captcha: ${self._balance_cache:.4f} USD. "
                     "Recarga en https://2captcha.com"
                 )
-            print(f"  [captcha] Saldo 2captcha: ${balance:.4f} USD [OK]")
+            print(f"  [captcha] Saldo 2captcha: ${self._balance_cache:.4f} USD [OK]")
         except (ValueError, requests.RequestException):
-            # No bloqueamos si falla la verificaci+¦n de saldo
             pass
 
     # ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ

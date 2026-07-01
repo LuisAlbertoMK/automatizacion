@@ -476,7 +476,7 @@ class TestTramiteCurp:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "CURPModule") as mock_curp:
+             patch("modules.curp.CURPModule") as mock_curp:
             mock_curp.return_value = mock_mod
             agente = m.Agente()
             perfil = {"curp": "GALJ800101HDFXXXX0"}
@@ -493,7 +493,7 @@ class TestTramiteCurp:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "CURPModule") as mock_curp, \
+             patch("modules.curp.CURPModule") as mock_curp, \
              patch("builtins.input", return_value="GALJ800101HDFXXXX0"):
             mock_curp.return_value = mock_mod
             agente = m.Agente()
@@ -598,7 +598,7 @@ class TestTramiteNss:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "NSSModule") as mock_nss_cls, \
+             patch("modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", return_value=""):
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
@@ -619,7 +619,7 @@ class TestTramiteNss:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "NSSModule") as mock_nss_cls, \
+             patch("modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", return_value=""):
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
@@ -640,7 +640,7 @@ class TestTramiteNss:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "NSSModule") as mock_nss_cls, \
+             patch("modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", side_effect=[
                  "GALJ800101HDFXXXX0",  # CURP prompt
                  "a@b.com",              # Correo prompt
@@ -665,7 +665,7 @@ class TestTramiteNss:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "NSSModule") as mock_nss_cls, \
+             patch("modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", return_value=""):
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
@@ -686,7 +686,7 @@ class TestTramiteNss:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "NSSModule") as mock_nss_cls, \
+             patch("modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", return_value=""):
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
@@ -713,8 +713,8 @@ class TestTramiteAmbos:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "CURPModule") as mock_curp_cls, \
-             patch.object(m, "NSSModule") as mock_nss_cls, \
+             patch("modules.curp.CURPModule") as mock_curp_cls, \
+             patch("modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", return_value=""):
             mock_curp_cls.return_value = mock_curp
             mock_nss_cls.return_value  = mock_nss
@@ -740,8 +740,8 @@ class TestTramiteAmbos:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "CURPModule") as mock_curp_cls, \
-             patch.object(m, "NSSModule") as mock_nss_cls, \
+             patch("modules.curp.CURPModule") as mock_curp_cls, \
+             patch("modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", side_effect=[
                  "GALJ800101HDFXXXX0",  # CURP prompt
                  "a@b.com",              # Correo prompt
@@ -1047,7 +1047,7 @@ class TestModoDirectoExecution:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "CURPModule") as mock_curp_cls:
+             patch("modules.curp.CURPModule") as mock_curp_cls:
             mock_curp_cls.return_value = mock_mod
             args = MagicMock(tramite="curp", curp="GALJ800101HDFXXXX0", correo=None, perfil=None)
             await m.modo_directo(args)
@@ -1065,7 +1065,7 @@ class TestModoDirectoExecution:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "NSSModule") as mock_nss_cls:
+             patch("modules.nss.NSSModule") as mock_nss_cls:
             mock_nss_cls.return_value = mock_mod
             args = MagicMock(
                 tramite="nss", curp="GALJ800101HDFXXXX0",
@@ -1088,7 +1088,7 @@ class TestModoDirectoExecution:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch.object(m, "CURPModule") as mock_curp_cls, \
+             patch("modules.curp.CURPModule") as mock_curp_cls, \
              patch.object(m, "load_profile", return_value={
                  "curp": "PERFIL_CURP", "correo": "perfil@mail.com",
              }):
