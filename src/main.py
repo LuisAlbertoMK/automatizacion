@@ -198,14 +198,16 @@ class Agente:
 
         # Si el NSS fue enviado al correo, mostrar instrucciones claras
         if resultado.get("nss") == "ENVIADO_AL_CORREO":
+            from utils.pii import sanitize_email
+            correo_safe = sanitize_email(correo)
             print(f"\n{Fore.GREEN}{'━'*50}")
             print("  SOLICITUD ENVIADA CON ÉXITO")
             print(f"{'━'*50}{Style.RESET_ALL}")
-            print(f"  El IMSS envió el NSS al correo: {correo}")
+            print(f"  El IMSS envió el NSS al correo: {correo_safe}")
             print()
             print(f"  {Fore.YELLOW}Para obtenerlo automáticamente la próxima vez:{Style.RESET_ALL}")
             print("  1. Configurá IMAP en config.env:")
-            print(f"     IMAP_EMAIL={correo}")
+            print(f"     IMAP_EMAIL={correo_safe}")
             print("     IMAP_PASSWORD=tu_contraseña_de_aplicación")
             print()
             print(f"  {Fore.CYAN}O revisá manualmente tu bandeja de entrada.{Style.RESET_ALL}")
@@ -248,11 +250,12 @@ class Agente:
         resultados["nss"] = res_nss
 
         # Resumen
+        from utils.pii import sanitize_curp, sanitize_nss
         print(f"\n{Fore.GREEN}{'━'*50}")
         print("  RESUMEN FINAL")
         print(f"{'━'*50}{Style.RESET_ALL}")
-        print(f"  CURP:  {res_curp.get('curp', '—')}")
-        print(f"  NSS:   {res_nss.get('nss', '—')}")
+        print(f"  CURP:  {sanitize_curp(res_curp.get('curp', '—'))}")
+        print(f"  NSS:   {sanitize_nss(res_nss.get('nss', '—'))}")
         if res_curp.get("pdf_path"):
             print(f"  PDF:   {res_curp['pdf_path']}")
         print(f"{Fore.GREEN}{'━'*50}{Style.RESET_ALL}\n")

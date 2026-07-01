@@ -606,7 +606,7 @@ class TestTramiteNss:
         assert result["nss"] == "ENVIADO_AL_CORREO"
         out, _ = capsys.readouterr()
         assert "SOLICITUD ENVIADA" in out
-        assert "a@b.com" in out
+        assert "a***@b.com" in out
 
     async def test_with_perfil_nss_found(self, capsys):
         """NSS encontrado → _mostrar_resultado con el resultado."""

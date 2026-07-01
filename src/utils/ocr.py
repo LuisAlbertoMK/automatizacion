@@ -287,10 +287,11 @@ class OCRExtractor:
         text = self.extract_from_image(screenshot_path)
         data = self.extract_all_data(text)
 
-        print(f"  [OCR] Texto extra├¡do: {len(text)} caracteres")
+        from utils.pii import sanitize_curp, sanitize_nss
+        print(f"  [OCR] Texto extra\u00eddo: {len(text)} caracteres")
         if data["curp"]:
-            print(f"  [OCR] CURP encontrada: {data['curp']}")
+            print(f"  [OCR] CURP encontrada: {sanitize_curp(data['curp'])}")
         if data["nss"]:
-            print(f"  [OCR] NSS encontrado: {data['nss']}")
+            print(f"  [OCR] NSS encontrado: {sanitize_nss(data['nss'])}")
 
         return data

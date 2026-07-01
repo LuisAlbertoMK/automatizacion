@@ -7,6 +7,7 @@ Reemplaza los print() dispersos por un sistema estructurado.
 import json
 import logging
 import os
+import re
 import time
 from datetime import datetime
 from pathlib import Path
@@ -54,6 +55,20 @@ class TramiteLogger:
             self._logger.addHandler(fh)
             self._logger.setLevel(logging.DEBUG)
 
+    # Patrones PII para sanitización automática en archivo de log
+    _PII_PATTERNS = [
+        (re.compile(r'\b[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d\b'), lambda m: f"{m.group()[:4]}****"),
+        (re.compile(r'\b\d{11}\b'), lambda m: f"{m.group()[:5]}******"),
+        (re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'), lambda m: f"{m.group()[0]}***@{m.group().split('@')[1]}"),
+    ]
+
+    @staticmethod
+    def _sanitize(msg: str) -> str:
+        """Reemplaza CURP, NSS y email en el mensaje antes de escribirlo a log."""
+        for pattern, repl in TramiteLogger._PII_PATTERNS:
+            msg = pattern.sub(repl, msg)
+        return msg
+
     def _print(self, level: str, msg: str):
         color = self.COLORS.get(level, "")
         icon = self.ICONS.get(level, "")
@@ -61,24 +76,33 @@ class TramiteLogger:
 
     def info(self, msg: str):
         self._print("info", msg)
-        self._logger.info(msg)
+        self._logger.info(self._sanitize(msg))
 
     def success(self, msg: str):
         self._print("success", msg)
-        self._logger.info(f"SUCCESS: {msg}")
+        self._logger.info(self._sanitize(f"SUCCESS: {msg}"))
 
     def warn(self, msg: str):
         self._print("warning", msg)
-        self._logger.warning(msg)
+        self._logger.warning(self._sanitize(msg))
 
     def error(self, msg: str, exc_info: bool = False):
         self._print("error", msg)
-        self._logger.error(msg, exc_info=exc_info)
+        self._logger.error(self._sanitize(msg), exc_info=exc_info)
 
     def debug(self, msg: str):
         if self.verbose:
             self._print("debug", msg)
-        self._logger.debug(msg)
+        self._logger.debug(self._sanitize(msg))
+
+    def info_pii(self, msg: str, pii_value: str, pii_type: str = "curp"):
+        """Info con PII visible en stdout pero sanitizada en archivo."""
+        from utils.pii import sanitize_pii as _san  # noqa: PLC0415
+        sanitized = _san(pii_value, pii_type)
+        safe_msg = msg.replace(pii_value, sanitized)
+        self._print("info", safe_msg)
+        # En archivo va siempre sanitizado
+        self._logger.info(self._sanitize(msg))
 
 
 # ── Métricas de trámites ────────────────────────────────────────────────

@@ -168,7 +168,8 @@ class VoiceInput:
 
         if match:
             curp = match.group(1)
-            print(f"  [VOZ] [OK] CURP detectada: {curp}")
+            from utils.pii import sanitize_curp
+            print(f"  [VOZ] [OK] CURP detectada: {sanitize_curp(curp)}")
             return curp
 
         # Intentar extraer letra por letra si el usuario deletreó
@@ -179,7 +180,8 @@ class VoiceInput:
 
         if match2:
             curp = match2.group(1)
-            print(f"  [VOZ] [OK] CURP detectada (deletreada): {curp}")
+            from utils.pii import sanitize_curp
+            print(f"  [VOZ] [OK] CURP detectada (deletreada): {sanitize_curp(curp)}")
             return curp
 
         print("  [VOZ] [!] No se detectó CURP válida")

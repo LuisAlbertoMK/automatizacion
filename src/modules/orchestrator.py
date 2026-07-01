@@ -253,11 +253,12 @@ class TramitesOrchestrator:
         resultados["nss"] = res_nss
 
         # Resumen
+        from utils.pii import sanitize_curp, sanitize_nss
         print(f"\n{'='*60}")
         print("  RESUMEN FINAL")
         print(f"{'='*60}")
-        print(f"  CURP:  {res_curp.get('curp', '—')}")
-        print(f"  NSS:   {res_nss.get('nss', '—')}")
+        print(f"  CURP:  {sanitize_curp(res_curp.get('curp', '—'))}")
+        print(f"  NSS:   {sanitize_nss(res_nss.get('nss', '—'))}")
         if res_curp.get("pdf_path"):
             print(f"  PDF CURP: {res_curp['pdf_path']}")
         print(f"{'='*60}\n")
