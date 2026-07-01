@@ -112,14 +112,14 @@ class BaseModule:
         last_error = None
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT)
-            await asyncio.sleep(2)
+            await page.wait_for_load_state("networkidle", timeout=10000)
             return
         except Exception as e:
             last_error = e
             if fallback_url:
                 try:
                     await page.goto(fallback_url, wait_until="domcontentloaded", timeout=TIMEOUT)
-                    await asyncio.sleep(2)
+                    await page.wait_for_load_state("networkidle", timeout=10000)
                     return
                 except Exception as e2:
                     last_error = e2

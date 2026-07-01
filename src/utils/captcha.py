@@ -225,7 +225,7 @@ class CaptchaSolver:
         (Pilar 5 ÔÇö Fiabilidad & Resiliencia).
         """
         elapsed = 0
-        interval = 5
+        interval = 2
         retries = 0
         max_retries = 3
         base_delay = 2
@@ -233,6 +233,11 @@ class CaptchaSolver:
         while elapsed < max_wait:
             await asyncio.sleep(interval)
             elapsed += interval
+            # Adaptive polling: faster early, slower later
+            if elapsed > 60:
+                interval = 10
+            elif elapsed > 20:
+                interval = 5
 
             try:
                 r = await asyncio.to_thread(

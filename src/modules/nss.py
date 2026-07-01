@@ -454,7 +454,10 @@ class NSSModule(BaseModule):
             self.log("Solicitud enviada. Esperando correo del IMSS...")
 
             if self.mail_reader:
-                mail_data = self.mail_reader.wait_for_imss_email(max_wait_sec=180)
+                loop = asyncio.get_running_loop()
+                mail_data = await loop.run_in_executor(
+                    None, self.mail_reader.wait_for_imss_email, 180
+                )
                 if mail_data.get("nss"):
                     self.log(f"NSS extraído del correo: {mail_data['nss']}")
                     return mail_data["nss"]
