@@ -2,29 +2,29 @@
   "name": "agente-tramites-gobmx",
   "version": "1.0.0",
   "score": {
-    "current": 7.0,
-    "previous": 5.5,
+    "current": 7.5,
+    "previous": 7.0,
     "trend": "up",
-    "last_updated": "2026-06-24",
+    "last_updated": "2026-07-01",
     "dimensions": {
       "code_quality": 7.0,
       "test_coverage": 7.5,
       "security": 7.0,
-      "architecture": 6.0,
+      "architecture": 6.5,
       "error_handling": 7.5,
-      "performance": 7.0,
+      "performance": 7.3,
       "documentation": 6.0,
       "maintainability": 6.5,
       "observability": 7.0,
       "config_mgmt": 7.0,
-      "devops": 7.0
+      "devops": 7.5
     }
   },
   "audit": {
-    "last_audit": "2026-06-24",
+    "last_audit": "2026-07-01",
     "auditors": 3,
     "re_verifiers": 3,
-    "fixes_applied": 11,
+    "fixes_applied": 17,
     "tests_before": 386,
     "tests_after": 365,
     "status": "clean"
