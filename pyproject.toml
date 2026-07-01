@@ -10,43 +10,49 @@ readme = "README.md"
 requires-python = ">=3.10"
 
 dependencies = [
-    "playwright>=1.42.0",
-    "requests>=2.31.0",
-    "python-dotenv>=1.0.0",
-    "pillow>=10.0.0",
-    "pytesseract>=0.3.10",
-    "pdf2image>=1.16.0",
-    "cryptography>=42.0.0",
-    "imapclient>=2.3.1",
-    "beautifulsoup4>=4.12.0",
-    "colorama>=0.4.6",
-    "numpy>=1.24.0",
+    "playwright>=1.42.0,<2.0",
+    "requests>=2.31.0,<3.0",
+    "python-dotenv>=1.0.0,<2.0",
+    "pillow>=10.0.0,<12.0",
+    "pytesseract>=0.3.10,<0.4",
+    "pdf2image>=1.16.0,<2.0",
+    "cryptography>=42.0.0,<44.0",
+    "imapclient>=2.3.1,<3.0",
+    "beautifulsoup4>=4.12.0,<5.0",
+    "colorama>=0.4.6,<1.0",
+    "numpy>=1.24.0,<2.0",
+    "python-docx>=1.1.0,<2.0",
 ]
 
 [project.optional-dependencies]
+captcha_ml = [
+    "opencv-python>=4.9.0,<5.0",
+    "easyocr>=1.7,<2.0",
+    "onnxruntime>=1.17,<2.0",
+]
 voice = [
     "openai-whisper>=20231117",
-    "sounddevice>=0.4.6",
-    "soundfile>=0.12.1",
+    "sounddevice>=0.4.6,<0.6",
+    "soundfile>=0.12.1,<0.13",
 ]
 web = [
-    "streamlit>=1.58.0",
-    "fastapi>=0.115.0",
-    "uvicorn>=0.30.0",
-    "slowapi>=0.1.9",
+    "streamlit>=1.58.0,<2.0",
+    "fastapi>=0.115.0,<1.0",
+    "uvicorn>=0.30.0,<1.0",
+    "slowapi>=0.1.9,<1.0",
 ]
 test = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.24.0",
-    "pytest-cov>=7.0.0",
-    "pytest-watch>=4.2.0",
-    "httpx>=0.28.0",
+    "pytest>=8.0.0,<9.0",
+    "pytest-asyncio>=0.24.0,<1.0",
+    "pytest-cov>=7.0.0,<8.0",
+    "pytest-watch>=4.2.0,<5.0",
+    "httpx>=0.28.0,<1.0",
 ]
 dev = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.24.0",
-    "pytest-watch>=4.2.0",
-    "ruff>=0.3.0",
+    "pytest>=8.0.0,<9.0",
+    "pytest-asyncio>=0.24.0,<1.0",
+    "pytest-watch>=4.2.0,<5.0",
+    "ruff>=0.3.0,<1.0",
 ]
 
 [project.scripts]

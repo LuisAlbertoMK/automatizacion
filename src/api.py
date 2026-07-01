@@ -14,13 +14,16 @@ Uso:
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Optional
 
 try:
     from fastapi import APIRouter, FastAPI, HTTPException, Query, Request  # noqa: F401
-    from pydantic import BaseModel
+    from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.responses import JSONResponse
+    from pydantic import BaseModel, field_validator
     FASTAPI_AVAILABLE = True
 except ImportError:
     FASTAPI_AVAILABLE = False
@@ -57,11 +60,32 @@ try:
     SLOWAPI_AVAILABLE = True
 except ImportError:
     SLOWAPI_AVAILABLE = False
+    logger.warning("slowapi no instalado — rate limiting desactivado")
 
 
 def _rate_limit(key: str, default: str) -> str:
     """Lee una variable de entorno o devuelve el default para rate limit."""
     return os.getenv(f"RATE_LIMIT_{key}", default)
+
+
+# ── Auth middleware ─────────────────────────────────────────
+
+API_KEY = os.getenv("API_KEY", "")
+DISABLE_AUTH = os.getenv("DISABLE_API_AUTH", "").lower() in ("1", "true", "yes")
+
+
+async def _verify_api_key(request: Request, call_next):
+    if DISABLE_AUTH or not API_KEY:
+        return await call_next(request)
+    key = request.headers.get("X-API-Key", "")
+    if key != API_KEY:
+        return JSONResponse(status_code=403, content={"detail": "API key inválida o faltante"})
+    return await call_next(request)
+
+
+# ── CURP validation ─────────────────────────────────────────
+
+CURP_RE = re.compile(r"^[A-Z]{4}\d{6}[H,M][A-Z]{5}[0-9A-Z]\d$")
 
 
 # ── Models ─────────────────────────────────────────────────
@@ -70,10 +94,26 @@ class CurpRequest(BaseModel):
     curp: str
     perfil: Optional[str] = None
 
+    @field_validator("curp")
+    @classmethod
+    def validar_curp(cls, v: str) -> str:
+        v = v.upper()
+        if not CURP_RE.match(v):
+            raise ValueError("Formato CURP inválido (deben ser 18 caracteres alfanuméricos)")
+        return v
+
 class NssRequest(BaseModel):
     curp: str
     correo: str
     perfil: Optional[str] = None
+
+    @field_validator("curp")
+    @classmethod
+    def validar_curp(cls, v: str) -> str:
+        v = v.upper()
+        if not CURP_RE.match(v):
+            raise ValueError("Formato CURP inválido (deben ser 18 caracteres alfanuméricos)")
+        return v
 
 class ProfileData(BaseModel):
     alias: str
@@ -85,18 +125,33 @@ class ProfileData(BaseModel):
 
 # ── App & Routers ─────────────────────────────────────────────
 
+PROD = os.getenv("PRODUCTION", "").lower() in ("1", "true", "yes")
+
 app = FastAPI(
     title="Agente de Trámites GOB.MX",
     description="API REST para automatizar trámites gubernamentales mexicanos",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    docs_url=None if PROD else "/docs",
+    redoc_url=None if PROD else "/redoc",
     openapi_tags=[
         {"name": "system", "description": "Health check e información general"},
         {"name": "tramites", "description": "Consultas de trámites (CURP, NSS)"},
         {"name": "perfiles", "description": "Gestión de perfiles de usuario"},
     ],
 )
+
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Auth middleware (si está configurada API_KEY)
+if API_KEY:
+    app.middleware("http")(_verify_api_key)
 
 system_router = APIRouter(tags=["system"])
 tramites_router = APIRouter(tags=["tramites"])
