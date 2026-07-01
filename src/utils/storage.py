@@ -35,9 +35,9 @@ def _get_cipher() -> Fernet:
             "STORAGE_KEY no configurada en config.env. "
             "Generá una con: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )
-    # SHA-256 -> 32 bytes -> base64url para Fernet
-    hashed = hashlib.sha256(raw_key.encode()).digest()
-    fernet_key = base64.urlsafe_b64encode(hashed)
+    # PBKDF2 key stretching -> 32 bytes -> base64url para Fernet
+    stretched = hashlib.pbkdf2_hmac("sha256", raw_key.encode(), b"fernet-key-salt", 600_000)
+    fernet_key = base64.urlsafe_b64encode(stretched)
     return Fernet(fernet_key)
 
 

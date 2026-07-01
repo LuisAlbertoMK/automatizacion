@@ -76,7 +76,10 @@ class BaseModule:
     async def launch_browser(self):
         """Lanza browser con configuración anti-detección."""
         p = await async_playwright().__aenter__()
-        browser = await p.firefox.launch(headless=HEADLESS)
+        browser = await p.firefox.launch(
+            headless=HEADLESS,
+            args=["--sandbox"],
+        )
         context = await browser.new_context(
             viewport={"width": 1280, "height": 800},
             user_agent=(

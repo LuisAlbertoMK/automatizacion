@@ -87,12 +87,12 @@ class VoiceInput:
             )
             sd.wait()  # Esperar a que termine
 
-            # Guardar en archivo temporal
-            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.wav')
-            sf.write(temp_file.name, recording, self.sample_rate)
+            # Guardar en archivo temporal (se limpia en transcribe())
+            temp_path = os.path.join(tempfile.gettempdir(), f"voz_{os.urandom(4).hex()}.wav")
+            sf.write(temp_path, recording, self.sample_rate)
 
             print("  [VOZ] [OK] Grabación completada")
-            return temp_file.name
+            return temp_path
 
         except Exception as e:
             raise VoiceInputError(f"Error grabando audio: {e}")

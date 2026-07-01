@@ -123,7 +123,7 @@ class AntecedentesModule(BaseModule):
         }
         if nueva_password:
             result["_nueva_password"] = nueva_password
-            print(f"  [ANTECEDENTES] ⚠️ Guardá esta contraseña: {nueva_password}")
+            self.log("  [ANTECEDENTES] Contrasena generada (guardada en perfil)")
         return result
 
     async def _login(self, page: Page, correo: str, password: str):
