@@ -19,10 +19,9 @@ import re
 import time
 
 from playwright.async_api import Page
-from playwright.async_api import TimeoutError as PwTimeout
 
 from exceptions import CURPError
-from modules.base import OUTPUT_DIR, TIMEOUT, BaseModule
+from modules.base import OUTPUT_DIR, BaseModule
 
 try:
     from utils.ocr import OCRExtractor  # noqa: F401
@@ -97,8 +96,8 @@ class CURPModule(BaseModule):
 
         # ── 1. Abrir portal ────────────────────────────────────────
         print("  [CURP] Abriendo portal...")
-        await self.goto(page, PORTAL_CONSULTA_URL,
-                        fallback_url="https://consultas.curp.gob.mx/CurpSP/gobmx/inicio.jsp")
+        await self.goto(page, PORTAL_URL,
+                        fallback_url=PORTAL_CONSULTA_URL)
 
         # Tomar screenshot para debug
         try:
@@ -264,18 +263,30 @@ class CURPModule(BaseModule):
             "button[type='submit']", "input[type='submit']",
             "button:has-text('Buscar')", "button:has-text('Consultar')",
             "a:has-text('Buscar')", "#btnBuscar",
+            # gob.mx/curp nuevo portal
+            "button.btn.btn-primary",
+            "button[onclick*='buscar']",
         ]
         for sel in submit_selectors:
             try:
                 if await page.locator(sel).count() > 0:
                     await page.click(sel)
-                    await page.wait_for_load_state("networkidle", timeout=TIMEOUT)
+                    await page.wait_for_timeout(2000)  # espera fija, no networkidle
                     print("  [CURP] B\u00fasqueda enviada \u2713")
                     return
-            except PwTimeout:
-                pass
             except Exception:
                 continue
+
+        # Fallback: buscar cualquier botón con texto Buscar
+        try:
+            btn = page.get_by_role("button", name="Buscar")
+            if await btn.count() > 0:
+                await btn.click()
+                await page.wait_for_timeout(2000)
+                print("  [CURP] B\u00fasqueda enviada (fallback role) \u2713")
+                return
+        except Exception:
+            pass
 
         raise CURPError("No se encontr\u00f3 el bot\u00f3n de b\u00fasqueda")
 
@@ -283,18 +294,32 @@ class CURPModule(BaseModule):
         """Extrae los datos de la p\u00e1gina de resultado usando HTML y OCR."""
         await asyncio.sleep(1)
         content = await page.content()
+        body_text = await page.inner_text("body")
 
-        # Extraer CURP del resultado (HTML)
+        # Extraer CURP del resultado
         curp_match = re.search(r"\b([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)\b", content)
         curp_val = curp_match.group(1) if curp_match else None
 
-        # Nombre completo (heur\u00edstica del HTML)
-        nombre_match = re.search(
-            r"(?:Nombre|NOMBRE)[:\s]+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1\s]+?)(?:\n|<|$)", content
-        )
-        nombre = nombre_match.group(1).strip() if nombre_match else ""
+        # Extraer todos los campos del resultado (portal gob.mx/curp nuevo)
+        def _campo(text: str, label: str) -> str:
+            m = re.search(
+                rf"{label}[:\s]+\s*([A-Za-z\u00c0-\u024f\u00f1\u00d1\s\d/]+?)(?:\n|$)",
+                text,
+            )
+            return m.group(1).strip() if m else ""
 
-        # Si no se encontr\u00f3 CURP o nombre, usar OCR como respaldo
+        nombres = _campo(body_text, r"Nombre\(s\)")
+        primer_ap = _campo(body_text, r"Primer apellido")
+        segundo_ap = _campo(body_text, r"Segundo apellido")
+        sexo = _campo(body_text, r"Sexo")
+        fecha_nac = _campo(body_text, r"Fecha de nacimiento")
+        nacionalidad = _campo(body_text, r"Nacionalidad")
+        entidad_nac = _campo(body_text, r"Entidad de nacimiento")
+        doc_probatorio = _campo(body_text, r"Documento probatorio")
+
+        nombre = f"{nombres} {primer_ap} {segundo_ap}".strip()
+
+        # Si no se encontraron datos, usar OCR como respaldo
         if (not curp_val or not nombre) and self.use_ocr and self.ocr:
             print("  [CURP] Usando OCR para extraer datos adicionales...")
             try:
@@ -303,17 +328,16 @@ class CURPModule(BaseModule):
 
                 ocr_data = self.ocr.extract_from_screenshot(screenshot_path)
 
-                if not curp_val and ocr_data["curp"]:
+                if not curp_val and ocr_data.get("curp"):
                     curp_val = ocr_data["curp"]
                     print(f"  [OCR] CURP extra\u00edda: {curp_val}")
 
-                if not nombre and ocr_data["raw_text"]:
-                    nombre_ocr = re.search(
-                        r"(?:Nombre|NOMBRE)[:\s]+([A-Z\u00c1\u00c9\u00cd\u00d3\u00da\u00d1\s]+?)(?:\n|$)",
-                        ocr_data["raw_text"]
-                    )
-                    if nombre_ocr:
-                        nombre = nombre_ocr.group(1).strip()
+                if not nombre and ocr_data.get("raw_text"):
+                    nombres = _campo(ocr_data["raw_text"], r"Nombre\(s\)")
+                    primer_ap = _campo(ocr_data["raw_text"], r"Primer apellido")
+                    segundo_ap = _campo(ocr_data["raw_text"], r"Segundo apellido")
+                    nombre = f"{nombres} {primer_ap} {segundo_ap}".strip()
+                    if nombre:
                         print(f"  [OCR] Nombre extra\u00eddo: {nombre}")
 
                 try:
@@ -324,6 +348,19 @@ class CURPModule(BaseModule):
                 print(f"  [OCR] Error al extraer datos: {e}")
 
         curp_val = curp_val or "DESCONOCIDA"
-        result = {"curp": curp_val, "nombre": nombre}
-        print(f"  [CURP] Resultado: CURP={curp_val}, Nombre={nombre or '(extraer del PDF)'}")
+        result = {
+            "curp": curp_val,
+            "nombre": nombre or "",
+            "nombres": nombres,
+            "primer_apellido": primer_ap,
+            "segundo_apellido": segundo_ap,
+            "sexo": sexo,
+            "fecha_nacimiento": fecha_nac,
+            "nacionalidad": nacionalidad,
+            "entidad_nacimiento": entidad_nac,
+            "documento_probatorio": doc_probatorio,
+        }
+        print(f"  [CURP] Resultado: CURP={curp_val}, Nombre={nombre or '(pendiente PDF)'}")
+        if sexo:
+            print(f"  [CURP]   + {nombres} {primer_ap} {segundo_ap} | {sexo} | {fecha_nac}")
         return result

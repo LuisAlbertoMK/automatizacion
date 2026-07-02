@@ -22,3 +22,6 @@
 - .dockerignore — creado
 - tests/test_base.py, tests/test_logger.py — mocks actualizados
 - .project.json, .learnings/ — score + hallazgos
+
+---
+[audit] 2026-07-01 - PASSED: self={Correctness:8,Tokens:8,ErrPrev:7,Skill:8,Speed:8,Breadth:9} audit={Correctness:7,Tokens:8,ErrPrev:6,Skill:7,Speed:7,Breadth:9} gaps={1,0,1,1,1,0}

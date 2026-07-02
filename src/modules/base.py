@@ -74,25 +74,31 @@ class BaseModule:
             self._logger = None
 
     async def launch_browser(self):
-        """Lanza browser con configuración anti-detección."""
+        """Lanza browser con configuración anti-detección.
+
+        Usa Firefox con fingerprint real para evitar WAF/Cloudflare.
+        El User-Agent de Chrome sobre Firefox es detectado como bot.
+        """
         p = await async_playwright().__aenter__()
         browser = await p.firefox.launch(
             headless=HEADLESS,
-            args=["--sandbox"],
+            args=["--no-sandbox"],
         )
         context = await browser.new_context(
             viewport={"width": 1280, "height": 800},
+            # Firefox con UA real de Firefox — Chrome UA en Firefox delata al bot
             user_agent=(
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/122.0.0.0 Safari/537.36"
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) "
+                "Gecko/20100101 Firefox/131.0"
             ),
             locale="es-MX",
+            timezone_id="America/Mexico_City",
+            permissions=["geolocation"],
         )
-        page = await context.new_page()
-        await page.add_init_script(
+        await context.add_init_script(
             "Object.defineProperty(navigator,'webdriver',{get:()=>undefined});"
         )
+        page = await context.new_page()
         return p, browser, page
 
     async def close_browser(self, p, browser):
@@ -107,19 +113,24 @@ class BaseModule:
             self.debug(f"Error cerrando playwright: {e}")
 
     async def goto(self, page: Page, url: str, fallback_url: str = None):
-        """Navega a URL con fallback y rate limiting."""
+        """Navega a URL con fallback y rate limiting.
+
+        Usa domcontentloaded + wait fijo en vez de networkidle porque
+        los portales del gobierno suelen tener analytics/tracking que
+        impiden que networkidle se dispare.
+        """
         await _rate_limit()
         last_error = None
         try:
             await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT)
-            await page.wait_for_load_state("networkidle", timeout=10000)
+            await page.wait_for_timeout(2000)
             return
         except Exception as e:
             last_error = e
             if fallback_url:
                 try:
                     await page.goto(fallback_url, wait_until="domcontentloaded", timeout=TIMEOUT)
-                    await page.wait_for_load_state("networkidle", timeout=10000)
+                    await page.wait_for_timeout(2000)
                     return
                 except Exception as e2:
                     last_error = e2

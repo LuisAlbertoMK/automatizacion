@@ -661,20 +661,20 @@ class TestGoto:
     @pytest.mark.asyncio
     async def test_goto_normal(self, module, mock_page):
         mock_page.goto = AsyncMock()
-        mock_page.wait_for_load_state = AsyncMock()
+        mock_page.wait_for_timeout = AsyncMock()
         with patch("modules.base._rate_limit", AsyncMock()):
             await module.goto(mock_page, "https://example.com")
         mock_page.goto.assert_called_once()
-        mock_page.wait_for_load_state.assert_called_once()
+        mock_page.wait_for_timeout.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_goto_fallback(self, module, mock_page):
         mock_page.goto = AsyncMock(side_effect=[Exception("fail"), None])
-        mock_page.wait_for_load_state = AsyncMock()
+        mock_page.wait_for_timeout = AsyncMock()
         with patch("modules.base._rate_limit", AsyncMock()):
             await module.goto(mock_page, "https://primary.com", fallback_url="https://fallback.com")
         assert mock_page.goto.call_count == 2
-        mock_page.wait_for_load_state.assert_called_once()
+        mock_page.wait_for_timeout.assert_called_once()
 
 
 # ── Browser ───────────────────────────────────────────────────────────────────
