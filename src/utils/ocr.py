@@ -171,9 +171,13 @@ class OCRExtractor:
         # Aumentar nitidez
         img = img.filter(ImageFilter.SHARPEN)
 
-        # Redimensionar si es muy pequeña
+        # Redimensionar: upscale si es muy chica (<1000px), downscale si es muy grande (>2000px)
         width, height = img.size
-        if width < 1000:
+        if width > 2000:
+            scale = 2000 / width
+            new_size = (int(width * scale), int(height * scale))
+            img = img.resize(new_size, Image.Resampling.LANCZOS)
+        elif 0 < width < 1000:
             scale = 1000 / width
             new_size = (int(width * scale), int(height * scale))
             img = img.resize(new_size, Image.Resampling.LANCZOS)

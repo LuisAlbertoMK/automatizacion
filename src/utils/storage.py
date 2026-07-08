@@ -21,12 +21,17 @@ import os
 import secrets
 from pathlib import Path
 
+import bcrypt
 from cryptography.fernet import Fernet, InvalidToken
 
 from src.exceptions import StorageError
 
 DATA_FILE = Path(os.getenv("OUTPUT_DIR", "./data")) / "perfiles.json"
 SALT_FILE = DATA_FILE.parent / ".fernet-salt"
+
+# Rondas para bcrypt.kdf — default 600k, reducible via env para tests/desarrollo
+_KDF_ROUNDS = int(os.getenv("BCRYPT_KDF_ROUNDS", "600000"))
+_HASH_ROUNDS = int(os.getenv("BCRYPT_HASH_ROUNDS", "100000"))
 
 
 def _get_salt() -> bytes:
@@ -57,8 +62,8 @@ def _get_cipher() -> Fernet:
             "Generá una con: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )
     salt = _get_salt()
-    # PBKDF2 key stretching -> 32 bytes -> base64url para Fernet
-    stretched = hashlib.pbkdf2_hmac("sha256", raw_key.encode(), salt, 600_000)
+    # bcrypt KDF -> 32 bytes -> base64url para Fernet
+    stretched = bcrypt.kdf(raw_key.encode(), salt, 32, rounds=_KDF_ROUNDS)
     fernet_key = base64.urlsafe_b64encode(stretched)
     return Fernet(fernet_key)
 
@@ -97,7 +102,7 @@ def _hash_sensitive(profile: dict, alias: str = "") -> dict:
     for k, v in profile.items():
         if isinstance(v, str) and any(s in k.lower() for s in SENSITIVE_FIELDS):
             salt = hashlib.sha256(alias.encode()).hexdigest()[:16]
-            hashed = hashlib.pbkdf2_hmac("sha256", v.encode(), salt.encode(), 100_000)
+            hashed = bcrypt.kdf(v.encode(), salt.encode(), 32, rounds=_HASH_ROUNDS)
             safe[f"_{k}_hash"] = base64.urlsafe_b64encode(hashed).decode()
             safe[f"_{k}_salt"] = salt
         else:
@@ -135,7 +140,7 @@ def verify_sensitive(alias: str, field: str, value: str) -> bool:
     salt = profile.get(salt_key)
     if not stored_hash or not salt:
         return True  # No hay hash previo, asumir válido
-    check = hashlib.pbkdf2_hmac("sha256", value.encode(), salt.encode(), 100_000)
+    check = bcrypt.kdf(value.encode(), salt.encode(), 32, rounds=_HASH_ROUNDS)
     return base64.urlsafe_b64encode(check).decode() == stored_hash
 
 

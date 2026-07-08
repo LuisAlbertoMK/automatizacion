@@ -1,4 +1,4 @@
-"""Tests para modules/base.py — BaseModule, la fundación de todos los módulos."""
+"""Tests para src/tramites/base.py — BaseModule, la fundación de todos los módulos."""
 
 import asyncio
 import os

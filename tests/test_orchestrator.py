@@ -1,4 +1,4 @@
-"""Tests para modules/orchestrator.py — orquestador de trámites."""
+"""Tests para src/tramites/orchestrator.py — orquestador de trámites."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
