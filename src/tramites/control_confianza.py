@@ -89,7 +89,7 @@ class ControlConfianzaModule(BaseModule):
         await self.goto(page, PORTAL_URL)
 
         self.log("⚠ Iniciá sesión con tu usuario institucional o e.firma en el navegador")
-        input("  Presioná Enter DESPUÉS de haber iniciado sesión...")
+        await self.interaction.prompt_enter("Presioná Enter DESPUÉS de haber iniciado sesión...")
 
         # ── 2. Llenar datos personales ─────────────────────────
         await self.fill_field(page, ["#nombre", "input[name='nombre']"], nombre)
@@ -143,7 +143,7 @@ class ControlConfianzaModule(BaseModule):
             ], str(egreso_mensual))
 
         self.log("⚠ Completá el historial laboral, referencias y bienes manualmente")
-        input("  Presioná Enter cuando hayas completado TODO...")
+        await self.interaction.prompt_enter("Presioná Enter cuando hayas completado TODO...")
 
         # ── 5. Enviar ──────────────────────────────────────────
         await self.click_first(page, [

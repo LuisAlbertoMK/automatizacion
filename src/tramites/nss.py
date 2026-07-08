@@ -53,9 +53,6 @@ class NSSModule(BaseModule):
         super().__init__(captcha_solver=captcha_solver, use_ocr=use_ocr, name="NSS")
         self.mail_reader = mail_reader
 
-        if use_ocr and self.ocr is None:
-            self.warn("OCR no disponible. Instala: pip install pytesseract pillow")
-
     async def consultar(self, curp: str, correo: str) -> dict:
         """
         Consulta el NSS del IMSS para una CURP dada.

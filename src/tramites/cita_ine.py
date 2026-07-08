@@ -98,7 +98,7 @@ class CitaINEModule(BaseModule):
             await self.wait_for_recaptcha(page, max_wait=180, module_name=self.name)
 
         # Esperar a que seleccione módulo
-        input("  Presioná Enter DESPUÉS de seleccionar tu módulo de atención...")
+        await self.interaction.prompt_enter("Presioná Enter DESPUÉS de seleccionar tu módulo de atención...")
 
         # ── 7. Seleccionar fecha disponible ────────────────────
         await page.wait_for_timeout(1000)
@@ -114,7 +114,7 @@ class CitaINEModule(BaseModule):
             self.debug(f"No se pudo seleccionar fecha: {e}")
 
         self.log("⚠ Confirmá la cita en el navegador")
-        input("  Presioná Enter DESPUÉS de confirmar la cita...")
+        await self.interaction.prompt_enter("Presioná Enter DESPUÉS de confirmar la cita...")
 
         # ── 8. Descargar comprobante ───────────────────────────
         pdf_path = await self.download_pdf(

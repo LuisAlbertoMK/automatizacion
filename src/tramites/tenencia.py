@@ -29,8 +29,6 @@ PORTAL_URL = "https://sfpya.edomexico.gob.mx/"
 class TenenciaModule(BaseModule):
     def __init__(self, captcha_solver=None, use_ocr=True):
         super().__init__(captcha_solver=captcha_solver, use_ocr=use_ocr, name="TENENCIA")
-        if use_ocr and self.ocr is None:
-            self.warn("OCR no disponible")
 
     async def consultar(self, placa: str, numero_serie: str = None) -> dict:
         """
@@ -178,7 +176,7 @@ class TenenciaModule(BaseModule):
             return
 
         self.log("Resuelve el CAPTCHA manualmente")
-        solution = input("  Ingresa el CAPTCHA: ").strip()
+        solution = await self.interaction.prompt("Ingresa el CAPTCHA: ")
         if solution:
             await self.fill_field(page, [
                 "input[name='captcha']",

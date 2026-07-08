@@ -158,7 +158,7 @@ class CreditoModule(BaseModule):
 
         # ── 3. Intervención manual ─────────────────────────────
         self.log("⚠ Completá las preguntas de seguridad y captcha en el navegador")
-        input("  Presioná Enter DESPUÉS de completar las preguntas...")
+        await self.interaction.prompt_enter("Presioná Enter DESPUÉS de completar las preguntas...")
 
         # ── 4. Descargar reporte ───────────────────────────────
         pdf_name = cfg["pdf_pattern"].format(rfc=rfc[:8])

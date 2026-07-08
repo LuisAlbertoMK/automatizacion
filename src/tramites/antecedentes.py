@@ -27,8 +27,6 @@ PORTAL_URL = "https://constancias.oadprs.gob.mx/"
 class AntecedentesModule(BaseModule):
     def __init__(self, captcha_solver=None, use_ocr=True):
         super().__init__(captcha_solver=captcha_solver, use_ocr=use_ocr, name="ANTECEDENTES")
-        if use_ocr and self.ocr is None:
-            self.warn("OCR no disponible")
 
     async def consultar(self, curp: str, correo: str, password: str = None,
                         datos_personales: dict = None) -> dict:

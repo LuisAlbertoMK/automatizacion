@@ -107,7 +107,7 @@ class CitaSATModule(BaseModule):
         if site_key:
             await self.wait_for_recaptcha(page, max_wait=180, module_name=self.name)
 
-        input("  Presioná Enter DESPUÉS de seleccionar el servicio y módulo SAT...")
+        await self.interaction.prompt_enter("Presioná Enter DESPUÉS de seleccionar el servicio y módulo SAT...")
 
         # ── 8. Seleccionar fecha disponible ────────────────────
         await page.wait_for_timeout(1000)
@@ -123,7 +123,7 @@ class CitaSATModule(BaseModule):
             self.debug(f"No se pudo seleccionar fecha: {e}")
 
         self.log("⚠ Confirmá la cita en el navegador")
-        input("  Presioná Enter DESPUÉS de confirmar la cita...")
+        await self.interaction.prompt_enter("Presioná Enter DESPUÉS de confirmar la cita...")
 
         # ── 9. Descargar comprobante ───────────────────────────
         pdf_path = await self.download_pdf(

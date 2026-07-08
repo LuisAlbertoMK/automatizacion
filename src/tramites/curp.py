@@ -52,8 +52,6 @@ ESTADOS = {
 class CURPModule(BaseModule):
     def __init__(self, captcha_solver=None, use_ocr=True):
         super().__init__(captcha_solver=captcha_solver, use_ocr=use_ocr, name="CURP")
-        if use_ocr and self.ocr is None:
-            self.warn("OCR no disponible. Instala: pip install pytesseract pillow")
 
     async def consultar(self, curp: str = None, datos: dict = None) -> dict:
         """

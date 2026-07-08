@@ -103,7 +103,8 @@ class BaseModule:
       - Screenshot de debug (debug_screenshot)
     """
 
-    def __init__(self, captcha_solver=None, use_ocr=True, name="Base"):
+    def __init__(self, captcha_solver=None, use_ocr=True, name="Base",
+                 interaction=None):
         self.solver = captcha_solver
         self.name = name
         self.use_ocr = use_ocr
@@ -113,8 +114,14 @@ class BaseModule:
                 from src.utils.ocr import OCRExtractor
                 self.ocr = OCRExtractor()
             except ImportError:
-                pass
+                self.warn("OCR no disponible. Instala: pip install pytesseract pillow")
         self._selector_cache: dict[str, str] = {}
+        # Inicializar handler de interacción con el usuario
+        if interaction is not None:
+            self.interaction = interaction
+        else:
+            from src.utils.interaction import CLIPromptHandler
+            self.interaction = CLIPromptHandler()
         # Inicializar logger estructurado
         try:
             from src.utils.logger import get_logger
