@@ -53,24 +53,9 @@
 
 ## 🔴 PENDIENTE (7 items)
 
-### F2.2 — Salt único por instancia para STORAGE_KEY
-**Impacto:** CRÍTICO | **Esfuerzo:** ~1d | **Riesgo:** BAJO
+~~F2.2 — Salt único por instancia para STORAGE_KEY — ✅ YA IMPLEMENTADO~~
 
-**Problema:** Salt hardcodeado `b"fernet-key-salt"` en `storage.py`. Dos instancias con misma STORAGE_KEY generan clave Fernet idéntica.
-
-**Archivos a tocar:** `src/utils/storage.py`
-- Generar salt aleatorio al primer uso
-- Guardar en `data/` persistente
-- `storage_migrate_salt()` ya existe para migración
-
-### F3.9 — wait_for_timeout(2000) optimizado
-**Impacto:** MEDIO | **Esfuerzo:** ~1d | **Riesgo:** MEDIO
-
-**Problema:** `await page.wait_for_timeout(2000)` en `base.py:235,243` espera 2s fijos post-navegación.
-
-**Archivos a tocar:** `src/tramites/base.py`
-- Reemplazar por `wait_for_selector()` del primer elemento clave
-- O timeout dinámico según portal
+~~F3.9 — wait_for_timeout(2000) optimizado — ✅ DONE~~
 
 ### F3.10 — Ensemble CNN paralelo
 **Impacto:** BAJO | **Esfuerzo:** ~1d | **Riesgo:** BAJO
@@ -120,15 +105,13 @@
 | Fase | Total | Hecho | Pendiente |
 |------|-------|-------|-----------|
 | F1: Higiene | 3 | 3 | 0 |
-| F2: Seguridad | 6 | 5 | **1** (F2.2 salt único) |
-| F3: Rendimiento | 10 | 8 | **2** (F3.9 timeout, F3.10 ensemble) |
+| F2: Seguridad | 6 | 6 | **0** ✅ |
+| F3: Rendimiento | 10 | 9 | **1** (F3.10 ensemble) |
 | F4: Arquitectura | 4 | 4 | 0 |
 | F5: Testing | 6 | 0 | **4** (F5.3-F5.6) |
 | F6: Playwright | 1 | 1 | 0 |
-| **TOTAL** | **30** | **21** | **7** |
+| **TOTAL** | **30** | **23** | **5** |
 
 ### Prioridad sugerida
-1. 🥇 **F2.2** — Salt único (seguridad crítica, ~1d)
-2. 🥇 **F3.9** — wait_for_timeout optimizado (~1d)
-3. 🥇 **F5.3-F5.6** — CI/testing (~2d total)
-4. 🥈 **F3.10** — Ensemble paralelo (~1d)
+1. 🥇 **F5.3-F5.6** — CI/testing (~2d total)
+2. 🥈 **F3.10** — Ensemble paralelo (~1d)

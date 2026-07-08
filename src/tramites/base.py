@@ -223,16 +223,17 @@ class BaseModule:
     async def goto(self, page: Page, url: str, fallback_url: str = None):
         """Navega a URL con fallback y rate limiting.
 
-        Usa domcontentloaded + wait fijo en vez de networkidle porque
-        los portales del gobierno suelen tener analytics/tracking que
-        impiden que networkidle se dispare.
+        Estrategia de carga:
+        1. domcontentloaded (rápido, no espera assets)
+        2. networkidle con timeout 5s (espera si la página termina pronto)
+        3. 500ms de gracia post-carga (mínimo seguro)
         """
         await _rate_limit()
         last_error = None
         try:
             self.debug(f"Navegando a {url}")
             await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT)
-            await page.wait_for_timeout(2000)
+            await self._wait_page_ready(page)
             return
         except Exception as e:
             last_error = e
@@ -240,13 +241,22 @@ class BaseModule:
                 try:
                     self.debug(f"Fallback: navegando a {fallback_url}")
                     await page.goto(fallback_url, wait_until="domcontentloaded", timeout=TIMEOUT)
-                    await page.wait_for_timeout(2000)
+                    await self._wait_page_ready(page)
                     return
                 except Exception as e2:
                     last_error = e2
         raise ModuleError(
             f"No se pudo navegar a {url} (fallback: {fallback_url}): {last_error}"
         ) from last_error
+
+    @staticmethod
+    async def _wait_page_ready(page: Page):
+        """Espera a que la página termine de cargar (networkidle con timeout)."""
+        try:
+            await page.wait_for_load_state("networkidle", timeout=5000)
+        except Exception:
+            pass  # time out = la página no calló en 5s, seguimos igual
+        await page.wait_for_timeout(500)
 
     async def fill_field(self, page: Page, selectors: list, value: str) -> bool:
         """Llena un campo probando múltiples selectores. Retorna True si encontró alguno."""
