@@ -5,12 +5,14 @@ Inference: segment captcha → classify each char → return text.
 Uses trained CNN model. Falls back gracefully if model not found.
 """
 from pathlib import Path
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, TYPE_CHECKING
 
 import cv2
 import numpy as np
-import torch
-import torch.nn.functional as F
+
+if TYPE_CHECKING:
+    import torch
+    import torch.nn.functional as F
 
 from .dataset import (
     segment_captcha,
@@ -20,7 +22,6 @@ from .dataset import (
     MODEL_DIR,
     N_CLASSES,
 )
-from .model import CaptchaCNN
 
 
 class CNNPredictor:
@@ -32,10 +33,10 @@ class CNNPredictor:
     """
 
     def __init__(self, model_path: Optional[str] = None, device: str = "auto"):
-        self.device = torch.device(
-            "cuda" if device == "auto" and torch.cuda.is_available()
-            else "cpu"
-        )
+        self._torch = None
+        self._F = None
+        self._device_str = device
+        self.device = None
         self.model = None
         self._loaded = False
 
@@ -46,9 +47,29 @@ class CNNPredictor:
             print(f"  [CNN] Model not found at {path}. Train first with: "
                   f"py -3.14 -m captcha_solver_imss.cnn_solver.train")
 
+    @property
+    def torch(self):
+        if self._torch is None:
+            import torch
+            import torch.nn.functional as F
+            self._torch = torch
+            self._F = F
+            self.device = torch.device(
+                "cuda" if self._device_str == "auto" and torch.cuda.is_available()
+                else "cpu"
+            )
+        return self._torch
+
+    @property
+    def F(self):
+        if self._F is None:
+            _ = self.torch
+        return self._F
+
     def _load_model(self, path: Path):
+        from .model import CaptchaCNN
         try:
-            checkpoint = torch.load(path, map_location=self.device, weights_only=False)
+            checkpoint = self.torch.load(path, map_location=self.device, weights_only=False)
             self.model = CaptchaCNN(num_classes=N_CLASSES).to(self.device)
             self.model.load_state_dict(checkpoint["model_state_dict"])
             self.model.eval()
@@ -80,13 +101,13 @@ class CNNPredictor:
         normalized = normalize_char(char_img, target_size=32)
 
         # Tensor: (1, 1, 32, 32)
-        tensor = torch.from_numpy(normalized).float().unsqueeze(0).unsqueeze(0)
+        tensor = self.torch.from_numpy(normalized).float().unsqueeze(0).unsqueeze(0)
         tensor = tensor.to(self.device)
 
-        with torch.no_grad():
+        with self.torch.no_grad():
             outputs = self.model(tensor)
-            probs = F.softmax(outputs, dim=1)
-            conf, pred = torch.max(probs, dim=1)
+            probs = self.F.softmax(outputs, dim=1)
+            conf, pred = self.torch.max(probs, dim=1)
 
         char = IDX_TO_CHAR[pred.item()]
         confidence = conf.item()

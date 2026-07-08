@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [master, main]
+    tags: ['v*']
   pull_request:
     branches: [master, main]
 
@@ -28,7 +29,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system ruff pytest-cov
+          uv pip install --system ruff pytest-cov bandit safety
           uv pip install --system -e ".[test,web]"
 
       - name: Lint with ruff
@@ -37,10 +38,17 @@ jobs:
       - name: Check compilation
         run: python -m compileall -q src/ app.py health_check.py
 
+      - name: Security scan (bandit)
+        run: bandit -r src/ -x tests/ --quiet || true
+
+      - name: Security scan (safety)
+        run: safety check --full-report --ignore=70612 || true
+        continue-on-error: true
+
       - name: Tests unitarios + coverage
         env:
-          CAPTCHA_API_KEY: test
-          STORAGE_KEY: test_key_for_ci
+          CAPTCHA_API_KEY: ${{ secrets.CAPTCHA_API_KEY || 'test' }}
+          STORAGE_KEY: ${{ secrets.STORAGE_KEY || 'test_key_for_ci' }}
         run: |
           python -m pytest tests/ -v --tb=short -x --cov=src --cov-report=term-missing --cov-report=xml | head -80
 
@@ -61,10 +69,40 @@ jobs:
 
   docker:
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/v')
     needs: quality
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Docker image
-        run: docker build -t agente-tramites-gobmx .
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate image tags
+        id: meta
+        run: |
+          REPO="${{ github.repository }}"
+          REPO_LOWER=$(echo "$REPO" | tr '[:upper:]' '[:lower:]')
+          echo "repo_lower=$REPO_LOWER" >> $GITHUB_OUTPUT
+          TAGS="ghcr.io/$REPO_LOWER:latest"
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAGS="$TAGS,ghcr.io/$REPO_LOWER:${{ github.ref_name }}"
+          fi
+          TAGS="$TAGS,ghcr.io/$REPO_LOWER:${{ github.sha }}"
+          echo "tags=$TAGS" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

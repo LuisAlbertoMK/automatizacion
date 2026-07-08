@@ -20,15 +20,8 @@ import time
 
 from playwright.async_api import Page
 
-from exceptions import CURPError
-from modules.base import OUTPUT_DIR, BaseModule
-
-try:
-    from utils.ocr import OCRExtractor  # noqa: F401
-    OCR_AVAILABLE = True
-except ImportError:
-    OCR_AVAILABLE = False
-
+from src.exceptions import CURPError
+from src.modules.base import OUTPUT_DIR, BaseModule
 
 PORTAL_URL = "https://www.gob.mx/curp/"
 PORTAL_CONSULTA_URL = "https://consultas.curp.gob.mx/CurpSP/"
@@ -58,11 +51,9 @@ ESTADOS = {
 
 class CURPModule(BaseModule):
     def __init__(self, captcha_solver=None, use_ocr=True):
-        effective_ocr = use_ocr and OCR_AVAILABLE
-        super().__init__(captcha_solver=captcha_solver, use_ocr=effective_ocr, name="CURP")
-        self.use_ocr = effective_ocr
-        if use_ocr and not OCR_AVAILABLE:
-            print("  [CURP] \u26a0 OCR no disponible. Instala: pip install pytesseract pillow")
+        super().__init__(captcha_solver=captcha_solver, use_ocr=use_ocr, name="CURP")
+        if use_ocr and self.ocr is None:
+            self.warn("OCR no disponible. Instala: pip install pytesseract pillow")
 
     async def consultar(self, curp: str = None, datos: dict = None) -> dict:
         """
@@ -79,23 +70,24 @@ class CURPModule(BaseModule):
         if not curp and not datos:
             raise CURPError("Se requiere curp o datos personales")
 
-        print("\n  [CURP] Iniciando consulta...")
+        self.log("Iniciando consulta...")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
         try:
             result = await self._run(page, curp=curp, datos=datos)
             elapsed = time.time() - start
-            print(f"  [CURP] \u2705 Completado en {elapsed:.1f}s")
+            self.log(f"Completado en {elapsed:.1f}s")
             return result
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page: Page, curp: str = None, datos: dict = None) -> dict:
         """Flujo principal de consulta."""
 
         # ── 1. Abrir portal ────────────────────────────────────────
-        print("  [CURP] Abriendo portal...")
+        self.log("Abriendo portal...")
         await self.goto(page, PORTAL_URL,
                         fallback_url=PORTAL_CONSULTA_URL)
 
@@ -103,9 +95,9 @@ class CURPModule(BaseModule):
         try:
             debug_path = str(OUTPUT_DIR / "debug_portal.png")
             await page.screenshot(path=debug_path)
-            print(f"  [DEBUG] Screenshot guardado: {debug_path}")
+            self.debug(f"Screenshot guardado: {debug_path}")
         except Exception as e:
-            print(f"  [DEBUG] Error guardando screenshot: {e}")
+            self.debug(f"Error guardando screenshot: {e}")
 
         # ── 2. Elegir modalidad de consulta ───────────────────────
         if curp:
@@ -148,14 +140,14 @@ class CURPModule(BaseModule):
 
     async def _consulta_por_curp(self, page: Page, curp: str):
         """Llena el formulario de consulta por CURP."""
-        print(f"  [CURP] Modo: por CURP ({curp[:4]}****)")
+        self.log(f"Modo: por CURP ({curp[:4]}****)")
 
         # Esperar a que la página cargue completamente
         await asyncio.sleep(1)
 
         # Listar todos los inputs para debug
         all_inputs = await page.query_selector_all("input")
-        print(f"  [DEBUG] Total de inputs encontrados: {len(all_inputs)}")
+        self.debug(f"Total de inputs encontrados: {len(all_inputs)}")
 
         # Hacer clic en pestaña/botón de consulta por CURP
         await self.click_first(page, [
@@ -186,26 +178,26 @@ class CURPModule(BaseModule):
         ], curp.upper().strip())
 
         if filled:
-            print("  [CURP] CURP ingresada \u2713")
+            self.log("CURP ingresada")
             return
 
         # Si llegamos aquí, intentar un enfoque más agresivo
-        print("  [DEBUG] Intentando enfoque alternativo...")
+        self.debug("Intentando enfoque alternativo...")
         try:
             inputs = await self.find_visible_inputs(page, "curp")
             for inp_info in inputs:
                 if "curp" in (inp_info["name"] + inp_info["id"] + inp_info["placeholder"]).lower():
                     await inp_info["element"].fill(curp.upper().strip())
-                    print("  [CURP] CURP ingresada en campo detectado \u2713")
+                    self.log("CURP ingresada en campo detectado")
                     return
         except Exception as e:
-            print(f"  [DEBUG] Error en enfoque alternativo: {e}")
+            self.debug(f"Error en enfoque alternativo: {e}")
 
         raise CURPError("No se encontró el campo de CURP en el portal. Verifica que el portal esté accesible.")
 
     async def _consulta_por_datos(self, page: Page, datos: dict):
         """Llena el formulario de consulta por datos personales."""
-        print("  [CURP] Modo: por datos personales")
+        self.log("Modo: por datos personales")
 
         # Pestaña de datos
         await self.click_first(page, ["a:has-text('Por Datos')", "#consultaDatos", ".tab-datos"])
@@ -239,7 +231,7 @@ class CURPModule(BaseModule):
             except Exception:
                 continue
 
-        print("  [CURP] Datos personales ingresados \u2713")
+        self.log("Datos personales ingresados")
 
     async def _resolver_captcha(self, page: Page):
         """Detecta y resuelve el CAPTCHA del portal CURP."""
@@ -271,8 +263,8 @@ class CURPModule(BaseModule):
             try:
                 if await page.locator(sel).count() > 0:
                     await page.click(sel)
-                    await page.wait_for_timeout(2000)  # espera fija, no networkidle
-                    print("  [CURP] B\u00fasqueda enviada \u2713")
+                    await page.wait_for_timeout(2000)
+                    self.log("Búsqueda enviada")
                     return
             except Exception:
                 continue
@@ -283,7 +275,7 @@ class CURPModule(BaseModule):
             if await btn.count() > 0:
                 await btn.click()
                 await page.wait_for_timeout(2000)
-                print("  [CURP] B\u00fasqueda enviada (fallback role) \u2713")
+                self.log("Búsqueda enviada (fallback role)")
                 return
         except Exception:
             pass
@@ -321,7 +313,7 @@ class CURPModule(BaseModule):
 
         # Si no se encontraron datos, usar OCR como respaldo
         if (not curp_val or not nombre) and self.use_ocr and self.ocr:
-            print("  [CURP] Usando OCR para extraer datos adicionales...")
+            self.log("Usando OCR para extraer datos adicionales...")
             try:
                 screenshot_path = "resultado_curp_temp.png"
                 await page.screenshot(path=screenshot_path, full_page=True)
@@ -330,7 +322,7 @@ class CURPModule(BaseModule):
 
                 if not curp_val and ocr_data.get("curp"):
                     curp_val = ocr_data["curp"]
-                    print(f"  [OCR] CURP extra\u00edda: {curp_val}")
+                    self.debug(f"CURP extraída: {curp_val}")
 
                 if not nombre and ocr_data.get("raw_text"):
                     nombres = _campo(ocr_data["raw_text"], r"Nombre\(s\)")
@@ -338,14 +330,14 @@ class CURPModule(BaseModule):
                     segundo_ap = _campo(ocr_data["raw_text"], r"Segundo apellido")
                     nombre = f"{nombres} {primer_ap} {segundo_ap}".strip()
                     if nombre:
-                        print(f"  [OCR] Nombre extra\u00eddo: {nombre}")
+                        self.debug(f"Nombre extraído: {nombre}")
 
                 try:
                     os.remove(screenshot_path)
                 except Exception:
                     pass
             except Exception as e:
-                print(f"  [OCR] Error al extraer datos: {e}")
+                self.warn(f"Error al extraer datos: {e}")
 
         curp_val = curp_val or "DESCONOCIDA"
         result = {
@@ -360,7 +352,7 @@ class CURPModule(BaseModule):
             "entidad_nacimiento": entidad_nac,
             "documento_probatorio": doc_probatorio,
         }
-        print(f"  [CURP] Resultado: CURP={curp_val}, Nombre={nombre or '(pendiente PDF)'}")
+        self.log(f"Resultado: CURP={curp_val}, Nombre={nombre or '(pendiente PDF)'}")
         if sexo:
-            print(f"  [CURP]   + {nombres} {primer_ap} {segundo_ap} | {sexo} | {fecha_nac}")
+            self.debug(f"+ {nombres} {primer_ap} {segundo_ap} | {sexo} | {fecha_nac}")
         return result

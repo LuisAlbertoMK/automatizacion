@@ -13,7 +13,7 @@ import os
 import re
 import tempfile
 
-from exceptions import VoiceInputError
+from src.exceptions import VoiceInputError
 
 try:
     import numpy as np  # noqa: F401
@@ -168,7 +168,7 @@ class VoiceInput:
 
         if match:
             curp = match.group(1)
-            from utils.pii import sanitize_curp
+            from src.utils.pii import sanitize_curp
             print(f"  [VOZ] [OK] CURP detectada: {sanitize_curp(curp)}")
             return curp
 
@@ -180,7 +180,7 @@ class VoiceInput:
 
         if match2:
             curp = match2.group(1)
-            from utils.pii import sanitize_curp
+            from src.utils.pii import sanitize_curp
             print(f"  [VOZ] [OK] CURP detectada (deletreada): {sanitize_curp(curp)}")
             return curp
 

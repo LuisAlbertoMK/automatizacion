@@ -11,8 +11,8 @@ Migrado de: tramites-auto/tramites-bot/tramites/control_confianza.js
 
 import time
 
-from exceptions import ControlConfianzaError
-from modules.base import OUTPUT_DIR, BaseModule
+from src.exceptions import ControlConfianzaError
+from src.modules.base import OUTPUT_DIR, BaseModule
 
 PORTAL_URL = "https://certificado.sesnsp.gob.mx/"
 
@@ -57,7 +57,8 @@ class ControlConfianzaModule(BaseModule):
         self.log("Iniciando Control de Confianza...")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
         try:
             result = await self._run(page, curp=curp, rfc=rfc, nombre=nombre,
                                      fecha_nacimiento=fecha_nacimiento,
@@ -76,7 +77,7 @@ class ControlConfianzaModule(BaseModule):
             self.error(f"Error en {elapsed:.1f}s: {e}")
             raise ControlConfianzaError(f"Error en Control de Confianza: {e}") from e
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page, curp: str, rfc: str = "", nombre: str = "",
                    fecha_nacimiento: str = "", estado_nacimiento: str = "",

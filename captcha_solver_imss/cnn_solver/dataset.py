@@ -14,8 +14,6 @@ from collections import Counter
 
 import cv2
 import numpy as np
-import torch
-from torch.utils.data import Dataset, DataLoader
 
 # ── Character mapping ────────────────────────────────────────────────
 # 36 classes: A-Z (0-25), 0-9 (26-35)
@@ -274,7 +272,7 @@ def synthesize_missing_char(char_label: str) -> np.ndarray:
 
 # ── PyTorch Dataset ──────────────────────────────────────────────────
 
-class CaptchaCharDataset(Dataset):
+class CaptchaCharDataset:
     """
     Dataset of individual characters extracted from labeled captcha images.
 
@@ -362,10 +360,10 @@ class CaptchaCharDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
+        import torch
         img, label = self.samples[idx]
         if self.augment:
             img = augment_char(img)
-        # Tensor: (1, 32, 32)
         tensor = torch.from_numpy(img).float().unsqueeze(0)
         return tensor, label
 
@@ -375,13 +373,15 @@ def get_dataloaders(
     val_split: float = 0.15,
     augment: bool = True,
     synthetic_per_class: int = 30,
-) -> Tuple[DataLoader, DataLoader, int]:
+):
     """
     Create train/val dataloaders.
 
     Returns:
         (train_loader, val_loader, n_classes)
     """
+    import torch
+    from torch.utils.data import DataLoader
     dataset = CaptchaCharDataset(
         augment=augment,
         synthetic_per_class=synthetic_per_class,

@@ -14,18 +14,16 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
 import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / "config.env")
 
-from modules.curp import CURPModule  # noqa: E402
-from modules.nss import NSSModule  # noqa: E402
-from modules.orchestrator import listar_tramites  # noqa: E402
-from utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
-from utils.storage import delete_profile, list_profiles, load_profile, save_profile  # noqa: E402
+from src.modules.curp import CURPModule  # noqa: E402
+from src.modules.nss import NSSModule  # noqa: E402
+from src.modules.orchestrator import listar_tramites  # noqa: E402
+from src.utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
+from src.utils.storage import delete_profile, list_profiles, load_profile, save_profile  # noqa: E402
 
 # ── Config ──────────────────────────────────────────────────
 st.set_page_config(
@@ -45,7 +43,7 @@ def _get_solver():
         except CaptchaError:
             pass
     try:
-        from utils.free_captcha import FreeCaptchaSolver
+        from src.utils.free_captcha import FreeCaptchaSolver
         return FreeCaptchaSolver()
     except Exception:
         return None

@@ -7,9 +7,7 @@ from unittest.mock import patch
 import pytest
 from PIL import Image
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
-
-from utils.ocr import OCRError, OCRExtractor  # noqa: E402
+from src.utils.ocr import OCRError, OCRExtractor  # noqa: E402
 
 
 @pytest.fixture
@@ -25,7 +23,7 @@ _TINY_IMG = Image.new("RGB", (1, 1))
 class TestVerifyTesseract:
     """Lines 44-51: _verify_tesseract success y exception paths."""
 
-    @patch("utils.ocr.pytesseract.get_tesseract_version")
+    @patch("src.utils.ocr.pytesseract.get_tesseract_version")
     def test_verify_tesseract_ok(self, mock_version):
         extractor = OCRExtractor()
         # Parchear después de init (que llama _verify_tesseract automáticamente)
@@ -35,7 +33,7 @@ class TestVerifyTesseract:
 
     def test_verify_tesseract_fail(self):
         """Sin mock, get_tesseract_version falla (Tesseract no instalado en CI)."""
-        with patch("utils.ocr.pytesseract.get_tesseract_version", side_effect=Exception("No Tesseract")):
+        with patch("src.utils.ocr.pytesseract.get_tesseract_version", side_effect=Exception("No Tesseract")):
             extractor = OCRExtractor()
             assert extractor is not None
 
@@ -43,7 +41,7 @@ class TestVerifyTesseract:
 class TestExtractFromPdf:
     """Lines 103-123: extract_from_pdf con 3 ramas."""
 
-    @patch("utils.ocr.pytesseract.image_to_string", return_value="texto pdf")
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="texto pdf")
     @patch("pdf2image.convert_from_path")
     def test_extract_from_pdf_basic(self, mock_convert, mock_its, ocr):
         mock_convert.return_value = [_TINY_IMG, _TINY_IMG]
@@ -51,14 +49,14 @@ class TestExtractFromPdf:
         assert result == "texto pdf\n\ntexto pdf"
         assert mock_convert.call_count == 1
 
-    @patch("utils.ocr.pytesseract.image_to_string", return_value="")
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="")
     @patch("pdf2image.convert_from_path")
     def test_extract_from_pdf_single_page(self, mock_convert, mock_its, ocr):
         mock_convert.return_value = [_TINY_IMG]
         result = ocr.extract_from_pdf("fake/single.pdf")
         assert result == ""
 
-    @patch("utils.ocr.pytesseract.image_to_string", return_value="x")
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="x")
     @patch("pdf2image.convert_from_path")
     def test_extract_from_pdf_import_error(self, mock_convert, mock_its, ocr):
         """ImportError cuando pdf2image no está instalado."""
@@ -66,7 +64,7 @@ class TestExtractFromPdf:
         with pytest.raises(OCRError, match="pdf2image"):
             ocr.extract_from_pdf("fake/doc.pdf")
 
-    @patch("utils.ocr.pytesseract.image_to_string", return_value="x")
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="x")
     @patch("pdf2image.convert_from_path")
     def test_extract_from_pdf_generic_error(self, mock_convert, mock_its, ocr):
         """Exception genérica en extract_from_pdf."""
@@ -145,22 +143,22 @@ class TestDataExtractors:
 class TestExtractFromScreenshot:
     """Lines 286-296: extract_from_screenshot integra image + all_data."""
 
-    @patch("utils.ocr.pytesseract.image_to_string", return_value="CURP GOGG800101HDFPLN08")
-    @patch("utils.ocr.Image.open", return_value=_TINY_IMG)
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="CURP GOGG800101HDFPLN08")
+    @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
     def test_screenshot_with_curp(self, mock_open, mock_its, ocr):
         result = ocr.extract_from_screenshot("fake/screen.png")
         assert result["curp"] == "GOGG800101HDFPLN08"
         assert "raw_text" in result
 
-    @patch("utils.ocr.pytesseract.image_to_string", return_value="sin datos importantes")
-    @patch("utils.ocr.Image.open", return_value=_TINY_IMG)
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="sin datos importantes")
+    @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
     def test_screenshot_no_data(self, mock_open, mock_its, ocr):
         result = ocr.extract_from_screenshot("fake/screen.png")
         assert result["curp"] is None
         assert result["nss"] is None
 
-    @patch("utils.ocr.pytesseract.image_to_string", return_value="CURP GOGG800101HDFPLN08 NSS 12345678901")
-    @patch("utils.ocr.Image.open", return_value=_TINY_IMG)
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="CURP GOGG800101HDFPLN08 NSS 12345678901")
+    @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
     def test_screenshot_with_nss(self, mock_open, mock_its, ocr):
         """Line 294: NSS encontrado en screenshot."""
         result = ocr.extract_from_screenshot("fake/screen.png")
@@ -172,22 +170,22 @@ class TestOCRExtractor:
     def test_init(self, ocr):
         assert isinstance(ocr, OCRExtractor)
 
-    @patch("utils.ocr.pytesseract.image_to_string")
-    @patch("utils.ocr.Image.open", return_value=_TINY_IMG)
+    @patch("src.utils.ocr.pytesseract.image_to_string")
+    @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
     def test_extract_from_image_basic(self, mock_open, mock_its, ocr):
         mock_its.return_value = "Texto extraido"
         result = ocr.extract_from_image("fake/path.png")
         assert result == "Texto extraido"
 
-    @patch("utils.ocr.pytesseract.image_to_string")
-    @patch("utils.ocr.Image.open", return_value=_TINY_IMG)
+    @patch("src.utils.ocr.pytesseract.image_to_string")
+    @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
     def test_extract_from_image_strips_whitespace(self, mock_open, mock_its, ocr):
         mock_its.return_value = "  Hola mundo  \n"
         result = ocr.extract_from_image("fake/path.png")
         assert result == "Hola mundo"
 
-    @patch("utils.ocr.pytesseract.image_to_string")
-    @patch("utils.ocr.Image.open", return_value=_TINY_IMG)
+    @patch("src.utils.ocr.pytesseract.image_to_string")
+    @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
     def test_extract_from_image_supports_lang(self, mock_open, mock_its, ocr):
         mock_its.return_value = "Hello world"
         result = ocr.extract_from_image("fake/path.png", lang="eng")
@@ -196,20 +194,20 @@ class TestOCRExtractor:
         _, kwargs = mock_its.call_args
         assert kwargs.get("lang") == "eng"
 
-    @patch("utils.ocr.Image.open")
+    @patch("src.utils.ocr.Image.open")
     def test_extract_from_image_raises_on_error(self, mock_open, ocr):
         mock_open.side_effect = FileNotFoundError("No such file")
         with pytest.raises(OCRError):
             ocr.extract_from_image("fake/path.png")
 
-    @patch("utils.ocr.pytesseract.image_to_string")
-    @patch("utils.ocr.Image.open", return_value=_TINY_IMG)
+    @patch("src.utils.ocr.pytesseract.image_to_string")
+    @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
     def test_extract_from_bytes(self, mock_open, mock_its, ocr):
         mock_its.return_value = "Texto desde bytes"
         result = ocr.extract_from_bytes(b"fake-image-bytes")
         assert result == "Texto desde bytes"
 
-    @patch("utils.ocr.Image.open")
+    @patch("src.utils.ocr.Image.open")
     def test_extract_from_bytes_raises_on_error(self, mock_open, ocr):
         mock_open.side_effect = Exception("Corrupt image")
         with pytest.raises(OCRError):

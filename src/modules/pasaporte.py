@@ -8,8 +8,8 @@ Migrado de: tramites-auto/tramites-bot/tramites/pasaporte.js
 
 import time
 
-from exceptions import PasaporteError
-from modules.base import OUTPUT_DIR, BaseModule
+from src.exceptions import PasaporteError
+from src.modules.base import OUTPUT_DIR, BaseModule
 
 PORTAL_URL = "https://www.gob.mx/tramites/ficha/pasaporte-para-adultos/SRE230"
 
@@ -46,7 +46,8 @@ class PasaporteModule(BaseModule):
         self.log("Iniciando cita de pasaporte...")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
         try:
             result = await self._run(page, curp=curp, nombre=nombre,
                                      apellido_paterno=apellido_paterno,
@@ -62,7 +63,7 @@ class PasaporteModule(BaseModule):
             self.error(f"Error en {elapsed:.1f}s: {e}")
             raise PasaporteError(f"Error en cita pasaporte: {e}") from e
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page, curp: str, nombre: str = "", apellido_paterno: str = "",
                    apellido_materno: str = "", estado: str = "MEX",

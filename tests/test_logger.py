@@ -6,9 +6,7 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from utils.logger import TramiteLogger, TramiteMetrics, get_logger, metrics  # noqa: E402
+from src.utils.logger import TramiteLogger, TramiteMetrics, get_logger, metrics  # noqa: E402
 
 
 class TestTramiteLogger:
@@ -110,7 +108,7 @@ class TestTramiteMetrics:
         tm = TramiteMetrics()
         tm.start("curp")
         tm._start -= 1  # 1 second ago
-        with patch("utils.logger.METRICS_FILE", tmp_path / "test.jsonl"):
+        with patch("src.utils.logger.METRICS_FILE", tmp_path / "test.jsonl"):
             result = tm.finish(True, extra={"test": "val"})
         assert result is not None
         assert result["tramite"] == "curp"
@@ -122,7 +120,7 @@ class TestTramiteMetrics:
         metrics_path = tmp_path / "metricas.jsonl"
         tm = TramiteMetrics()
         tm.start("nss")
-        with patch("utils.logger.METRICS_FILE", metrics_path):
+        with patch("src.utils.logger.METRICS_FILE", metrics_path):
             tm.finish(False)
         assert metrics_path.read_text(encoding="utf-8") != ""
         data = json.loads(metrics_path.read_text(encoding="utf-8"))
@@ -139,14 +137,14 @@ class TestTramiteMetrics:
     def test_resumen_no_file(self, tmp_path):
         tm = TramiteMetrics()
         # METRICS_FILE doesn't exist
-        with patch("utils.logger.METRICS_FILE", tmp_path / "noexist.jsonl"):
+        with patch("src.utils.logger.METRICS_FILE", tmp_path / "noexist.jsonl"):
             assert tm.resumen() == {"total": 0}
 
     def test_resumen_empty_file(self, tmp_path):
         f = tmp_path / "empty.jsonl"
         f.write_text("")
         tm = TramiteMetrics()
-        with patch("utils.logger.METRICS_FILE", f):
+        with patch("src.utils.logger.METRICS_FILE", f):
             assert tm.resumen() == {"total": 0}
 
     def test_resumen_with_data(self, tmp_path):
@@ -158,7 +156,7 @@ class TestTramiteMetrics:
         ]
         f.write_text("\n".join(json.dumps(r) for r in records))
         tm = TramiteMetrics()
-        with patch("utils.logger.METRICS_FILE", f):
+        with patch("src.utils.logger.METRICS_FILE", f):
             result = tm.resumen()
         assert result["total"] == 3
         assert result["exitosos"] == 2
@@ -172,7 +170,7 @@ class TestTramiteMetrics:
         f = tmp_path / "bad.jsonl"
         f.write_text("not json\n{also not\n")
         tm = TramiteMetrics()
-        with patch("utils.logger.METRICS_FILE", f):
+        with patch("src.utils.logger.METRICS_FILE", f):
             result = tm.resumen()
         assert result == {"total": 0}
 
@@ -181,7 +179,7 @@ class TestTramiteMetrics:
         f.write_text("{}")
         tm = TramiteMetrics()
         with patch("builtins.open", side_effect=PermissionError("denied")):
-            with patch("utils.logger.METRICS_FILE", f):
+            with patch("src.utils.logger.METRICS_FILE", f):
                 result = tm.resumen()
         assert result == {"total": 0}
 
@@ -194,12 +192,12 @@ class TestTramiteLoggerFileHandler:
     """Lines 48-55: file handler creation."""
 
     def test_handler_created_once(self, tmp_path):
-        with patch("utils.logger.LOG_DIR", tmp_path):
+        with patch("src.utils.logger.LOG_DIR", tmp_path):
             log = TramiteLogger("test")
             assert len(log._logger.handlers) >= 1
 
     def test_reuses_handlers(self, tmp_path):
-        with patch("utils.logger.LOG_DIR", tmp_path):
+        with patch("src.utils.logger.LOG_DIR", tmp_path):
             log1 = TramiteLogger("test")
             count = len(log1._logger.handlers)
             log2 = TramiteLogger("test")

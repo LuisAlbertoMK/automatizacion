@@ -13,7 +13,7 @@ import importlib
 from typing import Literal
 
 try:
-    from utils.multimodal_input import MultimodalInput
+    from src.utils.multimodal_input import MultimodalInput
     MULTIMODAL_AVAILABLE = True
 except ImportError:
     MULTIMODAL_AVAILABLE = False
@@ -241,7 +241,7 @@ class TramitesOrchestrator:
         resultados["nss"] = res_nss
 
         # Resumen
-        from utils.pii import sanitize_curp, sanitize_nss
+        from src.utils.pii import sanitize_curp, sanitize_nss
         print(f"\n{'='*60}")
         print("  RESUMEN FINAL")
         print(f"{'='*60}")
@@ -361,7 +361,7 @@ class TramitesOrchestrator:
     async def generar_cv_interactivo(self) -> dict:
         """Genera CV profesional interactivo."""
         try:
-            from modules.documentos import CVGenerator
+            from src.modules.documentos import CVGenerator
         except ImportError:
             print("  Módulo de documentos no disponible. Instalá: pip install python-docx")
             return {"status": "error", "error": "python-docx no instalado"}
@@ -371,7 +371,7 @@ class TramitesOrchestrator:
     async def generar_escrito_interactivo(self) -> dict:
         """Genera escrito/carta interactivo."""
         try:
-            from modules.documentos import EscritoGenerator
+            from src.modules.documentos import EscritoGenerator
         except ImportError:
             print("  Módulo de documentos no disponible. Instalá: pip install python-docx")
             return {"status": "error", "error": "python-docx no instalado"}

@@ -6,7 +6,7 @@ Usa python-docx para construir el documento Word y Claude API para
 generar el contenido estructurado del CV.
 
 Uso:
-    from modules.documentos import CVGenerator
+    from src.modules.documentos import CVGenerator
     generador = CVGenerator()
     resultado = generador.generar_interactivo()
 """
@@ -21,7 +21,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
-from utils.claude import call_claude
+from src.utils.claude import call_claude
 
 # ── Estilos ──────────────────────────────────────────────────────────────────
 COLOR_PRIMARY = RGBColor(0x1F, 0x38, 0x64)   # Azul oscuro

@@ -11,8 +11,8 @@ Portales:
 import time
 from typing import Literal
 
-from exceptions import BuroError, CirculoError, ModuleError
-from modules.base import OUTPUT_DIR, BaseModule
+from src.exceptions import BuroError, CirculoError, ModuleError
+from src.modules.base import OUTPUT_DIR, BaseModule
 
 TipoCredito = Literal["buro", "circulo"]
 
@@ -116,7 +116,8 @@ class CreditoModule(BaseModule):
         self.log(cfg["msgs"]["start"])
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
         try:
             result = await self._run(page, rfc=rfc, curp=curp,
                                      nombre=nombre, apellido_paterno=apellido_paterno,
@@ -132,7 +133,7 @@ class CreditoModule(BaseModule):
             self.error(f"Error en {elapsed:.1f}s: {e}")
             raise ErrorCls(f"Error consultando {cfg['label']}: {e}") from e
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page, rfc: str, curp: str, nombre: str = "",
                    apellido_paterno: str = "", apellido_materno: str = "",

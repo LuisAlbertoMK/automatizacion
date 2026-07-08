@@ -21,7 +21,6 @@ import time
 import uuid
 from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(__file__))
 from playwright.async_api import async_playwright
 
 # ── Config ────────────────────────────────────────────────────────────────

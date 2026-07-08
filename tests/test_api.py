@@ -7,13 +7,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-# ── FastAPI conditional ───────────────────────────────────────────────────────
 pytest.importorskip("fastapi", reason="pip install -e '.[web]'")
 from fastapi.testclient import TestClient
 
-from api import app  # noqa: E402
+from src.api import app  # noqa: E402
 
 # ── Fixture autouse para toda la clase: mockea módulos reales ─────────────────
 
@@ -24,9 +21,9 @@ def _mock_browser_modules():
     Sin esto, los handlers intentan lanzar Playwright y cuelgan.
     Cada test puede sobreescribir parches específicos.
     """
-    with patch("api._get_solver") as mock_solver, \
-         patch("api.CURPModule") as mock_curp, \
-         patch("api.NSSModule") as mock_nss:
+    with patch("src.api._get_solver") as mock_solver, \
+         patch("src.api.CURPModule") as mock_curp, \
+         patch("src.api.NSSModule") as mock_nss:
         mock_solver.return_value = MagicMock()
         for mock_mod in (mock_curp, mock_nss):
             instance = AsyncMock()
@@ -64,21 +61,21 @@ class TestHealth:
 
 
 class TestPerfiles:
-    @patch("api.list_profiles", return_value=[])
+    @patch("src.api.list_profiles", return_value=[])
     def test_listar_perfiles_empty(self, mock_list):
         client = TestClient(app)
         response = client.get("/perfiles")
         assert response.status_code == 200
         assert response.json() == {"perfiles": []}
 
-    @patch("api.list_profiles", return_value=["juan", "maria"])
+    @patch("src.api.list_profiles", return_value=["juan", "maria"])
     def test_listar_perfiles_with_data(self, mock_list):
         client = TestClient(app)
         response = client.get("/perfiles")
         assert response.status_code == 200
         assert response.json() == {"perfiles": ["juan", "maria"]}
 
-    @patch("api.save_profile")
+    @patch("src.api.save_profile")
     def test_guardar_perfil(self, mock_save):
         client = TestClient(app)
         response = client.post("/perfiles", json={
@@ -99,8 +96,8 @@ class TestCurp:
         response = client.post("/curp", json={"curp": "GALJ800101HDFXXXX0"})
         assert response.status_code == 500
 
-    @patch("api._get_solver")
-    @patch("api.CURPModule")
+    @patch("src.api._get_solver")
+    @patch("src.api.CURPModule")
     def test_consultar_curp_exitoso(self, mock_mod_cls, mock_solver):
         mock_solver.return_value = MagicMock()
         mock_instance = AsyncMock()
@@ -134,8 +131,8 @@ class TestNSS:
         })
         assert response.status_code == 500
 
-    @patch("api._get_solver")
-    @patch("api.NSSModule")
+    @patch("src.api._get_solver")
+    @patch("src.api.NSSModule")
     def test_consultar_nss_exitoso(self, mock_mod_cls, mock_solver):
         mock_solver.return_value = MagicMock()
         mock_instance = AsyncMock()
@@ -190,9 +187,9 @@ class TestRateLimit:
 
     def test_rate_limit_from_env(self):
         with patch.dict(os.environ, {"RATE_LIMIT_TEST": "10/minute"}):
-            from api import _rate_limit
+            from src.api import _rate_limit
             assert _rate_limit("TEST", "5/minute") == "10/minute"
 
     def test_rate_limit_default(self):
-        from api import _rate_limit
+        from src.api import _rate_limit
         assert _rate_limit("NONEXISTENT", "5/minute") == "5/minute"

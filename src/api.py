@@ -28,15 +28,12 @@ try:
 except ImportError:
     FASTAPI_AVAILABLE = False
 
-# Asegurar path
-sys.path.insert(0, str(Path(__file__).parent))
-
 from dotenv import load_dotenv
 
-from utils.logger import get_logger
+from src.utils.logger import get_logger
 
 load_dotenv(Path(__file__).parent.parent / "config.env")
-from utils.secrets_manager import init_secrets  # noqa: E402
+from src.utils.secrets_manager import init_secrets  # noqa: E402
 
 init_secrets()
 
@@ -49,10 +46,10 @@ if not FASTAPI_AVAILABLE:
     )
 
 
-from modules.curp import CURPModule  # noqa: E402
-from modules.nss import NSSModule  # noqa: E402
-from utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
-from utils.storage import list_profiles, save_profile  # noqa: E402
+from src.modules.curp import CURPModule  # noqa: E402
+from src.modules.nss import NSSModule  # noqa: E402
+from src.utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
+from src.utils.storage import list_profiles, save_profile  # noqa: E402
 
 # ── Rate limiting (slowapi) ─────────────────────────────────
 
@@ -74,11 +71,12 @@ def _rate_limit(key: str, default: str) -> str:
 # ── Auth middleware ─────────────────────────────────────────
 
 API_KEY = os.getenv("API_KEY", "")
-DISABLE_AUTH = os.getenv("DISABLE_API_AUTH", "").lower() in ("1", "true", "yes")
+# NOTA: DISABLE_API_AUTH eliminado por seguridad (C4 del análisis).
+#       Para desarrollo local, simplemente no configurar API_KEY.
 
 
 async def _verify_api_key(request: Request, call_next):
-    if DISABLE_AUTH or not API_KEY:
+    if not API_KEY:
         return await call_next(request)
     key = request.headers.get("X-API-Key", "")
     if key != API_KEY:
@@ -143,10 +141,23 @@ app = FastAPI(
     ],
 )
 
-# CORS
+# CORS — restrictivo en producción (C2 del análisis)
+# En producción, CORS_ORIGINS debe configurarse explícitamente (ej: https://misdominios.com)
+# En desarrollo, permitimos * para facilitar testing local.
+_CORS_ORIGINS = os.getenv("CORS_ORIGINS", "")
+if PROD:
+    if not _CORS_ORIGINS:
+        raise RuntimeError(
+            "CORS_ORIGINS debe configurarse explícitamente en producción. "
+            "Usá una lista separada por comas: https://app.misitio.com,https://admin.misitio.com"
+        )
+    origins = [o.strip() for o in _CORS_ORIGINS.split(",") if o.strip() and o.strip() != "*"]
+else:
+    origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -176,19 +187,30 @@ else:
 
 
 
+# ── Captcha solver singleton ───────────────────────────────
+# Inicializado UNA sola vez (H6 del análisis). Evita overhead
+# de ~300-500ms por request verificando balance 2captcha siempre.
+_SOLVER_CACHE = None
+
+
 def _get_solver():
-    """Inicializa captcha solver (2captcha o free)."""
+    """Retorna captcha solver singleton (2captcha o free)."""
+    global _SOLVER_CACHE
+    if _SOLVER_CACHE is not None:
+        return _SOLVER_CACHE
     api_key = os.getenv("CAPTCHA_API_KEY", "")
     if api_key and api_key != "tu_api_key_aqui":
         try:
-            return CaptchaSolver(api_key)
+            _SOLVER_CACHE = CaptchaSolver(api_key)
+            return _SOLVER_CACHE
         except CaptchaError:
             pass
     try:
-        from utils.free_captcha import FreeCaptchaSolver
-        return FreeCaptchaSolver()
+        from src.utils.free_captcha import FreeCaptchaSolver
+        _SOLVER_CACHE = FreeCaptchaSolver()
     except Exception:
-        return None
+        _SOLVER_CACHE = None
+    return _SOLVER_CACHE
 
 
 @system_router.get("/", summary="Información de la API")

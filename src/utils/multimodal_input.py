@@ -14,12 +14,12 @@ import re
 from typing import Literal
 
 try:
-    from utils.voice_input import WHISPER_AVAILABLE, VoiceInput, VoiceInputError
+    from src.utils.voice_input import WHISPER_AVAILABLE, VoiceInput, VoiceInputError
 except ImportError:
     WHISPER_AVAILABLE = False
 
 try:
-    from utils.ocr import OCR_AVAILABLE, OCRError, OCRExtractor
+    from src.utils.ocr import OCR_AVAILABLE, OCRError, OCRExtractor
 except ImportError:
     OCR_AVAILABLE = False
 

@@ -8,8 +8,8 @@ Migrado de: tramites-auto/tramites-bot/tramites/rfc.js
 
 import time
 
-from exceptions import RFCError
-from modules.base import OUTPUT_DIR, BaseModule
+from src.exceptions import RFCError
+from src.modules.base import OUTPUT_DIR, BaseModule
 
 PORTAL_URL = (
     "https://www.sat.gob.mx/tramites/operacion/28753/"
@@ -45,7 +45,8 @@ class RFCModule(BaseModule):
         self.log("Iniciando consulta RFC...")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
         try:
             result = await self._run(page, curp=curp, nombre=nombre,
                                      apellido_paterno=apellido_paterno,
@@ -60,7 +61,7 @@ class RFCModule(BaseModule):
             self.error(f"Error en {elapsed:.1f}s: {e}")
             raise RFCError(f"Error consultando RFC: {e}") from e
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page, curp: str, nombre: str = "",
                    apellido_paterno: str = "", apellido_materno: str = "") -> dict:

@@ -8,8 +8,8 @@ Migrado de: tramites-auto/tramites-bot/tramites/cita_sat.js
 
 import time
 
-from exceptions import CitaSATError
-from modules.base import OUTPUT_DIR, BaseModule
+from src.exceptions import CitaSATError
+from src.modules.base import OUTPUT_DIR, BaseModule
 
 PORTAL_URL = "https://citas.sat.gob.mx/"
 
@@ -41,7 +41,8 @@ class CitaSATModule(BaseModule):
         self.log("Iniciando cita SAT...")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
         try:
             result = await self._run(page, rfc=rfc, curp=curp, email=email)
             elapsed = time.time() - start
@@ -54,7 +55,7 @@ class CitaSATModule(BaseModule):
             self.error(f"Error en {elapsed:.1f}s: {e}")
             raise CitaSATError(f"Error en cita SAT: {e}") from e
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page, rfc: str, curp: str = "", email: str = "") -> dict:
         """Flujo principal de cita SAT."""

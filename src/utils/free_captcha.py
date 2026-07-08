@@ -55,7 +55,7 @@ except ImportError:
     pass
 
 
-from exceptions import FreeCaptchaError  # noqa: E402
+from src.exceptions import FreeCaptchaError  # noqa: E402
 
 
 class FreeCaptchaSolver:

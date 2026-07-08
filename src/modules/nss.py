@@ -23,14 +23,8 @@ from pathlib import Path
 import requests
 from playwright.async_api import TimeoutError as PwTimeout
 
-from exceptions import NSSError
-from modules.base import TIMEOUT, BaseModule
-
-try:
-    from utils.ocr import OCRExtractor  # noqa: F401
-    OCR_AVAILABLE = True
-except ImportError:
-    OCR_AVAILABLE = False
+from src.exceptions import NSSError
+from src.modules.base import TIMEOUT, BaseModule
 
 try:
     from captcha_solver_imss import CaptchaStore, IMSCaptchaSolver  # noqa: F401
@@ -59,8 +53,8 @@ class NSSModule(BaseModule):
         super().__init__(captcha_solver=captcha_solver, use_ocr=use_ocr, name="NSS")
         self.mail_reader = mail_reader
 
-        if use_ocr and not OCR_AVAILABLE:
-            print("  [NSS] [!] OCR no disponible. Instala: pip install pytesseract pillow")
+        if use_ocr and self.ocr is None:
+            self.warn("OCR no disponible. Instala: pip install pytesseract pillow")
 
     async def consultar(self, curp: str, correo: str) -> dict:
         """
@@ -80,7 +74,8 @@ class NSSModule(BaseModule):
         self.log(f"Iniciando consulta para CURP {curp[:4]}****")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
 
         try:
             result = await self._run(page, curp=curp, correo=correo)
@@ -94,7 +89,7 @@ class NSSModule(BaseModule):
             self.error(f"Error en {elapsed:.1f}s: {e}")
             raise NSSError(f"Error durante la consulta: {e}") from e
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page, curp: str, correo: str) -> dict:
         """Flujo principal del trámite NSS."""
@@ -413,7 +408,7 @@ class NSSModule(BaseModule):
             return nss
 
         # Segundo: intentar con OCR
-        if self.use_ocr:
+        if self.use_ocr and self.ocr is not None:
             self.log("Usando OCR para buscar NSS en la página...")
             try:
                 screenshot_path = "resultado_nss_temp.png"

@@ -1,9 +1,9 @@
 """
 utils/captcha.py
-Cliente para resolver CAPTCHAs v+¡a 2captcha.com
+Cliente para resolver CAPTCHAs vía 2captcha.com
 
 Soporta:
-  - ImageCaptcha  (im+ígenes num+®ricas simples ÔÇö usado por gob.mx/curp)
+  - ImageCaptcha  (imágenes numéricas simples — usado por gob.mx/curp)
   - reCAPTCHA v2  (usado por IMSS, OADPRS, INE, SRE)
   - reCAPTCHA v3  (usado por INE, SAT)
 """
@@ -15,7 +15,7 @@ import time
 
 import requests
 
-from exceptions import CaptchaError
+from src.exceptions import CaptchaError
 
 BASE_URL = "https://2captcha.com"
 
@@ -57,14 +57,14 @@ class CaptchaSolver:
         except (ValueError, requests.RequestException):
             pass
 
-    # ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
-    # ImageCaptcha (imagen con texto/n+¦meros ÔÇö gob.mx/curp)
-    # ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    # -------------------------------------------------------------------------
+    # ImageCaptcha (imagen con texto/números — gob.mx/curp)
+    # -------------------------------------------------------------------------
     def solve_image(self, image_bytes: bytes, numeric: bool = True) -> str:
         """
         Resuelve un CAPTCHA de imagen (base64).
-        numeric=True indica que solo contiene d+¡gitos.
-        Costo aprox: $0.001ÔÇô0.002 USD
+        numeric=True indica que solo contiene dígitos.
+        Costo aprox: $0.001–0.002 USD
         """
         b64 = base64.b64encode(image_bytes).decode()
 
@@ -95,19 +95,19 @@ class CaptchaSolver:
         
         Args:
             site_key: Site key del reCAPTCHA
-            page_url: URL de la p+ígina
-            auto: Si True, usa 2captcha. Si False, modo semiautom+ítico (espera manual)
+            page_url: URL de la página
+            auto: Si True, usa 2captcha. Si False, modo semiautomático (espera manual)
         
         Returns:
             Token g-recaptcha-response
         
-        Costo aprox: $0.002 USD. Tiempo: 15ÔÇô45 seg.
+        Costo aprox: $0.002 USD. Tiempo: 15–45 seg.
         """
         if not auto:
-            # Modo semiautom+ítico - no env+¡a a 2captcha
-            print("  [captcha] [!] Modo SEMIAUTOM+üTICO activado")
+            # Modo semiautomático - no envía a 2captcha
+            print("  [captcha] [!] Modo SEMIAUTOMÁTICO activado")
             print("  [captcha] Resuelve el reCAPTCHA manualmente en el navegador")
-            return "MANUAL"  # Se+¦al para que el m+¦dulo espere
+            return "MANUAL"  # Señal para que el módulo espere
 
         params = {
             "key": self.api_key,
@@ -123,7 +123,7 @@ class CaptchaSolver:
             raise CaptchaError(f"Error enviando reCAPTCHA v2: {data.get('request')}")
 
         task_id = data["request"]
-        print("  [captcha] Resolviendo reCAPTCHA v2 automáticamente (1545 seg)...")
+        print("  [captcha] Resolviendo reCAPTCHA v2 automáticamente (15–45 seg)...")
         return self._wait_for_result(task_id, max_wait=120)
 
     # -----------------------------------------------------------------------------
@@ -137,19 +137,19 @@ class CaptchaSolver:
         
         Args:
             site_key: Site key del reCAPTCHA
-            page_url: URL de la p+ígina
-            action: Acci+¦n del reCAPTCHA
-            min_score: Score m+¡nimo requerido
-            auto: Si True, usa 2captcha. Si False, modo semiautom+ítico
+            page_url: URL de la página
+            action: Acción del reCAPTCHA
+            min_score: Score mínimo requerido
+            auto: Si True, usa 2captcha. Si False, modo semiautomático
         
         Returns:
             Token reCAPTCHA
         
-        Costo aprox: $0.004 USD. Tiempo: 10ÔÇô30 seg.
+        Costo aprox: $0.004 USD. Tiempo: 10–30 seg.
         """
         if not auto:
-            print("  [captcha] [!] Modo SEMIAUTOM+üTICO activado")
-            print("  [captcha] reCAPTCHA v3 se resolver+í autom+íticamente por el navegador")
+            print("  [captcha] [!] Modo SEMIAUTOMÁTICO activado")
+            print("  [captcha] reCAPTCHA v3 se resolverá automáticamente por el navegador")
             return "MANUAL"
 
         params = {
@@ -169,12 +169,12 @@ class CaptchaSolver:
             raise CaptchaError(f"Error enviando reCAPTCHA v3: {data.get('request')}")
 
         task_id = data["request"]
-        print("  [captcha] Resolviendo reCAPTCHA v3 autom+íticamente (10ÔÇô30 seg)...")
+        print("  [captcha] Resolviendo reCAPTCHA v3 automáticamente (10–30 seg)...")
         return self._wait_for_result(task_id, max_wait=90)
 
-    # ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    # -------------------------------------------------------------------------
     # Versiones async (no bloquean el event loop)
-    # ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    # -------------------------------------------------------------------------
     async def solve_image_async(self, image_bytes: bytes, numeric: bool = True) -> str:
         """Async: Resuelve un CAPTCHA de imagen sin bloquear."""
         b64 = base64.b64encode(image_bytes).decode()
@@ -193,7 +193,7 @@ class CaptchaSolver:
     async def solve_recaptcha_v2_async(self, site_key: str, page_url: str, auto: bool = True) -> str:
         """Async: Resuelve reCAPTCHA v2 sin bloquear."""
         if not auto:
-            print("  [captcha] [!] Modo SEMIAUTOM+üTICO activado")
+            print("  [captcha] [!] Modo SEMIAUTOMÁTICO activado")
             return "MANUAL"
         params = {
             "key": self.api_key, "method": "userrecaptcha",
@@ -203,7 +203,7 @@ class CaptchaSolver:
         data = r.json()
         if data.get("status") != 1:
             raise CaptchaError(f"Error enviando reCAPTCHA v2: {data.get('request')}")
-        print("  [captcha] Resolviendo reCAPTCHA v2 async (15ÔÇô45 seg)...")
+        print("  [captcha] Resolviendo reCAPTCHA v2 async (15–45 seg)...")
         return await self._wait_for_result_async(data["request"], max_wait=120)
 
     async def solve_recaptcha_v3_async(
@@ -212,7 +212,7 @@ class CaptchaSolver:
     ) -> str:
         """Async: Resuelve reCAPTCHA v3 sin bloquear."""
         if not auto:
-            print("  [captcha] [!] Modo SEMIAUTOM+üTICO activado")
+            print("  [captcha] [!] Modo SEMIAUTOMÁTICO activado")
             return "MANUAL"
         params = {
             "key": self.api_key, "method": "userrecaptcha", "version": "v3",
@@ -223,14 +223,14 @@ class CaptchaSolver:
         data = r.json()
         if data.get("status") != 1:
             raise CaptchaError(f"Error enviando reCAPTCHA v3: {data.get('request')}")
-        print("  [captcha] Resolviendo reCAPTCHA v3 async (10ÔÇô30 seg)...")
+        print("  [captcha] Resolviendo reCAPTCHA v3 async (10–30 seg)...")
         return await self._wait_for_result_async(data["request"], max_wait=90)
 
     async def _wait_for_result_async(self, task_id: str, max_wait: int = 120) -> str:
-        """Async polling hasta que 2captcha devuelva la soluci+¦n.
+        """Async polling hasta que 2captcha devuelva la solución.
 
         Incluye retry con exponential backoff ante errores transitorios
-        (Pilar 5 ÔÇö Fiabilidad & Resiliencia).
+        (Pilar 5 — Fiabilidad & Resiliencia).
         """
         elapsed = 0
         interval = 2
@@ -271,12 +271,12 @@ class CaptchaSolver:
 
         raise CaptchaError(f"Timeout: CAPTCHA no resuelto en {max_wait}s")
 
-    # ÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇÔöÇ
+    # -------------------------------------------------------------------------
     def _wait_for_result(self, task_id: str, max_wait: int = 120) -> str:
-        """Polling hasta que 2captcha devuelva la soluci+¦n.
+        """Polling hasta que 2captcha devuelva la solución.
 
         Incluye retry con exponential backoff ante errores transitorios
-        (Pilar 5 ÔÇö Fiabilidad & Resiliencia).
+        (Pilar 5 — Fiabilidad & Resiliencia).
         """
         elapsed = 0
         interval = 5

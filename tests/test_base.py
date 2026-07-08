@@ -8,9 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from modules.base import OUTPUT_DIR, TIMEOUT, BaseModule  # noqa: E402
+from src.modules.base import OUTPUT_DIR, TIMEOUT, BaseModule, BrowserResources  # noqa: E402
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -18,8 +16,8 @@ from modules.base import OUTPUT_DIR, TIMEOUT, BaseModule  # noqa: E402
 def module():
     """BaseModule sin captcha solver ni OCR."""
     with (
-        patch("utils.ocr.OCRExtractor"),
-        patch("utils.logger.get_logger", return_value=None),
+        patch("src.utils.ocr.OCRExtractor"),
+        patch("src.utils.logger.get_logger", return_value=None),
     ):
         yield BaseModule(captcha_solver=None, use_ocr=False, name="TestModule")
 
@@ -28,8 +26,8 @@ def module():
 def module_with_ocr():
     """BaseModule con OCR cargado."""
     with (
-        patch("utils.ocr.OCRExtractor") as mock_ocr,
-        patch("utils.logger.get_logger", return_value=None),
+        patch("src.utils.ocr.OCRExtractor") as mock_ocr,
+        patch("src.utils.logger.get_logger", return_value=None),
     ):
         mock_ocr.return_value = MagicMock()
         yield BaseModule(captcha_solver=None, use_ocr=True, name="OcrModule")
@@ -87,8 +85,8 @@ class TestInit:
     def test_init_with_captcha_solver(self):
         solver = MagicMock()
         with (
-            patch("utils.ocr.OCRExtractor"),
-            patch("utils.logger.get_logger", return_value=None),
+            patch("src.utils.ocr.OCRExtractor"),
+            patch("src.utils.logger.get_logger", return_value=None),
         ):
             m = BaseModule(captcha_solver=solver, use_ocr=False)
         assert m.solver == solver
@@ -168,7 +166,7 @@ class TestRateLimit:
     @pytest.mark.asyncio
     async def test_first_call_no_delay(self):
         """Primera llamada no espera."""
-        import modules.base as base_mod
+        import src.modules.base as base_mod
         base_mod._last_request_time = 0.0
         t0 = asyncio.get_event_loop().time()
         await base_mod._rate_limit()
@@ -178,7 +176,7 @@ class TestRateLimit:
     @pytest.mark.asyncio
     async def test_sets_last_request_time(self):
         """Después de llamar, _last_request_time se actualiza."""
-        import modules.base as base_mod
+        import src.modules.base as base_mod
         base_mod._last_request_time = 0.0
         await base_mod._rate_limit()
         assert base_mod._last_request_time > 0
@@ -186,12 +184,12 @@ class TestRateLimit:
     @pytest.mark.asyncio
     async def test_second_call_within_window_waits(self):
         """Line 33: if elapsed < REQUEST_DELAY, sleeps."""
-        import modules.base as base_mod
+        import src.modules.base as base_mod
         base_mod._last_request_time = 100.0
         old_delay = base_mod.REQUEST_DELAY
         base_mod.REQUEST_DELAY = 10.0
-        with patch("modules.base.time.time", return_value=105.0):
-            with patch("modules.base.asyncio.sleep", AsyncMock()) as mock_sleep:
+        with patch("src.modules.base.time.time", return_value=105.0):
+            with patch("src.modules.base.asyncio.sleep", AsyncMock()) as mock_sleep:
                 await base_mod._rate_limit()
                 mock_sleep.assert_awaited_once_with(5.0)
         base_mod.REQUEST_DELAY = old_delay
@@ -355,7 +353,7 @@ class TestResolveImageCaptcha:
         module.solver = solver
         with patch("requests.get") as mock_get:
             mock_get.return_value = MagicMock(content=b"img_data")
-            with patch("modules.base.os.getenv") as mock_env:
+            with patch("src.modules.base.os.getenv") as mock_env:
                 mock_env.side_effect = lambda k, d="": {"DEBUG": "true", "CAPTCHA_VALUE": "ENV_VAL"}.get(k, d)
                 with patch.object(module, "fill_field", AsyncMock(return_value=True)) as mock_fill:
                     result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
@@ -369,7 +367,7 @@ class TestResolveImageCaptcha:
         module.solver = None
         with patch("requests.get") as mock_get:
             mock_get.return_value = MagicMock(content=b"img_data")
-            with patch("modules.base.os.getenv", return_value=""):
+            with patch("src.modules.base.os.getenv", return_value=""):
                 result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
         assert result is False
 
@@ -393,13 +391,13 @@ class TestDebugScreenshot:
     @pytest.mark.asyncio
     async def test_screenshot_not_taken_when_headless(self, module, mock_page):
         """HEADLESS=true por defecto → no screenshot."""
-        with patch("modules.base.HEADLESS", True):
+        with patch("src.modules.base.HEADLESS", True):
             await module.debug_screenshot(mock_page, "test.png")
         mock_page.screenshot.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_screenshot_taken_when_visible(self, module, mock_page):
-        with patch("modules.base.HEADLESS", False):
+        with patch("src.modules.base.HEADLESS", False):
             await module.debug_screenshot(mock_page, "test.png")
         mock_page.screenshot.assert_called_once()
 
@@ -447,21 +445,21 @@ class TestOpenPDF:
     @patch("platform.system", return_value="Windows")
     @patch("os.startfile")
     def test_open_pdf_windows(self, mock_startfile, mock_platform, module):
-        with patch("modules.base.HEADLESS", False):
+        with patch("src.modules.base.HEADLESS", False):
             module.open_pdf(Path("test.pdf"))
         mock_startfile.assert_called_once_with("test.pdf")
 
     @patch("platform.system", return_value="Darwin")
     @patch("subprocess.run")
     def test_open_pdf_darwin(self, mock_run, mock_platform, module):
-        with patch("modules.base.HEADLESS", False):
+        with patch("src.modules.base.HEADLESS", False):
             module.open_pdf(Path("test.pdf"))
         mock_run.assert_called_once_with(["open", "test.pdf"])
 
     @patch("platform.system", return_value="Linux")
     @patch("subprocess.run")
     def test_open_pdf_linux(self, mock_run, mock_platform, module):
-        with patch("modules.base.HEADLESS", False):
+        with patch("src.modules.base.HEADLESS", False):
             module.open_pdf(Path("test.pdf"))
         mock_run.assert_called_once_with(["xdg-open", "test.pdf"])
 
@@ -469,7 +467,7 @@ class TestOpenPDF:
     @patch("os.startfile")
     def test_open_pdf_failure_does_not_crash(self, mock_startfile, mock_platform, module, capsys):
         mock_startfile.side_effect = Exception("No hay visor PDF")
-        with patch("modules.base.HEADLESS", False):
+        with patch("src.modules.base.HEADLESS", False):
             module.open_pdf(Path("test.pdf"))  # no debe crashear
         captured = capsys.readouterr()
         assert "No hay visor PDF" in captured.out or "abrir" in captured.out
@@ -530,7 +528,7 @@ class TestWaitRecaptcha:
     async def test_wait_recaptcha_resolved(self, module, mock_page):
         """Devuelve True si se resuelve."""
         mock_page.evaluate = AsyncMock(return_value="a" * 30)  # len > 20
-        with patch("modules.base.asyncio.sleep"):
+        with patch("src.modules.base.asyncio.sleep"):
             result = await module.wait_for_recaptcha(mock_page, max_wait=10)
         assert result is True
 
@@ -538,7 +536,7 @@ class TestWaitRecaptcha:
     async def test_wait_recaptcha_timeout(self, module, mock_page):
         """Timeout devuelve False."""
         mock_page.evaluate = AsyncMock(return_value="")
-        with patch("modules.base.asyncio.sleep"):
+        with patch("src.modules.base.asyncio.sleep"):
             result = await module.wait_for_recaptcha(mock_page, max_wait=1)
         assert result is False
 
@@ -547,7 +545,7 @@ class TestWaitRecaptcha:
         """Line 220: print cada 10s de espera."""
         # Retorna vacío 11 veces (22s a interval 2s), timeout en 20s
         mock_page.evaluate = AsyncMock(return_value="")
-        with patch("modules.base.asyncio.sleep"):
+        with patch("src.modules.base.asyncio.sleep"):
             await module.wait_for_recaptcha(mock_page, max_wait=20)
         captured = capsys.readouterr()
         # Debería imprimir status a los ~10s y ~20s (múltiplos de 10)
@@ -650,7 +648,7 @@ class TestDownloadPDF:
         """Line 304-305: fallback exception → debug log."""
         mock_page.locator.side_effect = lambda sel: _make_mock_locator(count=0)
         mock_page.query_selector_all = AsyncMock(side_effect=Exception("DOM error"))
-        with patch("modules.base.os.getenv", return_value="true"):  # VERBOSE
+        with patch("src.modules.base.os.getenv", return_value="true"):  # VERBOSE
             result = await module.download_pdf(mock_page, ["#btn"], Path("out.pdf"))
         assert result is None
 
@@ -662,7 +660,7 @@ class TestGoto:
     async def test_goto_normal(self, module, mock_page):
         mock_page.goto = AsyncMock()
         mock_page.wait_for_timeout = AsyncMock()
-        with patch("modules.base._rate_limit", AsyncMock()):
+        with patch("src.modules.base._rate_limit", AsyncMock()):
             await module.goto(mock_page, "https://example.com")
         mock_page.goto.assert_called_once()
         mock_page.wait_for_timeout.assert_called_once()
@@ -671,7 +669,7 @@ class TestGoto:
     async def test_goto_fallback(self, module, mock_page):
         mock_page.goto = AsyncMock(side_effect=[Exception("fail"), None])
         mock_page.wait_for_timeout = AsyncMock()
-        with patch("modules.base._rate_limit", AsyncMock()):
+        with patch("src.modules.base._rate_limit", AsyncMock()):
             await module.goto(mock_page, "https://primary.com", fallback_url="https://fallback.com")
         assert mock_page.goto.call_count == 2
         mock_page.wait_for_timeout.assert_called_once()
@@ -682,7 +680,7 @@ class TestGoto:
 class TestBrowser:
     @pytest.mark.asyncio
     async def test_launch_browser_structure(self, module):
-        """Verifica que launch_browser retorna (p, browser, page)."""
+        """Verifica que launch_browser retorna BrowserResources."""
         mock_pw = AsyncMock()
         mock_firefox = MagicMock()
         mock_firefox.launch = AsyncMock()
@@ -695,17 +693,18 @@ class TestBrowser:
         mock_firefox.launch.return_value = mock_browser
         mock_pw.firefox = mock_firefox
 
-        with patch("modules.base.async_playwright", return_value=mock_pw):
-            p, browser, page = await module.launch_browser()
-            assert p is not None
-            assert browser is not None
-            assert page is not None
+        with (
+            patch("src.utils.browser_pool.get_browser_pool", return_value=None),
+            patch("src.modules.base.async_playwright", return_value=mock_pw),
+        ):
+            br = await module.launch_browser()
+            assert isinstance(br, BrowserResources)
+            assert br.browser is not None
+            assert br.page is not None
+            assert br._playwright is not None  # non-pool mode
 
     @pytest.mark.asyncio
     async def test_close_browser(self, module):
-        p = AsyncMock()
-        browser = MagicMock()
-        browser.close = AsyncMock()
-        await module.close_browser(p, browser)
-        browser.close.assert_awaited_once()
-        p.__aexit__.assert_awaited_once()
+        br = AsyncMock(spec=BrowserResources)
+        await module.close_browser(br)
+        br.close.assert_awaited_once()

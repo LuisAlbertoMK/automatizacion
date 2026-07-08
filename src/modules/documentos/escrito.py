@@ -5,7 +5,7 @@ Migrado de tramites-auto/tramites-bot/docs/escrito.js.
 Soporta 11 tipos de documentos: cartas, solicitudes, contratos, quejas, etc.
 
 Uso:
-    from modules.documentos import EscritoGenerator
+    from src.modules.documentos import EscritoGenerator
     generador = EscritoGenerator()
     resultado = generador.generar_interactivo()
 """
@@ -20,7 +20,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt, RGBColor
 
-from utils.claude import call_claude
+from src.utils.claude import call_claude
 
 # ── Estilos ──────────────────────────────────────────────────────────────────
 COLOR_TEXT = RGBColor(0x33, 0x33, 0x33)

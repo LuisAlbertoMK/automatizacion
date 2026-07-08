@@ -7,9 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
-from utils.mail_reader import MailReader
+from src.utils.mail_reader import MailReader
 
 
 class TestMailReader:
@@ -39,13 +37,13 @@ class TestMailReader:
 
     def test_init_raises_without_email(self):
         with patch.dict(os.environ, {}, clear=True):
-            from exceptions import MailReaderError
+            from src.exceptions import MailReaderError
             with pytest.raises(MailReaderError, match="IMAP_EMAIL"):
                 MailReader()
 
     def test_init_raises_without_password(self):
         with patch.dict(os.environ, {"IMAP_EMAIL": "test@test.com"}, clear=True):
-            from exceptions import MailReaderError
+            from src.exceptions import MailReaderError
             with pytest.raises(MailReaderError, match="IMAP_PASSWORD"):
                 MailReader()
 
@@ -72,7 +70,7 @@ class TestMailReaderWaitForEmail:
             b"Tu NSS es 12345678901 visita https://example.com/verify"
         )}}
 
-        with patch("utils.mail_reader.IMAPClient", return_value=mock_client):
+        with patch("src.utils.mail_reader.IMAPClient", return_value=mock_client):
             with patch("time.sleep"):  # speed up
                 result = mail_reader.wait_for_imss_email(max_wait_sec=10, interval=1)
 
@@ -89,8 +87,8 @@ class TestMailReaderWaitForEmail:
         mock_client.search.side_effect = [[1, 2, 3], []]
         mock_client.fetch.return_value = {}
 
-        from exceptions import MailReaderError
-        with patch("utils.mail_reader.IMAPClient", return_value=mock_client):
+        from src.exceptions import MailReaderError
+        with patch("src.utils.mail_reader.IMAPClient", return_value=mock_client):
             with patch("time.sleep"):
                 with pytest.raises(MailReaderError, match="No llegó correo"):
                     mail_reader.wait_for_imss_email(max_wait_sec=1, interval=1)
@@ -112,7 +110,7 @@ class TestMailReaderWaitForEmail:
             b"--boundary--\r\n"
         )}}
 
-        with patch("utils.mail_reader.IMAPClient", return_value=mock_client):
+        with patch("src.utils.mail_reader.IMAPClient", return_value=mock_client):
             with patch("time.sleep"):
                 result = mail_reader.wait_for_imss_email(max_wait_sec=10, interval=1)
 
@@ -136,7 +134,7 @@ class TestMailReaderWaitForEmail:
             b"--boundary--\r\n"
         )}}
 
-        with patch("utils.mail_reader.IMAPClient", return_value=mock_client):
+        with patch("src.utils.mail_reader.IMAPClient", return_value=mock_client):
             with patch("time.sleep"):
                 result = mail_reader.wait_for_imss_email(max_wait_sec=10, interval=1)
 
@@ -158,7 +156,7 @@ class TestMailReaderWaitForEmail:
             b"Tu NSS es 11111111111"
         )}}
 
-        with patch("utils.mail_reader.IMAPClient", return_value=mock_client):
+        with patch("src.utils.mail_reader.IMAPClient", return_value=mock_client):
             with patch("time.sleep"):
                 result = mail_reader.wait_for_imss_email(max_wait_sec=10, interval=1)
 
@@ -174,7 +172,7 @@ class TestMailReaderNonImssSender:
         """_parse_message sin NSS en el body."""
         import email
 
-        from utils.mail_reader import MailReader
+        from src.utils.mail_reader import MailReader
 
         msg = email.message_from_string(
             "Subject: Hola\r\n\r\nNo hay numero aqui"
@@ -188,7 +186,7 @@ class TestMailReaderNonImssSender:
         """_parse_message con email no multipart."""
         import email
 
-        from utils.mail_reader import MailReader
+        from src.utils.mail_reader import MailReader
 
         msg = email.message_from_string(
             "Subject: Test\r\n\r\nTu NSS es 12345678901 correo@test.com"
@@ -201,7 +199,7 @@ class TestMailReaderNonImssSender:
         """_parse_message encuentra link de verificación."""
         import email
 
-        from utils.mail_reader import MailReader
+        from src.utils.mail_reader import MailReader
 
         msg = email.message_from_string(
             "Subject: Verifica\r\n\r\nLink: https://imss.gob.mx/verif?id=123"
@@ -213,7 +211,7 @@ class TestMailReaderNonImssSender:
         """_parse_message sin link de verificación usa el primer link."""
         import email
 
-        from utils.mail_reader import MailReader
+        from src.utils.mail_reader import MailReader
 
         msg = email.message_from_string(
             "Subject: Info\r\n\r\nVisita https://imss.gob.mx para mas info"

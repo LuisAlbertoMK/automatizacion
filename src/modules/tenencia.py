@@ -20,26 +20,17 @@ import time
 
 from playwright.async_api import Page
 
-from exceptions import TenenciaError
-from modules.base import OUTPUT_DIR, BaseModule
+from src.exceptions import TenenciaError
+from src.modules.base import OUTPUT_DIR, BaseModule
 
 TENENCIA_URL = "https://sfpya.edomexico.gob.mx/"
 PORTAL_URL = "https://sfpya.edomexico.gob.mx/"
 
-try:
-    from utils.ocr import OCRExtractor  # noqa: F401
-    OCR_AVAILABLE = True
-except ImportError:
-    OCR_AVAILABLE = False
-
-
 class TenenciaModule(BaseModule):
     def __init__(self, captcha_solver=None, use_ocr=True):
-        effective_ocr = use_ocr and OCR_AVAILABLE
-        super().__init__(captcha_solver=captcha_solver, use_ocr=effective_ocr, name="TENENCIA")
-        self.use_ocr = effective_ocr
-        if use_ocr and not OCR_AVAILABLE:
-            print("  [TENENCIA] \u26a0 OCR no disponible")
+        super().__init__(captcha_solver=captcha_solver, use_ocr=use_ocr, name="TENENCIA")
+        if use_ocr and self.ocr is None:
+            self.warn("OCR no disponible")
 
     async def consultar(self, placa: str, numero_serie: str = None) -> dict:
         """
@@ -56,29 +47,30 @@ class TenenciaModule(BaseModule):
             raise TenenciaError("Se requiere placa vehicular")
 
         placa = placa.upper().strip()
-        print(f"\n  [TENENCIA] Consultando tenencia para placa {placa}")
+        self.log(f"Consultando tenencia para placa {placa}")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
         try:
             result = await self._run(page, placa, numero_serie)
             elapsed = time.time() - start
-            print(f"  [TENENCIA] \u2705 Completado en {elapsed:.1f}s")
+            self.log(f"Completado en {elapsed:.1f}s")
             return result
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page: Page, placa: str, numero_serie: str) -> dict:
         """Flujo principal."""
 
         # 1. Abrir portal
-        print("  [TENENCIA] Abriendo portal...")
+        self.log("Abriendo portal...")
         await self.goto(page, TENENCIA_URL, fallback_url=PORTAL_URL)
 
         # Screenshot para debug
         try:
             await page.screenshot(path="debug_tenencia.png")
-            print("  [DEBUG] Screenshot guardado: debug_tenencia.png")
+            self.debug("Screenshot guardado: debug_tenencia.png")
         except Exception:
             pass
 
@@ -126,11 +118,11 @@ class TenenciaModule(BaseModule):
             "a:has-text('Control Vehicular')",
             "button:has-text('Tenencia')",
         ])
-        print("  [TENENCIA] Navegado a secci\u00f3n de tenencia \u2713")
+        self.log("Navegado a secci\u00f3n de tenencia")
 
     async def _ingresar_placa(self, page: Page, placa: str):
         """Ingresa la placa vehicular."""
-        print(f"  [TENENCIA] Ingresando placa: {placa}")
+        self.log(f"Ingresando placa: {placa}")
 
         filled = await self.fill_field(page, [
             "input[name='placa']",
@@ -143,11 +135,11 @@ class TenenciaModule(BaseModule):
 
         if not filled:
             raise TenenciaError("No se encontr\u00f3 el campo de placa en el portal")
-        print("  [TENENCIA] Placa ingresada \u2713")
+        self.log("Placa ingresada")
 
     async def _ingresar_serie(self, page: Page, numero_serie: str):
         """Ingresa el n\u00famero de serie/VIN."""
-        print("  [TENENCIA] Ingresando n\u00famero de serie...")
+        self.log("Ingresando n\u00famero de serie...")
 
         filled = await self.fill_field(page, [
             "input[name='serie']",
@@ -160,9 +152,9 @@ class TenenciaModule(BaseModule):
         ], numero_serie)
 
         if filled:
-            print("  [TENENCIA] N\u00famero de serie ingresado \u2713")
+            self.log("N\u00famero de serie ingresado")
         else:
-            print("  [TENENCIA] \u26a0 Campo de serie no encontrado (puede ser opcional)")
+            self.warn("Campo de serie no encontrado (puede ser opcional)")
 
     async def _resolver_captcha(self, page: Page):
         """Resuelve CAPTCHA si existe. Usa solver o variable de entorno; fallback a manual."""
@@ -188,7 +180,7 @@ class TenenciaModule(BaseModule):
         if await page.locator("img[src*='captcha'], img[id*='captcha'], img[src*='Captcha']").count() == 0:
             return
 
-        print("  [TENENCIA] \U0001f535 Resuelve el CAPTCHA manualmente")
+        self.log("Resuelve el CAPTCHA manualmente")
         solution = input("  Ingresa el CAPTCHA: ").strip()
         if solution:
             await self.fill_field(page, [
@@ -199,7 +191,7 @@ class TenenciaModule(BaseModule):
 
     async def _enviar_consulta(self, page: Page):
         """Env\u00eda la consulta."""
-        print("  [TENENCIA] Enviando consulta...")
+        self.log("Enviando consulta...")
 
         submit_selectors = [
             "button[type='submit']",
@@ -215,13 +207,13 @@ class TenenciaModule(BaseModule):
             try:
                 loc = page.locator(sel)
                 if await loc.count() > 0 and await loc.first.is_visible():
-                    print(f"  [DEBUG] Haciendo clic en: {sel}")
+                    self.debug(f"Haciendo clic en: {sel}")
                     await loc.first.click()
                     await asyncio.sleep(3)
-                    print("  [TENENCIA] Consulta enviada \u2713")
+                    self.log("Consulta enviada")
                     return
             except Exception as e:
-                print(f"  [DEBUG] Error con selector {sel}: {e}")
+                self.debug(f"Error con selector {sel}: {e}")
                 continue
 
         raise TenenciaError("No se encontr\u00f3 el bot\u00f3n de consulta")
@@ -239,9 +231,9 @@ class TenenciaModule(BaseModule):
         linea_match = re.search(r'(\d{18,20})', content)
         linea_captura = linea_match.group(1) if linea_match else None
 
-        print(f"  [TENENCIA] Monto: ${monto}")
+        self.log(f"Monto: ${monto}")
         if linea_captura:
-            print(f"  [TENENCIA] L\u00ednea de captura: {linea_captura}")
+            self.debug(f"L\u00ednea de captura: {linea_captura}")
 
         return {
             "monto": monto,

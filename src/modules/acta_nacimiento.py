@@ -8,8 +8,8 @@ Migrado de: tramites-auto/tramites-bot/tramites/acta_nacimiento.js
 
 import time
 
-from exceptions import ActaNacimientoError
-from modules.base import OUTPUT_DIR, BaseModule
+from src.exceptions import ActaNacimientoError
+from src.modules.base import OUTPUT_DIR, BaseModule
 
 PORTAL_URL = "https://www.gob.mx/actas"
 
@@ -38,7 +38,8 @@ class ActaNacimientoModule(BaseModule):
         self.log("Iniciando consulta de Acta de Nacimiento...")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
         try:
             result = await self._run(page, curp=curp)
             elapsed = time.time() - start
@@ -51,7 +52,7 @@ class ActaNacimientoModule(BaseModule):
             self.error(f"Error en {elapsed:.1f}s: {e}")
             raise ActaNacimientoError(f"Error consultando acta: {e}") from e
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page, curp: str) -> dict:
         """Flujo principal de consulta de acta."""

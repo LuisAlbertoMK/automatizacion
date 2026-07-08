@@ -1,8 +1,7 @@
 """
 Profile captcha solver timing in detail.
 """
-import sys, os, time, cv2
-sys.path.insert(0, os.path.dirname(__file__))
+import os, time, cv2
 from pathlib import Path
 import numpy as np
 

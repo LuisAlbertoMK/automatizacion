@@ -7,8 +7,6 @@ from unittest.mock import patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
 from health_check import check, check_env  # noqa: E402
 
 

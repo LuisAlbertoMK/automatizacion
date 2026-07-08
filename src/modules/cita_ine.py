@@ -8,8 +8,8 @@ Migrado de: tramites-auto/tramites-bot/tramites/cita_ine.js
 
 import time
 
-from exceptions import CitaINEerror
-from modules.base import OUTPUT_DIR, BaseModule
+from src.exceptions import CitaINEerror
+from src.modules.base import OUTPUT_DIR, BaseModule
 
 PORTAL_URL = "https://www.ine.mx/credencial/citas/"
 
@@ -40,7 +40,8 @@ class CitaINEModule(BaseModule):
         self.log("Iniciando cita INE...")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
         try:
             result = await self._run(page, curp=curp, nombre=nombre)
             elapsed = time.time() - start
@@ -53,7 +54,7 @@ class CitaINEModule(BaseModule):
             self.error(f"Error en {elapsed:.1f}s: {e}")
             raise CitaINEerror(f"Error en cita INE: {e}") from e
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page, curp: str, nombre: str = "") -> dict:
         """Flujo principal de cita INE."""

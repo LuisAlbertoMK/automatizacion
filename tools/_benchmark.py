@@ -1,11 +1,10 @@
 """
 Benchmark all inference backends: PyTorch, ONNX, TorchScript.
 """
-import sys, time, os, gc
-sys.path.insert(0, 'captcha_solver_imss')
+import time, os, gc
 from pathlib import Path
-from cnn_solver.train_v2 import segment_captcha, normalize_char, CHAR_TO_IDX, IDX_TO_CHAR, N_CLASSES
-from cnn_solver.model_v2 import create_model
+from captcha_solver_imss.cnn_solver.train_v2 import segment_captcha, normalize_char, CHAR_TO_IDX, IDX_TO_CHAR, N_CLASSES
+from captcha_solver_imss.cnn_solver.model_v2 import create_model
 import torch
 import torch.nn.functional as F
 import numpy as np

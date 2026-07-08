@@ -40,5 +40,6 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s \
   CMD python health_check.py --quick || exit 1
 
 # ── Run ────────────────────────────────────────────────────
-ENTRYPOINT ["python", "main.py"]
+# Usa entry point de pyproject.toml, no shim legacy (DevOps-1 del análisis)
+ENTRYPOINT ["tramites"]
 CMD ["--help"]

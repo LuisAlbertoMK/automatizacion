@@ -22,12 +22,9 @@ from colorama import Fore, Style
 from colorama import init as colorama_init
 from dotenv import load_dotenv
 
-# ── Agregar src/ al path ──────────────────────────────────────────────────────
-sys.path.insert(0, str(Path(__file__).parent))
-
 # ── Cargar configuración ──────────────────────────────────────────────────────
 load_dotenv("config.env")
-from utils.secrets_manager import init_secrets  # noqa: E402
+from src.utils.secrets_manager import init_secrets  # noqa: E402
 
 init_secrets()
 colorama_init(autoreset=True)
@@ -49,7 +46,7 @@ def _validar_config():
 
 def _listar_tramites():
     """Muestra todos los trámites registrados y su estado."""
-    from modules.orchestrator import listar_tramites
+    from src.modules.orchestrator import listar_tramites
     tramites = listar_tramites()
     print(f"\n  {Fore.CYAN}Trámites disponibles:{Style.RESET_ALL}")
     for nombre, info in tramites.items():
@@ -58,23 +55,23 @@ def _listar_tramites():
 
 
 # ── Importar módulos del agente (lazy — se importan al primer uso) ──────────
-from utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
-from utils.storage import list_profiles, load_profile, save_profile  # noqa: E402
+from src.utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
+from src.utils.storage import list_profiles, load_profile, save_profile  # noqa: E402
 
 try:
-    from utils.mail_reader import MailReader, MailReaderError  # noqa: F401
+    from src.utils.mail_reader import MailReader, MailReaderError  # noqa: F401
     MAIL_AVAILABLE = True
 except ImportError:
     MAIL_AVAILABLE = False
 
 try:
-    from utils.free_captcha import FreeCaptchaSolver
+    from src.utils.free_captcha import FreeCaptchaSolver
     FREE_SOLVER_AVAILABLE = True
 except ImportError:
     FREE_SOLVER_AVAILABLE = False
 
 try:
-    from modules.documentos import CVGenerator, EscritoGenerator
+    from src.modules.documentos import CVGenerator, EscritoGenerator
     DOCUMENTOS_AVAILABLE = True
 except ImportError:
     DOCUMENTOS_AVAILABLE = False
@@ -166,7 +163,7 @@ class Agente:
         else:
             curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
 
-        from modules.curp import CURPModule
+        from src.modules.curp import CURPModule
         modulo = CURPModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp)
 
@@ -195,13 +192,13 @@ class Agente:
             validar=lambda x: "@" in x and "." in x,
         )
 
-        from modules.nss import NSSModule
+        from src.modules.nss import NSSModule
         modulo = NSSModule(captcha_solver=self.solver, mail_reader=self.mail_reader)
         resultado = await modulo.consultar(curp=curp, correo=correo)
 
         # Si el NSS fue enviado al correo, mostrar instrucciones claras
         if resultado.get("nss") == "ENVIADO_AL_CORREO":
-            from utils.pii import sanitize_email
+            from src.utils.pii import sanitize_email
             correo_safe = sanitize_email(correo)
             print(f"\n{Fore.GREEN}{'━'*50}")
             print("  SOLICITUD ENVIADA CON ÉXITO")
@@ -212,7 +209,7 @@ class Agente:
             print("  1. Configurá IMAP en config.env o Credential Manager:")
             print(f"     IMAP_EMAIL={correo_safe}")
             print("     IMAP_PASSWORD=tu_contraseña_de_aplicación")
-            print("     O: python -c \"from utils.secrets_manager import store_secret; store_secret('IMAP_EMAIL', '...')\"")
+            print("     O: python -c \"from src.utils.secrets_manager import store_secret; store_secret('IMAP_EMAIL', '...')\"")
             print()
             print(f"  {Fore.CYAN}O revisá manualmente tu bandeja de entrada.{Style.RESET_ALL}")
             print(f"{Fore.GREEN}{'━'*50}{Style.RESET_ALL}\n")
@@ -242,19 +239,19 @@ class Agente:
         resultados = {}
 
         # CURP
-        from modules.curp import CURPModule
+        from src.modules.curp import CURPModule
         modulo_curp = CURPModule(captcha_solver=self.solver)
         res_curp    = await modulo_curp.consultar(curp=curp)
         resultados["curp"] = res_curp
 
         # NSS
-        from modules.nss import NSSModule
+        from src.modules.nss import NSSModule
         modulo_nss = NSSModule(captcha_solver=self.solver, mail_reader=self.mail_reader)
         res_nss    = await modulo_nss.consultar(curp=curp, correo=correo)
         resultados["nss"] = res_nss
 
         # Resumen
-        from utils.pii import sanitize_curp, sanitize_nss
+        from src.utils.pii import sanitize_curp, sanitize_nss
         print(f"\n{Fore.GREEN}{'━'*50}")
         print("  RESUMEN FINAL")
         print(f"{'━'*50}{Style.RESET_ALL}")
@@ -274,7 +271,7 @@ class Agente:
         if not curp:
             curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
         nombre = input("  Nombre (opcional): ").strip() or (perfil or {}).get("nombre", "")
-        from modules.rfc import RFCModule
+        from src.modules.rfc import RFCModule
         modulo = RFCModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp, nombre=nombre)
         self._mostrar_resultado("RFC", resultado)
@@ -287,7 +284,7 @@ class Agente:
         curp = perfil.get("curp") if perfil else None
         if not curp:
             curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from modules.acta_nacimiento import ActaNacimientoModule
+        from src.modules.acta_nacimiento import ActaNacimientoModule
         modulo = ActaNacimientoModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp)
         self._mostrar_resultado("Acta", resultado)
@@ -300,7 +297,7 @@ class Agente:
         curp = perfil.get("curp") if perfil else None
         if not curp:
             curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from modules.pasaporte import PasaporteModule
+        from src.modules.pasaporte import PasaporteModule
         modulo = PasaporteModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp, nombre=(perfil or {}).get("nombre", ""))
         self._mostrar_resultado("Pasaporte", resultado)
@@ -313,7 +310,7 @@ class Agente:
         curp = perfil.get("curp") if perfil else None
         if not curp:
             curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from modules.semanas import SemanasModule
+        from src.modules.semanas import SemanasModule
         modulo = SemanasModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp)
         self._mostrar_resultado("Semanas", resultado)
@@ -325,7 +322,7 @@ class Agente:
         print(f"{Fore.YELLOW}⚠ Este trámite requiere intervención manual significativa{Style.RESET_ALL}")
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Control de Confianza SESNSP ━━━{Style.RESET_ALL}")
         curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from modules.control_confianza import ControlConfianzaModule
+        from src.modules.control_confianza import ControlConfianzaModule
         modulo = ControlConfianzaModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp)
         self._mostrar_resultado("Control de Confianza", resultado)
@@ -337,7 +334,7 @@ class Agente:
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Buró de Crédito ━━━{Style.RESET_ALL}")
         rfc = input("  RFC: ").strip().upper()
         curp = input("  CURP: ").strip().upper()
-        from modules.buro import BuroModule
+        from src.modules.buro import BuroModule
         modulo = BuroModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(rfc=rfc, curp=curp)
         self._mostrar_resultado("Buró", resultado)
@@ -349,7 +346,7 @@ class Agente:
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Círculo de Crédito ━━━{Style.RESET_ALL}")
         rfc = input("  RFC: ").strip().upper()
         curp = input("  CURP: ").strip().upper()
-        from modules.circulo import CirculoModule
+        from src.modules.circulo import CirculoModule
         modulo = CirculoModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(rfc=rfc, curp=curp)
         self._mostrar_resultado("Círculo", resultado)
@@ -360,7 +357,7 @@ class Agente:
         """Ejecuta cita INE."""
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Cita INE ━━━{Style.RESET_ALL}")
         curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from modules.cita_ine import CitaINEModule
+        from src.modules.cita_ine import CitaINEModule
         modulo = CitaINEModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp)
         self._mostrar_resultado("Cita INE", resultado)
@@ -372,7 +369,7 @@ class Agente:
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Cita SAT ━━━{Style.RESET_ALL}")
         rfc = input("  RFC: ").strip().upper()
         curp = input("  CURP (opcional): ").strip().upper() or ""
-        from modules.cita_sat import CitaSATModule
+        from src.modules.cita_sat import CitaSATModule
         modulo = CitaSATModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(rfc=rfc, curp=curp)
         self._mostrar_resultado("Cita SAT", resultado)
@@ -537,17 +534,17 @@ async def modo_interactivo():
 
 async def modo_directo(args):
     """Modo sin interacción para scripts y automatización."""
-    from modules.acta_nacimiento import ActaNacimientoModule
-    from modules.buro import BuroModule
-    from modules.circulo import CirculoModule
-    from modules.cita_ine import CitaINEModule
-    from modules.cita_sat import CitaSATModule
-    from modules.control_confianza import ControlConfianzaModule
-    from modules.curp import CURPModule
-    from modules.nss import NSSModule
-    from modules.pasaporte import PasaporteModule
-    from modules.rfc import RFCModule
-    from modules.semanas import SemanasModule
+    from src.modules.acta_nacimiento import ActaNacimientoModule
+    from src.modules.buro import BuroModule
+    from src.modules.circulo import CirculoModule
+    from src.modules.cita_ine import CitaINEModule
+    from src.modules.cita_sat import CitaSATModule
+    from src.modules.control_confianza import ControlConfianzaModule
+    from src.modules.curp import CURPModule
+    from src.modules.nss import NSSModule
+    from src.modules.pasaporte import PasaporteModule
+    from src.modules.rfc import RFCModule
+    from src.modules.semanas import SemanasModule
 
     agente = Agente()
     perfil = None

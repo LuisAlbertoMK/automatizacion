@@ -8,8 +8,8 @@ Migrado de: tramites-auto/tramites-bot/tramites/semanas.js
 
 import time
 
-from exceptions import SemanasError
-from modules.base import OUTPUT_DIR, BaseModule
+from src.exceptions import SemanasError
+from src.modules.base import OUTPUT_DIR, BaseModule
 
 PORTAL_URL = ("https://serviciosdigitales.imss.gob.mx/"
               "gestionAsegurados-web-externo/asegurado")
@@ -40,7 +40,8 @@ class SemanasModule(BaseModule):
         self.log("Iniciando consulta de semanas cotizadas...")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
         try:
             result = await self._run(page, curp=curp, nss=nss)
             elapsed = time.time() - start
@@ -53,7 +54,7 @@ class SemanasModule(BaseModule):
             self.error(f"Error en {elapsed:.1f}s: {e}")
             raise SemanasError(f"Error consultando semanas: {e}") from e
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page, curp: str, nss: str = "") -> dict:
         """Flujo principal de consulta de semanas."""

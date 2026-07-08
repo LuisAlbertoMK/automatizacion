@@ -10,13 +10,60 @@ import platform
 import re
 import subprocess
 import time
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
 
 import requests
-from playwright.async_api import Page, async_playwright
+from playwright.async_api import Browser, Page, async_playwright
 from playwright.async_api import TimeoutError as PwTimeout
 
-from exceptions import ModuleError
+from src.exceptions import ModuleError
+from src.utils.browser_pool import BrowserPool
+
+
+@dataclass
+class BrowserResources:
+    """Recursos de navegador — wrapping pool o directo.
+    
+    Evita el polimorfismo de tipo entre BrowserPool y Playwright
+    que existía antes (H1 del análisis). El caller nunca necesita
+    saber qué modo se usó.
+    """
+    browser: Browser
+    page: Page
+    _pool: Optional[BrowserPool] = None
+    _playwright: Optional = None
+    _context: Optional = None
+    _from_pool: bool = field(default=False, init=False)
+
+    def __post_init__(self):
+        self._from_pool = self._pool is not None
+
+    async def close(self):
+        """Libera todos los recursos del navegador."""
+        if self._context:
+            try:
+                await self._context.close()
+            except Exception:
+                pass
+            self._context = None
+
+        if self._pool:
+            try:
+                await self._pool.release(self.browser)
+            except Exception:
+                pass
+        else:
+            try:
+                await self.browser.close()
+            except Exception:
+                pass
+            if self._playwright:
+                try:
+                    await self._playwright.__aexit__(None, None, None)
+                except Exception:
+                    pass
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "./output"))
 TIMEOUT = int(os.getenv("TIMEOUT", "60")) * 1000
@@ -62,27 +109,64 @@ class BaseModule:
         self.ocr = None
         if use_ocr:
             try:
-                from utils.ocr import OCRExtractor
+                from src.utils.ocr import OCRExtractor
                 self.ocr = OCRExtractor()
             except ImportError:
                 pass
+        self._selector_cache: dict[str, str] = {}
         # Inicializar logger estructurado
         try:
-            from utils.logger import get_logger
+            from src.utils.logger import get_logger
             self._logger = get_logger(name)
         except Exception:
             self._logger = None
 
-    async def launch_browser(self):
+    async def launch_browser(self) -> BrowserResources:
         """Lanza browser con configuración anti-detección.
 
         Usa Firefox con fingerprint real para evitar WAF/Cloudflare.
         El User-Agent de Chrome sobre Firefox es detectado como bot.
+        
+        Intenta usar el browser pool para reutilizar instancias (sin overhead de 3-5s).
+        Si el pool no está disponible, lanza un browser nuevo (fallback).
+        
+        Devuelve un BrowserResources que encapsula pool/directo — el caller
+        nunca necesita saber qué modo se usó.
         """
+        pool = None
+        try:
+            from src.utils.browser_pool import get_browser_pool
+            pool = get_browser_pool()
+            browser = await pool.acquire()
+        except Exception:
+            pool = None
+
+        if pool is not None:
+            context = await browser.new_context(
+                viewport={"width": 1280, "height": 800},
+                user_agent=(
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:131.0) "
+                    "Gecko/20100101 Firefox/131.0"
+                ),
+                locale="es-MX",
+                timezone_id="America/Mexico_City",
+                permissions=["geolocation"],
+            )
+            await context.add_init_script(
+                "Object.defineProperty(navigator,'webdriver',{get:()=>undefined});"
+            )
+            page = await context.new_page()
+            return BrowserResources(browser, page, _pool=pool, _context=context)
+
+        # ── Fallback: sin pool ──────────────────────────────────
+        _extra_args = []
+        if os.getenv("PLAYWRIGHT_NO_SANDBOX", "").lower() == "true":
+            _extra_args = ["--no-sandbox"]
+
         p = await async_playwright().__aenter__()
         browser = await p.firefox.launch(
             headless=HEADLESS,
-            args=["--no-sandbox"],
+            args=_extra_args,
         )
         context = await browser.new_context(
             viewport={"width": 1280, "height": 800},
@@ -99,18 +183,11 @@ class BaseModule:
             "Object.defineProperty(navigator,'webdriver',{get:()=>undefined});"
         )
         page = await context.new_page()
-        return p, browser, page
+        return BrowserResources(browser, page, _playwright=p, _context=context)
 
-    async def close_browser(self, p, browser):
-        """Cierra browser y playwright."""
-        try:
-            await browser.close()
-        except Exception as e:
-            self.debug(f"Error cerrando browser: {e}")
-        try:
-            await p.__aexit__(None, None, None)
-        except Exception as e:
-            self.debug(f"Error cerrando playwright: {e}")
+    async def close_browser(self, br: BrowserResources):
+        """Cierra browser y playwright, o libera browser al pool."""
+        await br.close()
 
     async def goto(self, page: Page, url: str, fallback_url: str = None):
         """Navega a URL con fallback y rate limiting.
@@ -140,6 +217,20 @@ class BaseModule:
 
     async def fill_field(self, page: Page, selectors: list, value: str) -> bool:
         """Llena un campo probando múltiples selectores. Retorna True si encontró alguno."""
+        cache_key = str(tuple(selectors))
+
+        if cache_key in self._selector_cache:
+            cached_sel = self._selector_cache[cache_key]
+            try:
+                loc = page.locator(cached_sel)
+                if await loc.count() > 0 and await loc.first.is_visible():
+                    self.debug(f"Llenando campo con selector cacheado: {cached_sel}")
+                    await loc.first.fill(value)
+                    await asyncio.sleep(0.3)
+                    return True
+            except Exception:
+                pass
+
         for sel in selectors:
             try:
                 loc = page.locator(sel)
@@ -147,6 +238,7 @@ class BaseModule:
                     self.debug(f"Llenando campo con selector: {sel}")
                     await loc.first.fill(value)
                     await asyncio.sleep(0.3)
+                    self._selector_cache[cache_key] = sel
                     return True
             except Exception as e:
                 self.debug(f"fill_field: selector {sel} falló: {e}")
@@ -155,6 +247,25 @@ class BaseModule:
 
     async def click_first(self, page: Page, selectors: list, wait_nav: bool = False, timeout_nav: int = 30000) -> bool:
         """Hace clic en el primer selector visible. Retorna True si encontró."""
+        cache_key = str(tuple(selectors))
+
+        if cache_key in self._selector_cache:
+            cached_sel = self._selector_cache[cache_key]
+            try:
+                loc = page.locator(cached_sel)
+                if await loc.count() > 0 and await loc.first.is_visible():
+                    self.debug(f"Haciendo clic con selector cacheado: {cached_sel}")
+                    if wait_nav:
+                        async with page.expect_navigation(timeout=timeout_nav):
+                            await loc.first.click()
+                        await asyncio.sleep(1)
+                    else:
+                        await loc.first.click()
+                        await asyncio.sleep(1)
+                    return True
+            except Exception:
+                pass
+
         for sel in selectors:
             try:
                 loc = page.locator(sel)
@@ -167,6 +278,7 @@ class BaseModule:
                     else:
                         await loc.first.click()
                         await asyncio.sleep(1)
+                    self._selector_cache[cache_key] = sel
                     return True
             except PwTimeout:
                 self.debug(f"Navigation timeout en {sel}, continuando...")
@@ -175,6 +287,10 @@ class BaseModule:
                 self.debug(f"click_first: selector {sel} falló: {e}")
                 continue
         return False
+
+    def clear_selector_cache(self):
+        """Limpia el caché de selectores exitosos."""
+        self._selector_cache.clear()
 
     async def resolve_image_captcha(self, page: Page, img_selectors: list, input_selectors: list,
                                      numeric: bool = True, captcha_name: str = "captcha") -> bool:
@@ -243,8 +359,8 @@ class BaseModule:
         interval = 2
         tag = f"[{module_name}]" if module_name else ""
 
-        print(f"  {tag} 🔵 Modo MANUAL — resolvé el reCAPTCHA en el navegador")
-        print(f"  {tag} [..]️  Esperando hasta {max_wait}s...")
+        self.log(f"{tag} Modo MANUAL — resolvé el reCAPTCHA en el navegador")
+        self.log(f"{tag} [..] Esperando hasta {max_wait}s...")
 
         while elapsed < max_wait:
             await asyncio.sleep(interval)
@@ -257,7 +373,7 @@ class BaseModule:
                     self.log(f"reCAPTCHA resuelto en {elapsed}s [OK]")
                     return True
                 if elapsed % 10 == 0:
-                    print(f"  {tag} [..] Esperando... ({elapsed}s/{max_wait}s)")
+                    self.log(f"{tag} [..] Esperando... ({elapsed}s/{max_wait}s)")
             except Exception as e:
                 self.debug(f"Error checking reCAPTCHA: {e}")
 
@@ -365,7 +481,7 @@ class BaseModule:
             self.log("PDF abierto automáticamente")
         except Exception as e:
             self.warn(f"No se pudo abrir PDF: {e}")
-            print(f"  Abrí manualmente: {pdf_path}")
+            self.log(f"Abrí manualmente: {pdf_path}")
 
     async def find_visible_inputs(self, page: Page, keyword: str = "") -> list:
         """Lista inputs visibles para debug. Si keyword, busca coincidencia."""

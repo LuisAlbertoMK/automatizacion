@@ -1,9 +1,9 @@
 """
 modules/buro.py — BuroModule alias para compatibilidad.
-Usar directamente: from modules.credito import CreditoModule
+Usar directamente: from src.modules.credito import CreditoModule
 """
 
-from modules.credito import CreditoModule
+from src.modules.credito import CreditoModule
 
 
 class BuroModule(CreditoModule):

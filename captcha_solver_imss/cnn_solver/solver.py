@@ -8,14 +8,13 @@ Pipeline:
 """
 import time
 import numpy as np
-import torch
-import torch.nn.functional as F
 
 from pathlib import Path
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
-from .model import CaptchaCNN
-from .train_v2 import segment_captcha, normalize_char, CHAR_TO_IDX, IDX_TO_CHAR, N_CLASSES, MODEL_DIR
+if TYPE_CHECKING:
+    import torch
+    import torch.nn.functional as F
 
 
 class CNNSolver:
@@ -25,16 +24,37 @@ class CNNSolver:
     """
 
     def __init__(self, model_path: Optional[str] = None, device: str = "auto", verbose: bool = True):
+        self._torch = None
+        self._F = None
+        self._device_str = device
+        self.device = None
         self.verbose = verbose
-        self.device = torch.device(
-            "cuda" if device == "auto" and torch.cuda.is_available() else "cpu"
-        )
         self.model = None
         self._loaded = False
         self._load(model_path)
         self._log(f"CNNSolver listo [{'OK' if self._loaded else 'NO MODEL'}]")
 
+    @property
+    def torch(self):
+        if self._torch is None:
+            import torch
+            import torch.nn.functional as F
+            self._torch = torch
+            self._F = F
+            self.device = torch.device(
+                "cuda" if self._device_str == "auto" and torch.cuda.is_available() else "cpu"
+            )
+        return self._torch
+
+    @property
+    def F(self):
+        if self._F is None:
+            _ = self.torch
+        return self._F
+
     def _load(self, model_path: Optional[str]):
+        from .model import CaptchaCNN
+        from .train_v2 import N_CLASSES, MODEL_DIR
         path = Path(model_path or MODEL_DIR / "best_v2.pt")
         if not path.exists():
             path = MODEL_DIR / "best.pt"
@@ -43,7 +63,7 @@ class CNNSolver:
             return
 
         try:
-            checkpoint = torch.load(path, map_location=self.device, weights_only=False)
+            checkpoint = self.torch.load(path, map_location=self.device, weights_only=False)
             self.model = CaptchaCNN(num_classes=N_CLASSES).to(self.device)
             self.model.load_state_dict(checkpoint["model_state_dict"])
             self.model.eval()
@@ -67,6 +87,7 @@ class CNNSolver:
         Returns:
             dict with: value, confidence, char_confidences, success
         """
+        from .train_v2 import segment_captcha, normalize_char, IDX_TO_CHAR
         start = time.time()
 
         if not self.is_loaded:
@@ -100,12 +121,12 @@ class CNNSolver:
 
         for i, char_img in enumerate(chars):
             norm = normalize_char(char_img)
-            tensor = torch.from_numpy(norm).float().unsqueeze(0).unsqueeze(0).to(self.device)
+            tensor = self.torch.from_numpy(norm).float().unsqueeze(0).unsqueeze(0).to(self.device)
 
-            with torch.no_grad():
+            with self.torch.no_grad():
                 outputs = self.model(tensor)
-                probs = F.softmax(outputs, dim=1)
-                conf, pred = torch.max(probs, dim=1)
+                probs = self.F.softmax(outputs, dim=1)
+                conf, pred = self.torch.max(probs, dim=1)
 
             char = IDX_TO_CHAR[pred.item()]
             confidence = conf.item()

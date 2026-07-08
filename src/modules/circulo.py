@@ -1,9 +1,9 @@
 """
 modules/circulo.py — CirculoModule alias para compatibilidad.
-Usar directamente: from modules.credito import CreditoModule
+Usar directamente: from src.modules.credito import CreditoModule
 """
 
-from modules.credito import CreditoModule
+from src.modules.credito import CreditoModule
 
 
 class CirculoModule(CreditoModule):

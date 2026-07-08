@@ -20,7 +20,7 @@ import time
 
 from imapclient import IMAPClient
 
-from exceptions import MailReaderError
+from src.exceptions import MailReaderError
 
 
 class MailReader:

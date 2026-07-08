@@ -12,14 +12,13 @@ Características:
 import json
 import time
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, TYPE_CHECKING
 
 import numpy as np
-import torch
-import torch.nn.functional as F
 
-from .model_v2 import create_model, EnsembleModel
-from .train_v2 import segment_captcha, normalize_char, CHAR_TO_IDX, IDX_TO_CHAR, N_CLASSES, MODEL_DIR
+if TYPE_CHECKING:
+    import torch
+    import torch.nn.functional as F
 
 # ONNX Runtime opcional
 try:
@@ -44,11 +43,12 @@ class CNNSolverV2:
     def __init__(self, model_paths: Optional[List[str]] = None,
                  device: str = "auto", verbose: bool = True,
                  use_onnx: bool = True):
+        self._torch = None
+        self._F = None
+        self._device_str = device
+        self.device = None
         self.verbose = verbose
         self.use_onnx = use_onnx and HAS_ONNX
-        self.device = torch.device(
-            "cuda" if device == "auto" and torch.cuda.is_available() else "cpu"
-        )
         self.models = []        # PyTorch models (fallback / ensemble)
         self.ort_sessions = []  # ONNX Runtime sessions (single model)
         self._loaded = False
@@ -66,10 +66,29 @@ class CNNSolverV2:
                   f"[{'OK' if self._loaded else 'NO MODEL'}] "
                   f"({engine}, {len(self.models)} model(s))")
 
+    @property
+    def torch(self):
+        if self._torch is None:
+            import torch
+            import torch.nn.functional as F
+            self._torch = torch
+            self._F = F
+            self.device = torch.device(
+                "cuda" if self._device_str == "auto" and torch.cuda.is_available() else "cpu"
+            )
+        return self._torch
+
+    @property
+    def F(self):
+        if self._F is None:
+            _ = self.torch
+        return self._F
+
     # ── Loading ───────────────────────────────────────────────
 
     def _load_best(self):
         """Auto-select best model from model directory."""
+        from .train_v2 import MODEL_DIR
         # Priority: v4 (latest, 409 captchas) > v3_full > v3 > attention > wide > residual > original
         pattern_order = [
             ("*v4*", "attention"),       # v4 — newest (409 captchas)
@@ -116,6 +135,8 @@ class CNNSolverV2:
 
     def _load_models(self, paths: List[str]):
         """Load multiple models. Single model → try ONNX; multiple → ensemble."""
+        from .model_v2 import create_model
+        from .train_v2 import N_CLASSES
         loaded = []
         self.ort_sessions = []
 
@@ -126,7 +147,7 @@ class CNNSolverV2:
                 continue
 
             try:
-                checkpoint = torch.load(path, map_location=self.device,
+                checkpoint = self.torch.load(path, map_location=self.device,
                                         weights_only=False)
                 arch = checkpoint.get("arch", "original")
                 seed = checkpoint.get("seed", "?")
@@ -173,8 +194,8 @@ class CNNSolverV2:
     def _export_onnx(self, model, onnx_path: Path, arch: str):
         """Export PyTorch model to ONNX for faster inference."""
         try:
-            dummy = torch.randn(7, 1, 32, 32)
-            torch.onnx.export(
+            dummy = self.torch.randn(7, 1, 32, 32)
+            self.torch.onnx.export(
                 model, dummy, onnx_path,
                 input_names=['input'], output_names=['output'],
                 dynamic_axes={'input': {0: 'batch'}, 'output': {0: 'batch'}},
@@ -201,6 +222,7 @@ class CNNSolverV2:
         Returns:
             dict with: value, confidence, char_confidences, success, engine
         """
+        from .train_v2 import segment_captcha, normalize_char, IDX_TO_CHAR
         start = time.time()
 
         if not self.is_loaded:
@@ -219,25 +241,25 @@ class CNNSolverV2:
         # ONNX inference (single model, ~3x faster)
         if self.ort_sessions:
             outputs = self.ort_sessions[0].run(['output'], {'input': batch})
-            probs_t = torch.from_numpy(outputs[0]).softmax(dim=1)
+            probs_t = self.torch.from_numpy(outputs[0]).softmax(dim=1)
             confs, preds = probs_t.max(1)
             engine = "CNNv2(ONNX)"
         elif len(self.models) == 1:
             # Single model (PyTorch)
-            batch_t = torch.from_numpy(batch).to(self.device)
-            with torch.no_grad():
+            batch_t = self.torch.from_numpy(batch).to(self.device)
+            with self.torch.no_grad():
                 outputs = self.models[0](batch_t)
-                probs = F.softmax(outputs, dim=1)
+                probs = self.F.softmax(outputs, dim=1)
                 confs, preds = probs.max(1)
             engine = "CNNv2"
         else:
             # Ensemble: average probabilities across models
-            batch_t = torch.from_numpy(batch).to(self.device)
+            batch_t = self.torch.from_numpy(batch).to(self.device)
             sum_probs = None
             for model in self.models:
-                with torch.no_grad():
+                with self.torch.no_grad():
                     outputs = model(batch_t)
-                    probs = F.softmax(outputs, dim=1)
+                    probs = self.F.softmax(outputs, dim=1)
                     sum_probs = probs if sum_probs is None else sum_probs + probs
             avg_probs = sum_probs / len(self.models)
             confs, preds = avg_probs.max(1)

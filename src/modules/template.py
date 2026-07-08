@@ -16,8 +16,8 @@ Ejemplo:
 
 import time
 
-from exceptions import ModuleError
-from modules.base import BaseModule
+from src.exceptions import ModuleError
+from src.modules.base import BaseModule
 
 # ── Config específica del trámite ──────────────────────────
 # TODO: Cambiar URL, selectors y site_key
@@ -63,7 +63,8 @@ class TramiteModule(BaseModule):
         self.log("Iniciando consulta...")
         start = time.time()
 
-        p, browser, page = await self.launch_browser()
+        br = await self.launch_browser()
+        page = br.page
 
         try:
             result = await self._run(page, **kwargs)
@@ -77,7 +78,7 @@ class TramiteModule(BaseModule):
             self.error(f"Error en {elapsed:.1f}s: {e}")
             raise TramiteError(f"Error durante la consulta: {e}") from e
         finally:
-            await self.close_browser(p, browser)
+            await self.close_browser(br)
 
     async def _run(self, page, **kwargs) -> dict:
         """Flujo principal del trámite."""

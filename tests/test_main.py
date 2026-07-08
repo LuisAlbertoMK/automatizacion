@@ -8,8 +8,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
-
 
 # ── Fixture global: neutraliza load_dotenv ────────────────────────────────────
 
@@ -29,7 +27,7 @@ class TestValidarConfig:
     def test_no_issues_when_configured(self, capsys):
         import importlib
 
-        import main as main_mod
+        import src.main as main_mod
         main_mod = importlib.reload(main_mod)
         main_mod._validar_config()
         out, _ = capsys.readouterr()
@@ -39,7 +37,7 @@ class TestValidarConfig:
     def test_warns_storage_key_missing(self, capsys):
         import importlib
 
-        import main as main_mod
+        import src.main as main_mod
         main_mod = importlib.reload(main_mod)
         main_mod._validar_config()
         out, _ = capsys.readouterr()
@@ -49,7 +47,7 @@ class TestValidarConfig:
     def test_warns_captcha_api_key_placeholder(self, capsys):
         import importlib
 
-        import main as main_mod
+        import src.main as main_mod
         main_mod = importlib.reload(main_mod)
         main_mod._validar_config()
         out, _ = capsys.readouterr()
@@ -59,7 +57,7 @@ class TestValidarConfig:
     def test_warns_both_missing(self, capsys):
         import importlib
 
-        import main as main_mod
+        import src.main as main_mod
         main_mod = importlib.reload(main_mod)
         main_mod._validar_config()
         out, _ = capsys.readouterr()
@@ -70,14 +68,14 @@ class TestValidarConfig:
 # ── _listar_tramites ──────────────────────────────────────────────────────────
 
 class TestListarTramitesCLI:
-    @patch("modules.orchestrator.listar_tramites")
+    @patch("src.modules.orchestrator.listar_tramites")
     def test_listar_prints_tramites(self, mock_listar, capsys):
         mock_listar.return_value = {
             "curp": {"modulo": "CURPModule", "estado": "✅ Producción", "tiempo": "~16s"},
         }
         import importlib
 
-        import main as main_mod
+        import src.main as main_mod
         main_mod = importlib.reload(main_mod)
         main_mod._listar_tramites()
         out, _ = capsys.readouterr()
@@ -90,49 +88,49 @@ class TestListarTramitesCLI:
 class TestMain:
     """Test del entry point principal con argumentos mockeados."""
 
-    @patch("main._listar_tramites")
+    @patch("src.main._listar_tramites")
     def test_list_tramites_flag(self, mock_listar):
         """--list-tramites llama a _listar_tramites y retorna."""
-        import main as main_mod
+        import src.main as main_mod
         with patch.object(sys, "argv", ["main.py", "--list-tramites"]):
-            with patch("main._validar_config"):
-                with patch("main.asyncio.run"):
+            with patch("src.main._validar_config"):
+                with patch("src.main.asyncio.run"):
                     main_mod.main()
         mock_listar.assert_called_once()
 
-    @patch("main.asyncio.run")
+    @patch("src.main.asyncio.run")
     def test_direct_mode(self, mock_asyncio_run):
         """--tramite curp llama a asyncio.run."""
-        import main as main_mod
+        import src.main as main_mod
         with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX0"]):
-            with patch("main._validar_config"):
+            with patch("src.main._validar_config"):
                 main_mod.main()
         mock_asyncio_run.assert_called_once()
         arg = mock_asyncio_run.call_args[0][0]
         assert arg.__name__ == "modo_directo"
 
-    @patch("main.asyncio.run", side_effect=KeyboardInterrupt)
+    @patch("src.main.asyncio.run", side_effect=KeyboardInterrupt)
     def test_keyboard_interrupt_handling(self, mock_asyncio_run):
         """KeyboardInterrupt se captura graceful."""
-        import main as main_mod
+        import src.main as main_mod
         with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX0"]):
-            with patch("main._validar_config"):
+            with patch("src.main._validar_config"):
                 main_mod.main()
 
-    @patch("main.asyncio.run", side_effect=asyncio.CancelledError)
+    @patch("src.main.asyncio.run", side_effect=asyncio.CancelledError)
     def test_cancelled_error_handling(self, mock_asyncio_run):
         """CancelledError se captura graceful."""
-        import main as main_mod
+        import src.main as main_mod
         with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX0"]):
-            with patch("main._validar_config"):
+            with patch("src.main._validar_config"):
                 main_mod.main()
 
-    @patch("main.asyncio.run")
+    @patch("src.main.asyncio.run")
     def test_interactive_mode(self, mock_asyncio_run):
         """Sin args → modo interactivo."""
-        import main as main_mod
+        import src.main as main_mod
         with patch.object(sys, "argv", ["main.py"]):
-            with patch("main._validar_config"):
+            with patch("src.main._validar_config"):
                 main_mod.main()
         mock_asyncio_run.assert_called_once()
         arg = mock_asyncio_run.call_args[0][0]
@@ -148,7 +146,7 @@ class TestArgparse:
         """Cada flag se parsea sin error."""
         import importlib
 
-        import main as main_mod
+        import src.main as main_mod
         main_mod = importlib.reload(main_mod)
 
         flags = [
@@ -162,8 +160,8 @@ class TestArgparse:
         ]
         for argv in flags:
             with patch.object(sys, "argv", argv):
-                with patch("main._validar_config"):
-                    with patch("main.asyncio.run"):
+                with patch("src.main._validar_config"):
+                    with patch("src.main.asyncio.run"):
                         main_mod.main()
         # Si llegamos acá, ningún flag causó error
 
@@ -179,7 +177,7 @@ class TestAgenteInitServices:
         """Importa main con env dado y parches default."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         if env:
             with patch.dict(os.environ, env, clear=True):
@@ -193,7 +191,7 @@ class TestAgenteInitServices:
         """Sin CAPTCHA_API_KEY, sin IMAP → solver=None, mail_reader=None."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
@@ -210,7 +208,7 @@ class TestAgenteInitServices:
         """Con CAPTCHA_API_KEY válida → CaptchaSolver(api_key)."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver") as mock_cls:
             m.Agente()
@@ -221,7 +219,7 @@ class TestAgenteInitServices:
         """CaptchaError en CaptchaSolver se captura y solver=None, sin fallback."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver") as mock_cs, \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False):
@@ -236,7 +234,7 @@ class TestAgenteInitServices:
         """Sin CAPTCHA_API_KEY, FREE_SOLVER_AVAILABLE → FreeCaptchaSolver()."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", True), \
@@ -249,7 +247,7 @@ class TestAgenteInitServices:
         """Error en FreeCaptchaSolver se captura → solver=None."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", True), \
@@ -262,7 +260,7 @@ class TestAgenteInitServices:
         """Sin ningún solver disponible → mensaje de captcha manual."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False):
@@ -279,7 +277,7 @@ class TestAgenteInitServices:
         """IMAP config válido → MailReader()."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", True), \
@@ -295,7 +293,7 @@ class TestAgenteInitServices:
         """Email placeholder ('tucorreo') → NO MailReader."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", True):
@@ -309,7 +307,7 @@ class TestAgenteInitServices:
         """'your-email' y '@example.com' también se detectan como placeholder."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "MAIL_AVAILABLE", True):
             agente = m.Agente()
@@ -320,7 +318,7 @@ class TestAgenteInitServices:
         """Email vacío → NO MailReader."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "MAIL_AVAILABLE", True):
             agente = m.Agente()
@@ -333,7 +331,7 @@ class TestAgenteInitServices:
         """MailReader exception se captura → mail_reader=None."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", True), \
@@ -350,7 +348,7 @@ class TestValidarCurp:
     def _get_agente(self):
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
@@ -388,7 +386,7 @@ class TestPedirDato:
     def _get_agente(self):
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
@@ -434,7 +432,7 @@ class TestMostrarResultado:
     def _get_agente(self):
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
@@ -469,14 +467,14 @@ class TestTramiteCurp:
     async def test_with_perfil(self):
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_mod = MagicMock()
         mock_mod.consultar = AsyncMock(return_value={"curp": "GALJ800101...", "pdf_path": "/tmp/c.pdf"})
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.curp.CURPModule") as mock_curp:
+             patch("src.modules.curp.CURPModule") as mock_curp:
             mock_curp.return_value = mock_mod
             agente = m.Agente()
             perfil = {"curp": "GALJ800101HDFXXXX0"}
@@ -486,14 +484,14 @@ class TestTramiteCurp:
     async def test_without_perfil(self):
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_mod = MagicMock()
         mock_mod.consultar = AsyncMock(return_value={"curp": "GALJ800101...", "pdf_path": "/tmp/c.pdf"})
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.curp.CURPModule") as mock_curp, \
+             patch("src.modules.curp.CURPModule") as mock_curp, \
              patch("builtins.input", return_value="GALJ800101HDFXXXX0"):
             mock_curp.return_value = mock_mod
             agente = m.Agente()
@@ -507,7 +505,7 @@ class TestGestionarPerfil:
     """Agente.gestionar_perfil() — menú de perfiles."""
 
     def _make_agente(self):
-        import main as m
+        import src.main as m
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False):
@@ -591,14 +589,14 @@ class TestTramiteNss:
         """NSS enviado al correo → muestra instrucciones."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_mod = MagicMock()
         mock_mod.consultar = AsyncMock(return_value={"nss": "ENVIADO_AL_CORREO"})
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.nss.NSSModule") as mock_nss_cls, \
+             patch("src.modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", return_value=""):
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
@@ -612,14 +610,14 @@ class TestTramiteNss:
         """NSS encontrado → _mostrar_resultado con el resultado."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_mod = MagicMock()
         mock_mod.consultar = AsyncMock(return_value={"nss": "12345678901", "curp": "GALJ800101..."})
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.nss.NSSModule") as mock_nss_cls, \
+             patch("src.modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", return_value=""):
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
@@ -633,14 +631,14 @@ class TestTramiteNss:
         """Sin perfil → pide CURP y correo via _pedir_dato."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_mod = MagicMock()
         mock_mod.consultar = AsyncMock(return_value={"nss": "12345678901"})
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.nss.NSSModule") as mock_nss_cls, \
+             patch("src.modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", side_effect=[
                  "GALJ800101HDFXXXX0",  # CURP prompt
                  "a@b.com",              # Correo prompt
@@ -658,14 +656,14 @@ class TestTramiteNss:
         """Perfil con correo → muestra hint con correo_default."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_mod = MagicMock()
         mock_mod.consultar = AsyncMock(return_value={"nss": "12345678901"})
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.nss.NSSModule") as mock_nss_cls, \
+             patch("src.modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", return_value=""):
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
@@ -679,14 +677,14 @@ class TestTramiteNss:
         """Sin mail_reader → muestra advertencia."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_mod = MagicMock()
         mock_mod.consultar = AsyncMock(return_value={"nss": "12345678901"})
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.nss.NSSModule") as mock_nss_cls, \
+             patch("src.modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", return_value=""):
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
@@ -704,7 +702,7 @@ class TestTramiteAmbos:
     async def test_both_with_perfil(self, capsys):
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_curp = MagicMock()
         mock_curp.consultar = AsyncMock(return_value={"curp": "GALJ800101...", "pdf_path": "/tmp/c.pdf"})
@@ -713,8 +711,8 @@ class TestTramiteAmbos:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.curp.CURPModule") as mock_curp_cls, \
-             patch("modules.nss.NSSModule") as mock_nss_cls, \
+             patch("src.modules.curp.CURPModule") as mock_curp_cls, \
+             patch("src.modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", return_value=""):
             mock_curp_cls.return_value = mock_curp
             mock_nss_cls.return_value  = mock_nss
@@ -731,7 +729,7 @@ class TestTramiteAmbos:
     async def test_both_without_perfil(self):
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_curp = MagicMock()
         mock_curp.consultar = AsyncMock(return_value={"curp": "GALJ800101..."})
@@ -740,8 +738,8 @@ class TestTramiteAmbos:
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.curp.CURPModule") as mock_curp_cls, \
-             patch("modules.nss.NSSModule") as mock_nss_cls, \
+             patch("src.modules.curp.CURPModule") as mock_curp_cls, \
+             patch("src.modules.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", side_effect=[
                  "GALJ800101HDFXXXX0",  # CURP prompt
                  "a@b.com",              # Correo prompt
@@ -763,7 +761,7 @@ class TestModoInteractivo:
         """Comando 'curp' → llama a agente.tramite_curp."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         mock_agente.tramite_curp = AsyncMock()
@@ -782,7 +780,7 @@ class TestModoInteractivo:
         """Comando 'nss' → llama a agente.tramite_nss."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         mock_agente.tramite_curp = AsyncMock()
@@ -801,7 +799,7 @@ class TestModoInteractivo:
         """Comando 'ambos' → llama a agente.tramite_ambos."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         mock_agente.tramite_curp = AsyncMock()
@@ -820,7 +818,7 @@ class TestModoInteractivo:
         """Comando 'ayuda' → imprime AYUDA."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         mock_agente.tramite_curp = AsyncMock()
@@ -837,7 +835,7 @@ class TestModoInteractivo:
         """Lenguaje natural con 'curp' y 'nss' → tramite_ambos."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         mock_agente.tramite_ambos = AsyncMock()
@@ -853,7 +851,7 @@ class TestModoInteractivo:
         """Lenguaje natural con solo 'curp' → tramite_curp."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         mock_agente.tramite_curp = AsyncMock()
@@ -869,7 +867,7 @@ class TestModoInteractivo:
         """Lenguaje natural con 'seguro' → tramite_nss."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         mock_agente.tramite_nss = AsyncMock()
@@ -885,7 +883,7 @@ class TestModoInteractivo:
         """Comando 'exit' → sale del loop."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "Agente") as mock_cls, \
              patch.object(m, "list_profiles", return_value=[]), \
@@ -902,7 +900,7 @@ class TestModoInteractivo:
         """Comando no reconocido → mensaje de error."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         with patch.object(m, "Agente", return_value=mock_agente), \
@@ -918,7 +916,7 @@ class TestModoInteractivo:
         """KeyboardInterrupt durante comando → except handler lines 362-363."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         mock_agente.tramite_curp = AsyncMock(side_effect=KeyboardInterrupt)
@@ -935,7 +933,7 @@ class TestModoInteractivo:
         """Comando 'perfil' → llama a gestionar_perfil y carga perfil."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         perfil_data = {"curp": "GALJ800101HDFXXXX0", "correo": "a@b.com"}
         mock_agente = MagicMock()
@@ -954,7 +952,7 @@ class TestModoInteractivo:
         """Excepción en comando → except Exception handler lines 362-363."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         mock_agente.tramite_curp = AsyncMock(side_effect=ValueError("algo salió mal"))
@@ -972,7 +970,7 @@ class TestModoInteractivo:
         """Línea vacía → continúa sin hacer nada."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_agente = MagicMock()
         with patch.object(m, "Agente", return_value=mock_agente), \
@@ -989,11 +987,11 @@ class TestModoInteractivo:
 class TestModoDirecto:
     """modo_directo() — ejecución sin interacción."""
 
-    @patch("main.asyncio.run")
+    @patch("src.main.asyncio.run")
     def test_direct_curp_with_args(self, mock_run):
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX0"]):
             with patch.object(m, "_validar_config"):
@@ -1003,11 +1001,11 @@ class TestModoDirecto:
         coro_fn = args[0]
         assert coro_fn.__name__ == "modo_directo"
 
-    @patch("main.asyncio.run")
+    @patch("src.main.asyncio.run")
     def test_direct_nss_with_args(self, mock_run):
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(sys, "argv", [
             "main.py", "--tramite", "nss",
@@ -1019,11 +1017,11 @@ class TestModoDirecto:
         coro_fn = args[0]
         assert coro_fn.__name__ == "modo_directo"
 
-    @patch("main.asyncio.run")
+    @patch("src.main.asyncio.run")
     def test_direct_perfil_mode(self, mock_run):
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(sys, "argv", ["main.py", "--perfil", "juan"]):
             with patch.object(m, "_validar_config"):
@@ -1040,14 +1038,14 @@ class TestModoDirectoExecution:
         """--tramite curp → crea CURPModule y llama consultar."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_mod = MagicMock()
         mock_mod.consultar = AsyncMock()
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.curp.CURPModule") as mock_curp_cls:
+             patch("src.modules.curp.CURPModule") as mock_curp_cls:
             mock_curp_cls.return_value = mock_mod
             args = MagicMock(tramite="curp", curp="GALJ800101HDFXXXX0", correo=None, perfil=None)
             await m.modo_directo(args)
@@ -1058,14 +1056,14 @@ class TestModoDirectoExecution:
         """--tramite nss → crea NSSModule y llama consultar."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_mod = MagicMock()
         mock_mod.consultar = AsyncMock()
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.nss.NSSModule") as mock_nss_cls:
+             patch("src.modules.nss.NSSModule") as mock_nss_cls:
             mock_nss_cls.return_value = mock_mod
             args = MagicMock(
                 tramite="nss", curp="GALJ800101HDFXXXX0",
@@ -1081,14 +1079,14 @@ class TestModoDirectoExecution:
         """--tramite curp sin --curp → usa perfil."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         mock_mod = MagicMock()
         mock_mod.consultar = AsyncMock()
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
-             patch("modules.curp.CURPModule") as mock_curp_cls, \
+             patch("src.modules.curp.CURPModule") as mock_curp_cls, \
              patch.object(m, "load_profile", return_value={
                  "curp": "PERFIL_CURP", "correo": "perfil@mail.com",
              }):
@@ -1101,7 +1099,7 @@ class TestModoDirectoExecution:
         """--tramite curp sin --curp ni perfil → sys.exit(1) (lines 380-381)."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
@@ -1114,7 +1112,7 @@ class TestModoDirectoExecution:
         """--tramite nss sin CURP ni perfil → sys.exit(1)."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \
@@ -1127,7 +1125,7 @@ class TestModoDirectoExecution:
         """Perfil inexistente → sys.exit(1)."""
         import importlib
 
-        import main as m
+        import src.main as m
         m = importlib.reload(m)
         with patch.object(m, "CaptchaSolver"), \
              patch.object(m, "MAIL_AVAILABLE", False), \

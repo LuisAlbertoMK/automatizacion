@@ -1,8 +1,6 @@
 """
 Debug: test only the 5 images that fail.
 """
-import sys
-sys.path.insert(0, 'D:/automatizacion')
 from pathlib import Path
 from captcha_solver_imss import IMSCaptchaSolver
 

@@ -1,0 +1,366 @@
+{
+  "git": {
+    "hasUpstream": false,
+    "recentCommits": [
+      "4130dad fix(curp): bypass Cloudflare WAF on gob.mx/curp",
+      "1560cac chore: update project score to 8.0",
+      "36182e7 feat: lazy imports orchestrator + secrets manager + Batch J module tests",
+      "dc3307f refactor: batch I ÔÇö merge Buro/Circulo into unified CreditoModule",
+      "c969988 feat(security): batch B ÔÇö PII sanitization",
+      "cd1f9f7 chore: update project score to 7.5 (Batch L + Batch G)",
+      "0bc6743 feat: add lazy imports (Batch L) + multi-stage Docker (Batch G)",
+      "c7ebaa5 perf(fix): batch E - fix blocking operations",
+      "2133bd9 fix(security,deps): batch C + F - API security & dependency cleanup",
+      "384fc84 fix(security): batch A - security quick wins"
+    ],
+    "modified": [],
+    "isRepo": true,
+    "branch": "master",
+    "modifiedCount": 0
+  },
+  "path": "D:\\automatizacion",
+  "type": "python",
+  "structure": {
+    "hasPyprojectToml": true,
+    "hasGentlemanConfig": false,
+    "hasDockerCompose": true,
+    "rootFiles": [
+      {
+        "Name": "_analyze_errors.py",
+        "Length": 3806
+      },
+      {
+        "Name": "_benchmark.py",
+        "Length": 5915
+      },
+      {
+        "Name": "_check_ckpt.py",
+        "Length": 374
+      },
+      {
+        "Name": "_optimize.py",
+        "Length": 5805
+      },
+      {
+        "Name": "_profile_timing.py",
+        "Length": 4192
+      },
+      {
+        "Name": ".dockerignore",
+        "Length": 378
+      },
+      {
+        "Name": ".gitignore",
+        "Length": 611
+      },
+      {
+        "Name": ".project.json",
+        "Length": 781
+      },
+      {
+        "Name": "ANALISIS_TRAMITES_GOB_MX.md",
+        "Length": 18706
+      },
+      {
+        "Name": "app.py",
+        "Length": 10149
+      },
+      {
+        "Name": "auto_diagnostico.py",
+        "Length": 8957
+      },
+      {
+        "Name": "BITACORA.md",
+        "Length": 1287
+      },
+      {
+        "Name": "CAMBIOS_REALIZADOS.md",
+        "Length": 5733
+      },
+      {
+        "Name": "captcha_imss_actual.png",
+        "Length": 886
+      },
+      {
+        "Name": "config.env",
+        "Length": 1071
+      },
+      {
+        "Name": "config.example.env",
+        "Length": 2158
+      },
+      {
+        "Name": "curp_firefox.png",
+        "Length": 225921
+      },
+      {
+        "Name": "debug_antecedentes.png",
+        "Length": 179121
+      },
+      {
+        "Name": "debug_captcha_imss.png",
+        "Length": 8804
+      },
+      {
+        "Name": "debug_curp.py",
+        "Length": 3552
+      },
+      {
+        "Name": "debug_no_captcha.png",
+        "Length": 48229
+      },
+      {
+        "Name": "debug_nss_portal.png",
+        "Length": 110050
+      },
+      {
+        "Name": "debug_portal_actual.png",
+        "Length": 15030
+      },
+      {
+        "Name": "debug_portal.png",
+        "Length": 61624
+      },
+      {
+        "Name": "debug_tenencia.png",
+        "Length": 49890
+      },
+      {
+        "Name": "docker-compose.yml",
+        "Length": 1276
+      },
+      {
+        "Name": "Dockerfile",
+        "Length": 2044
+      },
+      {
+        "Name": "download_captchas.py",
+        "Length": 10729
+      },
+      {
+        "Name": "ESTADO_FINAL.md",
+        "Length": 6276
+      },
+      {
+        "Name": "get_captcha.py",
+        "Length": 1876
+      },
+      {
+        "Name": "GUIA_COMPLETA.md",
+        "Length": 10852
+      },
+      {
+        "Name": "GUIA_INSTALACION_COMPLETA.md",
+        "Length": 10629
+      },
+      {
+        "Name": "health_check.py",
+        "Length": 5569
+      },
+      {
+        "Name": "INSTRUCCIONES.md",
+        "Length": 3239
+      },
+      {
+        "Name": "main_multimodal.py",
+        "Length": 602
+      },
+      {
+        "Name": "main.py",
+        "Length": 685
+      },
+      {
+        "Name": "nss_01_portal.png",
+        "Length": 31813
+      },
+      {
+        "Name": "nss_debug.png",
+        "Length": 31260
+      },
+      {
+        "Name": "nss_firefox.png",
+        "Length": 181050
+      },
+      {
+        "Name": "nss_respuesta.png",
+        "Length": 46711
+      },
+      {
+        "Name": "nss_resultado.png",
+        "Length": 121269
+      },
+      {
+        "Name": "nss_submit_result.png",
+        "Length": 46896
+      },
+      {
+        "Name": "NUEVAS_FUNCIONALIDADES.md",
+        "Length": 9835
+      },
+      {
+        "Name": "PROJECT-SCORE.md",
+        "Length": 844
+      },
+      {
+        "Name": "pyproject.toml",
+        "Length": 2333
+      },
+      {
+        "Name": "README.md",
+        "Length": 4775
+      },
+      {
+        "Name": "requirements.txt",
+        "Length": 561
+      },
+      {
+        "Name": "resultado_curp_temp.png",
+        "Length": 208676
+      },
+      {
+        "Name": "resultado_nss_temp.png",
+        "Length": 173430
+      },
+      {
+        "Name": "RESUMEN_FINAL_COMPLETO.md",
+        "Length": 12493
+      },
+      {
+        "Name": "RESUMEN_IMPLEMENTACION_FINAL.md",
+        "Length": 12583
+      },
+      {
+        "Name": "RESUMEN_OPTIMIZACIONES.md",
+        "Length": 10079
+      },
+      {
+        "Name": "ROADMAP_COMPLETO.md",
+        "Length": 13855
+      },
+      {
+        "Name": "test_captcha_solver.py",
+        "Length": 1813
+      },
+      {
+        "Name": "test_completo_curp.py",
+        "Length": 7239
+      },
+      {
+        "Name": "test_curp_fix.py",
+        "Length": 843
+      },
+      {
+        "Name": "test_curp_simple.py",
+        "Length": 1495
+      },
+      {
+        "Name": "test_curp_vivo.py",
+        "Length": 520
+      },
+      {
+        "Name": "test_documentos.py",
+        "Length": 1908
+      },
+      {
+        "Name": "test_nss.py",
+        "Length": 1052
+      },
+      {
+        "Name": "test_solver_hard.py",
+        "Length": 555
+      },
+      {
+        "Name": "UNIFICACION.md",
+        "Length": 3879
+      },
+      {
+        "Name": "VERIFICACION_COMPLETA.md",
+        "Length": 5784
+      },
+      {
+        "Name": "verificar_sistema_completo.py",
+        "Length": 7882
+      },
+      {
+        "Name": "verificar_sistema.py",
+        "Length": 3452
+      }
+    ],
+    "hasPackageJson": false,
+    "directories": [
+      "__pycache__",
+      ".githooks",
+      ".github",
+      ".learnings",
+      ".mypy_cache",
+      ".pytest_cache",
+      ".ruff_cache",
+      "captcha_solver_imss",
+      "data",
+      "docs",
+      "logs",
+      "output",
+      "src",
+      "tests",
+      "tools"
+    ]
+  },
+  "score": {
+    "hasScore": true,
+    "raw": {
+      "name": "agente-tramites-gobmx",
+      "version": "1.0.0",
+      "score": {
+        "current": 8.0,
+        "previous": 7.0,
+        "trend": "up",
+        "last_updated": "2026-07-01",
+        "dimensions": {
+          "code_quality": 7.5,
+          "test_coverage": 7.5,
+          "security": 8.5,
+          "architecture": 8.0,
+          "error_handling": 7.5,
+          "performance": 7.5,
+          "documentation": 6.0,
+          "maintainability": 7.5,
+          "observability": 7.5,
+          "config_mgmt": 8.0,
+          "devops": 8.0
+        }
+      },
+      "audit": {
+        "last_audit": "2026-07-01",
+        "auditors": 3,
+        "re_verifiers": 3,
+        "fixes_applied": 17,
+        "tests_before": 386,
+        "tests_after": 399,
+        "batches_verified": 6,
+        "batches_gap": "none - cycle complete",
+        "status": "clean"
+      }
+    },
+    "score": {
+      "current": 8.0,
+      "previous": 7.0,
+      "trend": "up",
+      "last_updated": "2026-07-01",
+      "dimensions": {
+        "code_quality": 7.5,
+        "test_coverage": 7.5,
+        "security": 8.5,
+        "architecture": 8.0,
+        "error_handling": 7.5,
+        "performance": 7.5,
+        "documentation": 6.0,
+        "maintainability": 7.5,
+        "observability": 7.5,
+        "config_mgmt": 8.0,
+        "devops": 8.0
+      }
+    }
+  },
+  "analyzedAt": "2026-07-05T15:10:51",
+  "project": "automatizacion"
+}

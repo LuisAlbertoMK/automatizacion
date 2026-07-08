@@ -16,7 +16,6 @@ import subprocess
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 OK = "\033[92m[OK]\033[0m"
 FAIL = "\033[91m[FAIL]\033[0m"
@@ -96,33 +95,33 @@ def main():
     check("cv2", "OpenCV (CNN captcha)")
     check("onnxruntime", "ONNX Runtime")
     check("docx", "python-docx (documentos)")
-    check("modules.documentos", "Documentos IA")
+    check("src.modules.documentos", "Documentos IA")
 
     # ── Módulos del proyecto ──
     print("\n[Módulos src/]")
     checks = [
-        ("modules.base", "BaseModule"),
-        ("modules.curp", "CURPModule"),
-        ("modules.nss", "NSSModule"),
-        ("modules.antecedentes", "AntecedentesModule"),
-        ("modules.tenencia", "TenenciaModule"),
-        ("modules.rfc", "RFCModule"),
-        ("modules.acta_nacimiento", "ActaNacimientoModule"),
-        ("modules.pasaporte", "PasaporteModule"),
-        ("modules.semanas", "SemanasModule"),
-        ("modules.control_confianza", "ControlConfianzaModule"),
-        ("modules.buro", "BuroModule"),
-        ("modules.circulo", "CirculoModule"),
-        ("modules.cita_ine", "CitaINEModule"),
-        ("modules.cita_sat", "CitaSATModule"),
-        ("utils.captcha", "CaptchaSolver"),
-        ("utils.ocr", "OCRExtractor"),
-        ("utils.storage", "Storage"),
-        ("utils.logger", "Logger"),
-        ("utils.mail_reader", "MailReader"),
-        ("utils.claude", "Claude API"),
-        ("modules.documentos.cv", "CVGenerator"),
-        ("modules.documentos.escrito", "EscritoGenerator"),
+        ("src.modules.base", "BaseModule"),
+        ("src.modules.curp", "CURPModule"),
+        ("src.modules.nss", "NSSModule"),
+        ("src.modules.antecedentes", "AntecedentesModule"),
+        ("src.modules.tenencia", "TenenciaModule"),
+        ("src.modules.rfc", "RFCModule"),
+        ("src.modules.acta_nacimiento", "ActaNacimientoModule"),
+        ("src.modules.pasaporte", "PasaporteModule"),
+        ("src.modules.semanas", "SemanasModule"),
+        ("src.modules.control_confianza", "ControlConfianzaModule"),
+        ("src.modules.buro", "BuroModule"),
+        ("src.modules.circulo", "CirculoModule"),
+        ("src.modules.cita_ine", "CitaINEModule"),
+        ("src.modules.cita_sat", "CitaSATModule"),
+        ("src.utils.captcha", "CaptchaSolver"),
+        ("src.utils.ocr", "OCRExtractor"),
+        ("src.utils.storage", "Storage"),
+        ("src.utils.logger", "Logger"),
+        ("src.utils.mail_reader", "MailReader"),
+        ("src.utils.claude", "Claude API"),
+        ("src.modules.documentos.cv", "CVGenerator"),
+        ("src.modules.documentos.escrito", "EscritoGenerator"),
     ]
     for mod, name in checks:
         check(mod, name, critical=True)

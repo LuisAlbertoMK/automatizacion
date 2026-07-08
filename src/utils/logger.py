@@ -97,7 +97,7 @@ class TramiteLogger:
 
     def info_pii(self, msg: str, pii_value: str, pii_type: str = "curp"):
         """Info con PII visible en stdout pero sanitizada en archivo."""
-        from utils.pii import sanitize_pii as _san  # noqa: PLC0415
+        from src.utils.pii import sanitize_pii as _san  # noqa: PLC0415
         sanitized = _san(pii_value, pii_type)
         safe_msg = msg.replace(pii_value, sanitized)
         self._print("info", safe_msg)
