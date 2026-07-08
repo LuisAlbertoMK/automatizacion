@@ -66,7 +66,7 @@ class OCRExtractor:
 
     def extract_from_image(self, image_path: str, lang: str = "spa") -> str:
         """
-        Extrae texto de una imagen.
+        Extrae texto de una imagen (usa caché por hash).
         
         Args:
             image_path: Ruta a la imagen
@@ -75,14 +75,8 @@ class OCRExtractor:
         Returns:
             Texto extraído
         """
-        try:
-            with Image.open(image_path) as img:
-                # Preprocesar imagen para mejor OCR
-                img = self._preprocess_image(img)
-                text = pytesseract.image_to_string(img, lang=lang)
-                return text.strip()
-        except Exception as e:
-            raise OCRError(f"Error extrayendo texto de imagen: {e}")
+        with open(image_path, "rb") as f:
+            return self.extract_from_bytes(f.read(), lang=lang)
 
     def extract_from_bytes(self, image_bytes: bytes, lang: str = "spa") -> str:
         """
