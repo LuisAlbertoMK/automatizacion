@@ -51,15 +51,12 @@ class AntecedentesModule(BaseModule):
         self.log(f"Iniciando tr\u00e1mite para CURP {curp[:4]}****")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
+        async with self.browser_context() as br:
+            page = br.page
             result = await self._run(page, curp, correo, password, datos_personales)
             elapsed = time.time() - start
             self.log(f"Completado en {elapsed:.1f}s")
             return result
-        finally:
-            await self.close_browser(br)
 
     async def _run(self, page: Page, curp: str, correo: str,
                    password: str, datos_personales: dict) -> dict:

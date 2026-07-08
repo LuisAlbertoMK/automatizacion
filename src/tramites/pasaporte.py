@@ -46,24 +46,22 @@ class PasaporteModule(BaseModule):
         self.log("Iniciando cita de pasaporte...")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
-            result = await self._run(page, curp=curp, nombre=nombre,
-                                     apellido_paterno=apellido_paterno,
-                                     apellido_materno=apellido_materno,
-                                     estado=estado, telefono=telefono, email=email)
-            elapsed = time.time() - start
-            self.log(f"Cita pasaporte completada en {elapsed:.1f}s")
-            return result
-        except PasaporteError:
-            raise
-        except Exception as e:
-            elapsed = time.time() - start
-            self.error(f"Error en {elapsed:.1f}s: {e}")
-            raise PasaporteError(f"Error en cita pasaporte: {e}") from e
-        finally:
-            await self.close_browser(br)
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(page, curp=curp, nombre=nombre,
+                                         apellido_paterno=apellido_paterno,
+                                         apellido_materno=apellido_materno,
+                                         estado=estado, telefono=telefono, email=email)
+                elapsed = time.time() - start
+                self.log(f"Cita pasaporte completada en {elapsed:.1f}s")
+                return result
+            except PasaporteError:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                self.error(f"Error en {elapsed:.1f}s: {e}")
+                raise PasaporteError(f"Error en cita pasaporte: {e}") from e
 
     async def _run(self, page, curp: str, nombre: str = "", apellido_paterno: str = "",
                    apellido_materno: str = "", estado: str = "MEX",

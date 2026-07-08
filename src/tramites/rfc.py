@@ -45,23 +45,21 @@ class RFCModule(BaseModule):
         self.log("Iniciando consulta RFC...")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
-            result = await self._run(page, curp=curp, nombre=nombre,
-                                     apellido_paterno=apellido_paterno,
-                                     apellido_materno=apellido_materno)
-            elapsed = time.time() - start
-            self.log(f"RFC completado en {elapsed:.1f}s")
-            return result
-        except RFCError:
-            raise
-        except Exception as e:
-            elapsed = time.time() - start
-            self.error(f"Error en {elapsed:.1f}s: {e}")
-            raise RFCError(f"Error consultando RFC: {e}") from e
-        finally:
-            await self.close_browser(br)
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(page, curp=curp, nombre=nombre,
+                                         apellido_paterno=apellido_paterno,
+                                         apellido_materno=apellido_materno)
+                elapsed = time.time() - start
+                self.log(f"RFC completado en {elapsed:.1f}s")
+                return result
+            except RFCError:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                self.error(f"Error en {elapsed:.1f}s: {e}")
+                raise RFCError(f"Error consultando RFC: {e}") from e
 
     async def _run(self, page, curp: str, nombre: str = "",
                    apellido_paterno: str = "", apellido_materno: str = "") -> dict:

@@ -73,15 +73,12 @@ class CURPModule(BaseModule):
         self.log("Iniciando consulta...")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
+        async with self.browser_context() as br:
+            page = br.page
             result = await self._run(page, curp=curp, datos=datos)
             elapsed = time.time() - start
             self.log(f"Completado en {elapsed:.1f}s")
             return result
-        finally:
-            await self.close_browser(br)
 
     async def _run(self, page: Page, curp: str = None, datos: dict = None) -> dict:
         """Flujo principal de consulta."""

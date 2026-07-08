@@ -41,21 +41,19 @@ class CitaSATModule(BaseModule):
         self.log("Iniciando cita SAT...")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
-            result = await self._run(page, rfc=rfc, curp=curp, email=email)
-            elapsed = time.time() - start
-            self.log(f"Cita SAT completada en {elapsed:.1f}s")
-            return result
-        except CitaSATError:
-            raise
-        except Exception as e:
-            elapsed = time.time() - start
-            self.error(f"Error en {elapsed:.1f}s: {e}")
-            raise CitaSATError(f"Error en cita SAT: {e}") from e
-        finally:
-            await self.close_browser(br)
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(page, rfc=rfc, curp=curp, email=email)
+                elapsed = time.time() - start
+                self.log(f"Cita SAT completada en {elapsed:.1f}s")
+                return result
+            except CitaSATError:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                self.error(f"Error en {elapsed:.1f}s: {e}")
+                raise CitaSATError(f"Error en cita SAT: {e}") from e
 
     async def _run(self, page, rfc: str, curp: str = "", email: str = "") -> dict:
         """Flujo principal de cita SAT."""

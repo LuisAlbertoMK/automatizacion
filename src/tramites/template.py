@@ -63,22 +63,19 @@ class TramiteModule(BaseModule):
         self.log("Iniciando consulta...")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-
-        try:
-            result = await self._run(page, **kwargs)
-            elapsed = time.time() - start
-            self.log(f"Completado en {elapsed:.1f}s")
-            return result
-        except TramiteError:
-            raise
-        except Exception as e:
-            elapsed = time.time() - start
-            self.error(f"Error en {elapsed:.1f}s: {e}")
-            raise TramiteError(f"Error durante la consulta: {e}") from e
-        finally:
-            await self.close_browser(br)
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(page, **kwargs)
+                elapsed = time.time() - start
+                self.log(f"Completado en {elapsed:.1f}s")
+                return result
+            except TramiteError:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                self.error(f"Error en {elapsed:.1f}s: {e}")
+                raise TramiteError(f"Error durante la consulta: {e}") from e
 
     async def _run(self, page, **kwargs) -> dict:
         """Flujo principal del trámite."""

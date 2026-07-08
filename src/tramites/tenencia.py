@@ -50,15 +50,12 @@ class TenenciaModule(BaseModule):
         self.log(f"Consultando tenencia para placa {placa}")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
+        async with self.browser_context() as br:
+            page = br.page
             result = await self._run(page, placa, numero_serie)
             elapsed = time.time() - start
             self.log(f"Completado en {elapsed:.1f}s")
             return result
-        finally:
-            await self.close_browser(br)
 
     async def _run(self, page: Page, placa: str, numero_serie: str) -> dict:
         """Flujo principal."""

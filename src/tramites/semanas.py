@@ -40,21 +40,19 @@ class SemanasModule(BaseModule):
         self.log("Iniciando consulta de semanas cotizadas...")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
-            result = await self._run(page, curp=curp, nss=nss)
-            elapsed = time.time() - start
-            self.log(f"Semanas completadas en {elapsed:.1f}s")
-            return result
-        except SemanasError:
-            raise
-        except Exception as e:
-            elapsed = time.time() - start
-            self.error(f"Error en {elapsed:.1f}s: {e}")
-            raise SemanasError(f"Error consultando semanas: {e}") from e
-        finally:
-            await self.close_browser(br)
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(page, curp=curp, nss=nss)
+                elapsed = time.time() - start
+                self.log(f"Semanas completadas en {elapsed:.1f}s")
+                return result
+            except SemanasError:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                self.error(f"Error en {elapsed:.1f}s: {e}")
+                raise SemanasError(f"Error consultando semanas: {e}") from e
 
     async def _run(self, page, curp: str, nss: str = "") -> dict:
         """Flujo principal de consulta de semanas."""

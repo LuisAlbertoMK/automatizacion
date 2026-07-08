@@ -40,21 +40,19 @@ class CitaINEModule(BaseModule):
         self.log("Iniciando cita INE...")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
-            result = await self._run(page, curp=curp, nombre=nombre)
-            elapsed = time.time() - start
-            self.log(f"Cita INE completada en {elapsed:.1f}s")
-            return result
-        except CitaINEerror:
-            raise
-        except Exception as e:
-            elapsed = time.time() - start
-            self.error(f"Error en {elapsed:.1f}s: {e}")
-            raise CitaINEerror(f"Error en cita INE: {e}") from e
-        finally:
-            await self.close_browser(br)
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(page, curp=curp, nombre=nombre)
+                elapsed = time.time() - start
+                self.log(f"Cita INE completada en {elapsed:.1f}s")
+                return result
+            except CitaINEerror:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                self.error(f"Error en {elapsed:.1f}s: {e}")
+                raise CitaINEerror(f"Error en cita INE: {e}") from e
 
     async def _run(self, page, curp: str, nombre: str = "") -> dict:
         """Flujo principal de cita INE."""

@@ -57,27 +57,25 @@ class ControlConfianzaModule(BaseModule):
         self.log("Iniciando Control de Confianza...")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
-            result = await self._run(page, curp=curp, rfc=rfc, nombre=nombre,
-                                     fecha_nacimiento=fecha_nacimiento,
-                                     estado_nacimiento=estado_nacimiento,
-                                     domicilio=domicilio, telefono=telefono, email=email,
-                                     estado_civil=estado_civil, escolaridad=escolaridad,
-                                     ingreso_mensual=ingreso_mensual,
-                                     egreso_mensual=egreso_mensual)
-            elapsed = time.time() - start
-            self.log(f"Control de Confianza completado en {elapsed:.1f}s")
-            return result
-        except ControlConfianzaError:
-            raise
-        except Exception as e:
-            elapsed = time.time() - start
-            self.error(f"Error en {elapsed:.1f}s: {e}")
-            raise ControlConfianzaError(f"Error en Control de Confianza: {e}") from e
-        finally:
-            await self.close_browser(br)
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(page, curp=curp, rfc=rfc, nombre=nombre,
+                                         fecha_nacimiento=fecha_nacimiento,
+                                         estado_nacimiento=estado_nacimiento,
+                                         domicilio=domicilio, telefono=telefono, email=email,
+                                         estado_civil=estado_civil, escolaridad=escolaridad,
+                                         ingreso_mensual=ingreso_mensual,
+                                         egreso_mensual=egreso_mensual)
+                elapsed = time.time() - start
+                self.log(f"Control de Confianza completado en {elapsed:.1f}s")
+                return result
+            except ControlConfianzaError:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                self.error(f"Error en {elapsed:.1f}s: {e}")
+                raise ControlConfianzaError(f"Error en Control de Confianza: {e}") from e
 
     async def _run(self, page, curp: str, rfc: str = "", nombre: str = "",
                    fecha_nacimiento: str = "", estado_nacimiento: str = "",

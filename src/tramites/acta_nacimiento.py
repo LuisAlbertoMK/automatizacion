@@ -38,21 +38,19 @@ class ActaNacimientoModule(BaseModule):
         self.log("Iniciando consulta de Acta de Nacimiento...")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
-            result = await self._run(page, curp=curp)
-            elapsed = time.time() - start
-            self.log(f"Acta completada en {elapsed:.1f}s")
-            return result
-        except ActaNacimientoError:
-            raise
-        except Exception as e:
-            elapsed = time.time() - start
-            self.error(f"Error en {elapsed:.1f}s: {e}")
-            raise ActaNacimientoError(f"Error consultando acta: {e}") from e
-        finally:
-            await self.close_browser(br)
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(page, curp=curp)
+                elapsed = time.time() - start
+                self.log(f"Acta completada en {elapsed:.1f}s")
+                return result
+            except ActaNacimientoError:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                self.error(f"Error en {elapsed:.1f}s: {e}")
+                raise ActaNacimientoError(f"Error consultando acta: {e}") from e
 
     async def _run(self, page, curp: str) -> dict:
         """Flujo principal de consulta de acta."""

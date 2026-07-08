@@ -116,24 +116,22 @@ class CreditoModule(BaseModule):
         self.log(cfg["msgs"]["start"])
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-        try:
-            result = await self._run(page, rfc=rfc, curp=curp,
-                                     nombre=nombre, apellido_paterno=apellido_paterno,
-                                     apellido_materno=apellido_materno,
-                                     fecha_nacimiento=fecha_nacimiento)
-            elapsed = time.time() - start
-            self.log(cfg["msgs"]["done"].format(elapsed=elapsed))
-            return result
-        except ErrorCls:
-            raise
-        except Exception as e:
-            elapsed = time.time() - start
-            self.error(f"Error en {elapsed:.1f}s: {e}")
-            raise ErrorCls(f"Error consultando {cfg['label']}: {e}") from e
-        finally:
-            await self.close_browser(br)
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(page, rfc=rfc, curp=curp,
+                                         nombre=nombre, apellido_paterno=apellido_paterno,
+                                         apellido_materno=apellido_materno,
+                                         fecha_nacimiento=fecha_nacimiento)
+                elapsed = time.time() - start
+                self.log(cfg["msgs"]["done"].format(elapsed=elapsed))
+                return result
+            except ErrorCls:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                self.error(f"Error en {elapsed:.1f}s: {e}")
+                raise ErrorCls(f"Error consultando {cfg['label']}: {e}") from e
 
     async def _run(self, page, rfc: str, curp: str, nombre: str = "",
                    apellido_paterno: str = "", apellido_materno: str = "",

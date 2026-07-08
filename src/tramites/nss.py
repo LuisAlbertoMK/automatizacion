@@ -74,22 +74,19 @@ class NSSModule(BaseModule):
         self.log(f"Iniciando consulta para CURP {curp[:4]}****")
         start = time.time()
 
-        br = await self.launch_browser()
-        page = br.page
-
-        try:
-            result = await self._run(page, curp=curp, correo=correo)
-            elapsed = time.time() - start
-            self.log(f"Completado en {elapsed:.1f}s")
-            return result
-        except NSSError:
-            raise
-        except Exception as e:
-            elapsed = time.time() - start
-            self.error(f"Error en {elapsed:.1f}s: {e}")
-            raise NSSError(f"Error durante la consulta: {e}") from e
-        finally:
-            await self.close_browser(br)
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(page, curp=curp, correo=correo)
+                elapsed = time.time() - start
+                self.log(f"Completado en {elapsed:.1f}s")
+                return result
+            except NSSError:
+                raise
+            except Exception as e:
+                elapsed = time.time() - start
+                self.error(f"Error en {elapsed:.1f}s: {e}")
+                raise NSSError(f"Error durante la consulta: {e}") from e
 
     async def _run(self, page, curp: str, correo: str) -> dict:
         """Flujo principal del trámite NSS."""

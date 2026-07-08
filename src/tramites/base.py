@@ -10,6 +10,7 @@ import platform
 import re
 import subprocess
 import time
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -188,6 +189,23 @@ class BaseModule:
     async def close_browser(self, br: BrowserResources):
         """Cierra browser y playwright, o libera browser al pool."""
         await br.close()
+
+    @asynccontextmanager
+    async def browser_context(self):
+        """Context manager async para lifecycle del browser.
+        
+        Uso:
+            async with self.browser_context() as br:
+                page = br.page
+                await self._run(page, ...)
+        
+        Maneja launch + close automáticamente, incluso con excepciones.
+        """
+        br = await self.launch_browser()
+        try:
+            yield br
+        finally:
+            await self.close_browser(br)
 
     async def goto(self, page: Page, url: str, fallback_url: str = None):
         """Navega a URL con fallback y rate limiting.
