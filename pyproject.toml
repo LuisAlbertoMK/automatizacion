@@ -65,7 +65,7 @@ include = ["src*", "captcha_solver_imss*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "-q --tb=short"
+addopts = "-q --tb=short --cov-fail-under=80"
 
 [tool.coverage.run]
 source = ["src"]
@@ -88,6 +88,23 @@ exclude_lines = [
 
 [tool.coverage.html]
 directory = "coverage_html"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = false
+warn_unused_configs = true
+ignore_missing_imports = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+disallow_any_unimported = false
+no_implicit_optional = false
+exclude = [
+    "build/",
+    "captcha_solver_imss/",
+    "tests/",
+    "src/tramites/documentos/",
+    "src/utils/free_captcha.py",
+]
 
 [tool.ruff]
 line-length = 100

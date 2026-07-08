@@ -38,6 +38,10 @@ jobs:
       - name: Check compilation
         run: python -m compileall -q src/ app.py health_check.py
 
+      - name: Type check with mypy
+        continue-on-error: true
+        run: mypy src/ || true
+
       - name: Security scan (bandit)
         run: bandit -r src/ -x tests/ --quiet || true
 
@@ -45,12 +49,12 @@ jobs:
         run: safety check --full-report --ignore=70612 || true
         continue-on-error: true
 
-      - name: Tests unitarios + coverage
+      - name: Tests unitarios + coverage (threshold 80%)
         env:
           CAPTCHA_API_KEY: ${{ secrets.CAPTCHA_API_KEY || 'test' }}
           STORAGE_KEY: ${{ secrets.STORAGE_KEY || 'test_key_for_ci' }}
         run: |
-          python -m pytest tests/ -v --tb=short -x --cov=src --cov-report=term-missing --cov-report=xml | head -80
+          python -m pytest tests/ -v --tb=short -x --cov=src --cov-report=term-missing --cov-report=xml --cov-fail-under=80 | head -80
 
       - name: Upload coverage to Codecov (optional)
         uses: codecov/codecov-action@v5
