@@ -9,6 +9,7 @@ Funcionalidades:
   - Preprocesamiento de imágenes para mejor precisión
 """
 
+import hashlib
 import io
 import os
 import re
@@ -36,8 +37,22 @@ for path in TESSERACT_PATHS:
 class OCRExtractor:
     """Extractor de texto usando OCR con Tesseract."""
 
-    def __init__(self):
+    def __init__(self, cache_size: int = 128):
         self._verify_tesseract()
+        self._cache: Dict[str, str] = {}
+        self._cache_order: List[str] = []
+        self._max_cache = max(cache_size, 1)
+
+    def _cache_result(self, key: str, result: str) -> str:
+        """Guarda resultado en caché LRU."""
+        if key in self._cache:
+            self._cache_order.remove(key)
+        elif len(self._cache) >= self._max_cache:
+            oldest = self._cache_order.pop(0)
+            self._cache.pop(oldest, None)
+        self._cache[key] = result
+        self._cache_order.append(key)
+        return result
 
     def _verify_tesseract(self):
         """Verifica que Tesseract está instalado."""
@@ -80,11 +95,15 @@ class OCRExtractor:
         Returns:
             Texto extraído
         """
+        cache_key = hashlib.sha256(image_bytes).hexdigest()[:16] + "|" + lang
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            return cached
         try:
             with Image.open(io.BytesIO(image_bytes)) as img:
                 img = self._preprocess_image(img)
                 text = pytesseract.image_to_string(img, lang=lang)
-                return text.strip()
+                return self._cache_result(cache_key, text.strip())
         except Exception as e:
             raise OCRError(f"Error extrayendo texto de bytes: {e}")
 
@@ -101,10 +120,17 @@ class OCRExtractor:
             Texto extraído de todas las páginas
         """
         try:
+            try:
+                cache_key = f"pdf:{pdf_path}:{lang}:{os.path.getmtime(pdf_path)}"
+                cached = self._cache.get(cache_key)
+                if cached is not None:
+                    return cached
+            except OSError:
+                cache_key = ""  # archivo no existe aún → sin cache
             from pdf2image import convert_from_path
 
             # Convertir PDF a imágenes
-            images = convert_from_path(pdf_path, dpi=300)
+            images = convert_from_path(pdf_path, dpi=150)
 
             all_text = []
             for i, img in enumerate(images):
@@ -113,7 +139,10 @@ class OCRExtractor:
                 text = pytesseract.image_to_string(img, lang=lang)
                 all_text.append(text)
 
-            return "\n\n".join(all_text).strip()
+            result = "\n\n".join(all_text).strip()
+            if cache_key:
+                return self._cache_result(cache_key, result)
+            return result
         except ImportError:
             raise OCRError(
                 "pdf2image no está instalado. Instálalo con: pip install pdf2image\n"
