@@ -10,6 +10,7 @@ import platform
 import re
 import subprocess
 import time
+from collections import OrderedDict
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -21,6 +22,9 @@ from playwright.async_api import TimeoutError as PwTimeout
 
 from src.exceptions import ModuleError
 from src.utils.browser_pool import BrowserPool
+
+# Telemetría Playwright desactivada por defecto
+os.environ.setdefault("PLAYWRIGHT_TELEMETRY_OPTOUT", "1")
 
 
 @dataclass
@@ -115,7 +119,7 @@ class BaseModule:
                 self.ocr = OCRExtractor()
             except ImportError:
                 self.warn("OCR no disponible. Instala: pip install pytesseract pillow")
-        self._selector_cache: dict[str, str] = {}
+        self._selector_cache: OrderedDict[str, str] = OrderedDict()
         # Inicializar handler de interacción con el usuario
         if interaction is not None:
             self.interaction = interaction
@@ -167,9 +171,11 @@ class BaseModule:
             return BrowserResources(browser, page, _pool=pool, _context=context)
 
         # ── Fallback: sin pool ──────────────────────────────────
-        _extra_args = []
+        _extra_args = [
+            "--disable-telemetry",
+        ]
         if os.getenv("PLAYWRIGHT_NO_SANDBOX", "").lower() == "true":
-            _extra_args = ["--no-sandbox"]
+            _extra_args.append("--no-sandbox")
 
         p = await async_playwright().__aenter__()
         browser = await p.firefox.launch(
@@ -266,6 +272,9 @@ class BaseModule:
                     await loc.first.fill(value)
                     await asyncio.sleep(0.3)
                     self._selector_cache[cache_key] = sel
+                    self._selector_cache.move_to_end(cache_key)
+                    if len(self._selector_cache) > 512:
+                        self._selector_cache.popitem(last=False)
                     return True
             except Exception as e:
                 self.debug(f"fill_field: selector {sel} falló: {e}")
@@ -306,6 +315,9 @@ class BaseModule:
                         await loc.first.click()
                         await asyncio.sleep(1)
                     self._selector_cache[cache_key] = sel
+                    self._selector_cache.move_to_end(cache_key)
+                    if len(self._selector_cache) > 512:
+                        self._selector_cache.popitem(last=False)
                     return True
             except PwTimeout:
                 self.debug(f"Navigation timeout en {sel}, continuando...")

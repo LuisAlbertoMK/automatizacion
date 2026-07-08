@@ -26,12 +26,6 @@ from playwright.async_api import TimeoutError as PwTimeout
 from src.exceptions import NSSError
 from src.tramites.base import TIMEOUT, BaseModule
 
-try:
-    from captcha_solver_imss import CaptchaStore, IMSCaptchaSolver  # noqa: F401
-    IMSS_SOLVER_AVAILABLE = True
-except ImportError:
-    IMSS_SOLVER_AVAILABLE = False
-
 
 PORTAL_URL = (
     "https://serviciosdigitales.imss.gob.mx/"
@@ -257,19 +251,18 @@ class NSSModule(BaseModule):
 
         # ── 1. Pipeline IMSCaptchaSolver ──
         valor = ""
-        if IMSS_SOLVER_AVAILABLE:
-            try:
-                from captcha_solver_imss import IMSCaptchaSolver
-                ims_solver = IMSCaptchaSolver(verbose=False)
-                loop = asyncio.get_running_loop()
-                ims_result = await loop.run_in_executor(
-                    None, ims_solver.solve, img_bytes
-                )
-            except Exception as e:
-                self.warn(f"IMSCaptchaSolver falló: {e}")
-                ims_result = {"success": False, "score": 0}
-        else:
+        try:
+            from captcha_solver_imss import IMSCaptchaSolver
+            ims_solver = IMSCaptchaSolver(verbose=False)
+            loop = asyncio.get_running_loop()
+            ims_result = await loop.run_in_executor(
+                None, ims_solver.solve, img_bytes
+            )
+        except ImportError:
             self.debug("IMSCaptchaSolver no disponible, saltando...")
+            ims_result = {"success": False, "score": 0}
+        except Exception as e:
+            self.warn(f"IMSCaptchaSolver falló: {e}")
             ims_result = {"success": False, "score": 0}
 
         if ims_result["success"] and ims_result["score"] >= 0.5:
