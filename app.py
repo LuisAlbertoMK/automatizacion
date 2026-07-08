@@ -233,7 +233,7 @@ elif menu == "⚙️ Configuración":
     for var, label in vars_to_show.items():
         val = os.getenv(var, "")
         if var == "CAPTCHA_API_KEY":
-            val = val[:8] + "****" if val and val != "tu_api_key_aqui" else "⚠️ No configurada"
+            val = "✅ Configurada" if val and val != "tu_api_key_aqui" else "⚠️ No configurada"
         elif var == "STORAGE_KEY":
             val = "✅ Configurada" if val else "❌ No configurada"
         elif var == "HEADLESS":
