@@ -8,11 +8,11 @@ from src.exceptions import ActaNacimientoError, PasaporteError, RFCError, Semana
 
 
 class TestSemanasModule:
-    MODULE = "src.modules.semanas"
+    MODULE = "src.tramites.semanas"
 
     @pytest.mark.asyncio
     async def test_consultar_success(self):
-        from src.modules.semanas import SemanasModule
+        from src.tramites.semanas import SemanasModule
         mod = SemanasModule()
         expected = {"semanas": "500", "nss": "12345678901", "curp": "GALJ..."}
         with (
@@ -26,14 +26,14 @@ class TestSemanasModule:
 
     @pytest.mark.asyncio
     async def test_consultar_missing_curp(self):
-        from src.modules.semanas import SemanasModule
+        from src.tramites.semanas import SemanasModule
         mod = SemanasModule()
         with pytest.raises(SemanasError, match="Se requiere CURP"):
             await mod.consultar(curp="")
 
     @pytest.mark.asyncio
     async def test_run_error_wrapped(self):
-        from src.modules.semanas import SemanasModule
+        from src.tramites.semanas import SemanasModule
         mod = SemanasModule()
         with (
             patch.object(mod, "_run", AsyncMock(side_effect=ValueError("boom"))),
@@ -46,11 +46,11 @@ class TestSemanasModule:
 
 
 class TestRFCModule:
-    MODULE = "src.modules.rfc"
+    MODULE = "src.tramites.rfc"
 
     @pytest.mark.asyncio
     async def test_consultar_success(self):
-        from src.modules.rfc import RFCModule
+        from src.tramites.rfc import RFCModule
         mod = RFCModule()
         expected = {"rfc": "GALJ800101XXX", "curp": "GALJ...", "pdf_path": None}
         with (
@@ -64,18 +64,18 @@ class TestRFCModule:
 
     @pytest.mark.asyncio
     async def test_consultar_missing_curp(self):
-        from src.modules.rfc import RFCModule
+        from src.tramites.rfc import RFCModule
         mod = RFCModule()
         with pytest.raises(RFCError, match="Se requiere CURP"):
             await mod.consultar(curp="")
 
 
 class TestActaNacimientoModule:
-    MODULE = "src.modules.acta_nacimiento"
+    MODULE = "src.tramites.acta_nacimiento"
 
     @pytest.mark.asyncio
     async def test_consultar_success(self):
-        from src.modules.acta_nacimiento import ActaNacimientoModule
+        from src.tramites.acta_nacimiento import ActaNacimientoModule
         mod = ActaNacimientoModule()
         expected = {"curp": "GALJ...", "pdf_path": "/tmp/a.pdf", "status": "descargado"}
         with (
@@ -89,18 +89,18 @@ class TestActaNacimientoModule:
 
     @pytest.mark.asyncio
     async def test_consultar_missing_curp(self):
-        from src.modules.acta_nacimiento import ActaNacimientoModule
+        from src.tramites.acta_nacimiento import ActaNacimientoModule
         mod = ActaNacimientoModule()
         with pytest.raises(ActaNacimientoError, match="Se requiere CURP"):
             await mod.consultar(curp="")
 
 
 class TestPasaporteModule:
-    MODULE = "src.modules.pasaporte"
+    MODULE = "src.tramites.pasaporte"
 
     @pytest.mark.asyncio
     async def test_consultar_success(self):
-        from src.modules.pasaporte import PasaporteModule
+        from src.tramites.pasaporte import PasaporteModule
         mod = PasaporteModule()
         expected = {"cita": "2026-07-15", "curp": "GALJ...", "pdf_path": None}
         with (
@@ -113,7 +113,7 @@ class TestPasaporteModule:
 
     @pytest.mark.asyncio
     async def test_consultar_missing_curp(self):
-        from src.modules.pasaporte import PasaporteModule
+        from src.tramites.pasaporte import PasaporteModule
         mod = PasaporteModule()
         with pytest.raises(PasaporteError, match="Se requiere CURP"):
             await mod.consultar(curp="")

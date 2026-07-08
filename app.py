@@ -20,9 +20,9 @@ load_dotenv(Path(__file__).parent / "config.env")
 from src.utils.secrets_manager import init_secrets  # noqa: E402
 init_secrets()
 
-from src.modules.curp import CURPModule  # noqa: E402
-from src.modules.nss import NSSModule  # noqa: E402
-from src.modules.orchestrator import listar_tramites  # noqa: E402
+from src.tramites.curp import CURPModule  # noqa: E402
+from src.tramites.nss import NSSModule  # noqa: E402
+from src.tramites.orchestrator import listar_tramites  # noqa: E402
 from src.utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
 from src.utils.storage import (  # noqa: E402
     delete_profile,

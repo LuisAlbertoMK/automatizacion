@@ -45,7 +45,7 @@ def _validar_config():
 
 def _listar_tramites():
     """Muestra todos los trámites registrados y su estado."""
-    from src.modules.orchestrator import listar_tramites
+    from src.tramites.orchestrator import listar_tramites
     tramites = listar_tramites()
     print(f"\n  {Fore.CYAN}Trámites disponibles:{Style.RESET_ALL}")
     for nombre, info in tramites.items():
@@ -70,7 +70,7 @@ except ImportError:
     FREE_SOLVER_AVAILABLE = False
 
 try:
-    from src.modules.documentos import CVGenerator, EscritoGenerator
+    from src.tramites.documentos import CVGenerator, EscritoGenerator
     DOCUMENTOS_AVAILABLE = True
 except ImportError:
     DOCUMENTOS_AVAILABLE = False
@@ -162,7 +162,7 @@ class Agente:
         else:
             curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
 
-        from src.modules.curp import CURPModule
+        from src.tramites.curp import CURPModule
         modulo = CURPModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp)
 
@@ -191,7 +191,7 @@ class Agente:
             validar=lambda x: "@" in x and "." in x,
         )
 
-        from src.modules.nss import NSSModule
+        from src.tramites.nss import NSSModule
         modulo = NSSModule(captcha_solver=self.solver, mail_reader=self.mail_reader)
         resultado = await modulo.consultar(curp=curp, correo=correo)
 
@@ -238,13 +238,13 @@ class Agente:
         resultados = {}
 
         # CURP
-        from src.modules.curp import CURPModule
+        from src.tramites.curp import CURPModule
         modulo_curp = CURPModule(captcha_solver=self.solver)
         res_curp    = await modulo_curp.consultar(curp=curp)
         resultados["curp"] = res_curp
 
         # NSS
-        from src.modules.nss import NSSModule
+        from src.tramites.nss import NSSModule
         modulo_nss = NSSModule(captcha_solver=self.solver, mail_reader=self.mail_reader)
         res_nss    = await modulo_nss.consultar(curp=curp, correo=correo)
         resultados["nss"] = res_nss
@@ -270,7 +270,7 @@ class Agente:
         if not curp:
             curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
         nombre = input("  Nombre (opcional): ").strip() or (perfil or {}).get("nombre", "")
-        from src.modules.rfc import RFCModule
+        from src.tramites.rfc import RFCModule
         modulo = RFCModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp, nombre=nombre)
         self._mostrar_resultado("RFC", resultado)
@@ -283,7 +283,7 @@ class Agente:
         curp = perfil.get("curp") if perfil else None
         if not curp:
             curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from src.modules.acta_nacimiento import ActaNacimientoModule
+        from src.tramites.acta_nacimiento import ActaNacimientoModule
         modulo = ActaNacimientoModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp)
         self._mostrar_resultado("Acta", resultado)
@@ -296,7 +296,7 @@ class Agente:
         curp = perfil.get("curp") if perfil else None
         if not curp:
             curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from src.modules.pasaporte import PasaporteModule
+        from src.tramites.pasaporte import PasaporteModule
         modulo = PasaporteModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp, nombre=(perfil or {}).get("nombre", ""))
         self._mostrar_resultado("Pasaporte", resultado)
@@ -309,7 +309,7 @@ class Agente:
         curp = perfil.get("curp") if perfil else None
         if not curp:
             curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from src.modules.semanas import SemanasModule
+        from src.tramites.semanas import SemanasModule
         modulo = SemanasModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp)
         self._mostrar_resultado("Semanas", resultado)
@@ -321,7 +321,7 @@ class Agente:
         print(f"{Fore.YELLOW}⚠ Este trámite requiere intervención manual significativa{Style.RESET_ALL}")
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Control de Confianza SESNSP ━━━{Style.RESET_ALL}")
         curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from src.modules.control_confianza import ControlConfianzaModule
+        from src.tramites.control_confianza import ControlConfianzaModule
         modulo = ControlConfianzaModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp)
         self._mostrar_resultado("Control de Confianza", resultado)
@@ -333,7 +333,7 @@ class Agente:
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Buró de Crédito ━━━{Style.RESET_ALL}")
         rfc = self._pedir_dato("RFC", validar=self._validar_rfc)
         curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from src.modules.buro import BuroModule
+        from src.tramites.buro import BuroModule
         modulo = BuroModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(rfc=rfc, curp=curp)
         self._mostrar_resultado("Buró", resultado)
@@ -345,7 +345,7 @@ class Agente:
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Círculo de Crédito ━━━{Style.RESET_ALL}")
         rfc = self._pedir_dato("RFC", validar=self._validar_rfc)
         curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from src.modules.circulo import CirculoModule
+        from src.tramites.circulo import CirculoModule
         modulo = CirculoModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(rfc=rfc, curp=curp)
         self._mostrar_resultado("Círculo", resultado)
@@ -356,7 +356,7 @@ class Agente:
         """Ejecuta cita INE."""
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Cita INE ━━━{Style.RESET_ALL}")
         curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
-        from src.modules.cita_ine import CitaINEModule
+        from src.tramites.cita_ine import CitaINEModule
         modulo = CitaINEModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(curp=curp)
         self._mostrar_resultado("Cita INE", resultado)
@@ -371,7 +371,7 @@ class Agente:
         if curp and not self._validar_curp(curp):
             print(f"  {Fore.RED}  Formato CURP inválido{Style.RESET_ALL}")
             curp = ""
-        from src.modules.cita_sat import CitaSATModule
+        from src.tramites.cita_sat import CitaSATModule
         modulo = CitaSATModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(rfc=rfc, curp=curp)
         self._mostrar_resultado("Cita SAT", resultado)
@@ -560,17 +560,17 @@ async def modo_interactivo():
 
 async def modo_directo(args):
     """Modo sin interacción para scripts y automatización."""
-    from src.modules.acta_nacimiento import ActaNacimientoModule
-    from src.modules.buro import BuroModule
-    from src.modules.circulo import CirculoModule
-    from src.modules.cita_ine import CitaINEModule
-    from src.modules.cita_sat import CitaSATModule
-    from src.modules.control_confianza import ControlConfianzaModule
-    from src.modules.curp import CURPModule
-    from src.modules.nss import NSSModule
-    from src.modules.pasaporte import PasaporteModule
-    from src.modules.rfc import RFCModule
-    from src.modules.semanas import SemanasModule
+    from src.tramites.acta_nacimiento import ActaNacimientoModule
+    from src.tramites.buro import BuroModule
+    from src.tramites.circulo import CirculoModule
+    from src.tramites.cita_ine import CitaINEModule
+    from src.tramites.cita_sat import CitaSATModule
+    from src.tramites.control_confianza import ControlConfianzaModule
+    from src.tramites.curp import CURPModule
+    from src.tramites.nss import NSSModule
+    from src.tramites.pasaporte import PasaporteModule
+    from src.tramites.rfc import RFCModule
+    from src.tramites.semanas import SemanasModule
 
     agente = Agente()
     perfil = None

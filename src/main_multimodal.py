@@ -21,7 +21,7 @@ from src.utils.secrets_manager import init_secrets  # noqa: E402
 
 init_secrets()
 
-from src.modules.orchestrator import TramitesOrchestrator  # noqa: E402
+from src.tramites.orchestrator import TramitesOrchestrator  # noqa: E402
 
 
 def main():

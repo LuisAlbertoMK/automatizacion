@@ -8,11 +8,11 @@ from src.exceptions import AntecedentesError, CitaINEerror, CitaSATError, Contro
 
 
 class TestAntecedentesModule:
-    MODULE = "src.modules.antecedentes"
+    MODULE = "src.tramites.antecedentes"
 
     @pytest.mark.asyncio
     async def test_consultar_success(self):
-        from src.modules.antecedentes import AntecedentesModule
+        from src.tramites.antecedentes import AntecedentesModule
         mod = AntecedentesModule()
         expected = {"status": "ok", "folio": "FOL123"}
         with (
@@ -26,7 +26,7 @@ class TestAntecedentesModule:
 
     @pytest.mark.asyncio
     async def test_consultar_missing_curp(self):
-        from src.modules.antecedentes import AntecedentesModule
+        from src.tramites.antecedentes import AntecedentesModule
         mod = AntecedentesModule()
         with pytest.raises(AntecedentesError, match="Se requieren CURP"):
             await mod.consultar(curp="", correo="")
@@ -34,7 +34,7 @@ class TestAntecedentesModule:
     @pytest.mark.asyncio
     async def test_wrapped_error(self):
         """antecedentes does NOT wrap errors — RuntimeError propagates."""
-        from src.modules.antecedentes import AntecedentesModule
+        from src.tramites.antecedentes import AntecedentesModule
         mod = AntecedentesModule()
         with (
             patch.object(mod, "_run", AsyncMock(side_effect=RuntimeError("fail"))),
@@ -47,11 +47,11 @@ class TestAntecedentesModule:
 
 
 class TestCitaINEModule:
-    MODULE = "src.modules.cita_ine"
+    MODULE = "src.tramites.cita_ine"
 
     @pytest.mark.asyncio
     async def test_consultar_success(self):
-        from src.modules.cita_ine import CitaINEModule
+        from src.tramites.cita_ine import CitaINEModule
         mod = CitaINEModule()
         expected = {"cita": "2026-08-01", "curp": "GALJ...", "pdf_path": None}
         with (
@@ -65,18 +65,18 @@ class TestCitaINEModule:
 
     @pytest.mark.asyncio
     async def test_missing_curp(self):
-        from src.modules.cita_ine import CitaINEModule
+        from src.tramites.cita_ine import CitaINEModule
         mod = CitaINEModule()
         with pytest.raises(CitaINEerror, match="Se requiere CURP para cita INE"):
             await mod.consultar(curp="")
 
 
 class TestCitaSATModule:
-    MODULE = "src.modules.cita_sat"
+    MODULE = "src.tramites.cita_sat"
 
     @pytest.mark.asyncio
     async def test_consultar_success(self):
-        from src.modules.cita_sat import CitaSATModule
+        from src.tramites.cita_sat import CitaSATModule
         mod = CitaSATModule()
         expected = {"cita": "2026-09-01", "curp": "GALJ...", "pdf_path": None}
         with (
@@ -90,18 +90,18 @@ class TestCitaSATModule:
 
     @pytest.mark.asyncio
     async def test_missing_rfc(self):
-        from src.modules.cita_sat import CitaSATModule
+        from src.tramites.cita_sat import CitaSATModule
         mod = CitaSATModule()
         with pytest.raises(CitaSATError, match="Se requiere RFC para cita SAT"):
             await mod.consultar(rfc="")
 
 
 class TestControlConfianzaModule:
-    MODULE = "src.modules.control_confianza"
+    MODULE = "src.tramites.control_confianza"
 
     @pytest.mark.asyncio
     async def test_consultar_success(self):
-        from src.modules.control_confianza import ControlConfianzaModule
+        from src.tramites.control_confianza import ControlConfianzaModule
         mod = ControlConfianzaModule()
         expected = {"status": "ok", "folio": "FOL123", "curp": "GALJ..."}
         with (
@@ -115,7 +115,7 @@ class TestControlConfianzaModule:
 
     @pytest.mark.asyncio
     async def test_missing_curp(self):
-        from src.modules.control_confianza import ControlConfianzaModule
+        from src.tramites.control_confianza import ControlConfianzaModule
         mod = ControlConfianzaModule()
         with pytest.raises(ControlConfianzaError, match="Se requiere CURP"):
             await mod.consultar(curp="")

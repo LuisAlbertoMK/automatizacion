@@ -95,33 +95,33 @@ def main():
     check("cv2", "OpenCV (CNN captcha)")
     check("onnxruntime", "ONNX Runtime")
     check("docx", "python-docx (documentos)")
-    check("src.modules.documentos", "Documentos IA")
+    check("src.tramites.documentos", "Documentos IA")
 
     # ── Módulos del proyecto ──
     print("\n[Módulos src/]")
     checks = [
-        ("src.modules.base", "BaseModule"),
-        ("src.modules.curp", "CURPModule"),
-        ("src.modules.nss", "NSSModule"),
-        ("src.modules.antecedentes", "AntecedentesModule"),
-        ("src.modules.tenencia", "TenenciaModule"),
-        ("src.modules.rfc", "RFCModule"),
-        ("src.modules.acta_nacimiento", "ActaNacimientoModule"),
-        ("src.modules.pasaporte", "PasaporteModule"),
-        ("src.modules.semanas", "SemanasModule"),
-        ("src.modules.control_confianza", "ControlConfianzaModule"),
-        ("src.modules.buro", "BuroModule"),
-        ("src.modules.circulo", "CirculoModule"),
-        ("src.modules.cita_ine", "CitaINEModule"),
-        ("src.modules.cita_sat", "CitaSATModule"),
+        ("src.tramites.base", "BaseModule"),
+        ("src.tramites.curp", "CURPModule"),
+        ("src.tramites.nss", "NSSModule"),
+        ("src.tramites.antecedentes", "AntecedentesModule"),
+        ("src.tramites.tenencia", "TenenciaModule"),
+        ("src.tramites.rfc", "RFCModule"),
+        ("src.tramites.acta_nacimiento", "ActaNacimientoModule"),
+        ("src.tramites.pasaporte", "PasaporteModule"),
+        ("src.tramites.semanas", "SemanasModule"),
+        ("src.tramites.control_confianza", "ControlConfianzaModule"),
+        ("src.tramites.buro", "BuroModule"),
+        ("src.tramites.circulo", "CirculoModule"),
+        ("src.tramites.cita_ine", "CitaINEModule"),
+        ("src.tramites.cita_sat", "CitaSATModule"),
         ("src.utils.captcha", "CaptchaSolver"),
         ("src.utils.ocr", "OCRExtractor"),
         ("src.utils.storage", "Storage"),
         ("src.utils.logger", "Logger"),
         ("src.utils.mail_reader", "MailReader"),
         ("src.utils.claude", "Claude API"),
-        ("src.modules.documentos.cv", "CVGenerator"),
-        ("src.modules.documentos.escrito", "EscritoGenerator"),
+        ("src.tramites.documentos.cv", "CVGenerator"),
+        ("src.tramites.documentos.escrito", "EscritoGenerator"),
     ]
     for mod, name in checks:
         check(mod, name, critical=True)

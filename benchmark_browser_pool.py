@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 async def benchmark_legacy(num_tramites: int = 3):
     """Benchmark del comportamiento legacy (sin pool)."""
-    from src.modules.base import BaseModule
+    from src.tramites.base import BaseModule
     
     print(f"\n{'='*60}")
     print(f"BENCHMARK LEGACY (sin pool) - {num_tramites} trámites")
@@ -61,7 +61,7 @@ async def benchmark_legacy(num_tramites: int = 3):
 
 async def benchmark_pool(num_tramites: int = 3):
     """Benchmark del comportamiento con pool."""
-    from src.modules.base import BaseModule
+    from src.tramites.base import BaseModule
     from src.utils.browser_pool import get_browser_pool, shutdown_browser_pool
     
     print(f"\n{'='*60}")
@@ -121,7 +121,7 @@ async def benchmark_pool(num_tramites: int = 3):
 
 async def benchmark_real_world():
     """Simula escenario real: 3 trámites secuenciales."""
-    from src.modules.base import BaseModule
+    from src.tramites.base import BaseModule
     from src.utils.browser_pool import shutdown_browser_pool
     
     print(f"\n{'='*60}")

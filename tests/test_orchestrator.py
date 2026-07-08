@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.modules.orchestrator import TRAMITES_REGISTRADOS, listar_tramites  # noqa: E402
+from src.tramites.orchestrator import TRAMITES_REGISTRADOS, listar_tramites  # noqa: E402
 
 TRAMITES_ESPERADOS = [
     "curp", "nss", "antecedentes", "tenencia",
@@ -42,8 +42,8 @@ def _mock_modules():
 @pytest.fixture
 def orchestrator(_mock_modules):
     """Crea TramitesOrchestrator con todos los módulos mockeados."""
-    from src.modules.orchestrator import TramitesOrchestrator
-    with patch("src.modules.orchestrator.MULTIMODAL_AVAILABLE", False):
+    from src.tramites.orchestrator import TramitesOrchestrator
+    with patch("src.tramites.orchestrator.MULTIMODAL_AVAILABLE", False):
         orch = TramitesOrchestrator()
     orch._modules = _mock_modules
     return orch
@@ -52,8 +52,8 @@ def orchestrator(_mock_modules):
 @pytest.fixture
 def orchestrator_multimodal(mock_multimodal, _mock_modules):
     """TramitesOrchestrator con entrada multimodal."""
-    from src.modules.orchestrator import TramitesOrchestrator
-    with patch("src.modules.orchestrator.MultimodalInput", return_value=mock_multimodal):
+    from src.tramites.orchestrator import TramitesOrchestrator
+    with patch("src.tramites.orchestrator.MultimodalInput", return_value=mock_multimodal):
         orch = TramitesOrchestrator()
     orch._modules = _mock_modules
     return orch

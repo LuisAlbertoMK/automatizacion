@@ -45,8 +45,8 @@ if not FASTAPI_AVAILABLE:
     )
 
 
-from src.modules.curp import CURPModule  # noqa: E402
-from src.modules.nss import NSSModule  # noqa: E402
+from src.tramites.curp import CURPModule  # noqa: E402
+from src.tramites.nss import NSSModule  # noqa: E402
 from src.utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
 from src.utils.storage import list_profiles, save_profile  # noqa: E402
 
