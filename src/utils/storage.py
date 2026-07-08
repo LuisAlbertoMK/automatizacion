@@ -35,14 +35,12 @@ _HASH_ROUNDS = int(os.getenv("BCRYPT_HASH_ROUNDS", "100000"))
 
 
 def _get_salt() -> bytes:
-    """Obtiene o genera un salt aleatorio persistente para PBKDF2.
+    """Obtiene o genera un salt aleatorio persistente (16 bytes).
     
-    Fix C3 del análisis: usar salt aleatorio en vez de hardcodeado
-    b"fernet-key-salt". Si se cambia la STORAGE_KEY, la clave derivada
-    sigue siendo única por instalación.
-    
-    NOTA: Si ya existen perfiles guardados con el salt viejo, esta
-    migración los invalida. Para migrar, ver storage_migrate_salt().
+    El salt se genera una sola vez con secrets.token_bytes(16) y se
+    persiste en SALT_FILE. Cada instalación tiene su propio salt, así
+    que dos instancias con la misma STORAGE_KEY producen claves
+    Fernet distintas.
     """
     if SALT_FILE.exists():
         return SALT_FILE.read_bytes()
