@@ -12,14 +12,14 @@ Modo de uso:
     token = await solver.solve_recaptcha_v2_audio(page, site_key, page_url)
 """
 
+from __future__ import annotations
+
 import asyncio
 import io
 import os
 import re
 import tempfile
 from pathlib import Path
-
-from PIL import Image
 
 TESSERACT_PATHS = [
     r"C:\Program Files\Tesseract-OCR\tesseract.exe",
@@ -110,6 +110,7 @@ class FreeCaptchaSolver:
             )
 
         import pytesseract
+        from PIL import Image
 
         img = Image.open(io.BytesIO(image_bytes))
 
@@ -137,6 +138,7 @@ class FreeCaptchaSolver:
     def _ocr_with_preprocess(self, img: Image.Image, numeric: bool) -> str:
         """Preprocesa la imagen y aplica OCR."""
         import pytesseract
+        from PIL import Image
 
         # Escala de grises
         if img.mode != "L":

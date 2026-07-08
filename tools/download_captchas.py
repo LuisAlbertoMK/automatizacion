@@ -13,9 +13,8 @@ Requisitos:
     pip install playwright
     playwright install firefox
 """
-import asyncio
 import argparse
-import os
+import asyncio
 import sys
 import time
 import uuid
@@ -253,7 +252,7 @@ async def main():
                 elif downloaded <= 5 or downloaded == args.count:
                     _log(f"[{downloaded}/{args.count}] OK [OK]")
             else:
-                _log(f"  No se encontró captcha en el refresh")
+                _log("  No se encontró captcha en el refresh")
 
             # Delay entre captchas (evitar rate limiting)
             await asyncio.sleep(args.delay)
@@ -263,18 +262,18 @@ async def main():
         total_files = len(list(OUTPUT_DIR.glob("*.jpg")))
         _log("")
         _log(f"{'='*60}")
-        _log(f"DESCARGA COMPLETADA")
+        _log("DESCARGA COMPLETADA")
         _log(f"  Descargados: {downloaded}")
         _log(f"  Archivos en dir: {total_files}")
         _log(f"  Tiempo total: {elapsed:.0f}s ({elapsed/60:.1f}min)")
         _log(f"  Rate: {downloaded/elapsed:.2f} captchas/s")
-        _log(f"")
-        _log(f"  SIGUIENTE PASO:")
+        _log("")
+        _log("  SIGUIENTE PASO:")
         _log(f"  1. Andá a {OUTPUT_DIR}")
-        _log(f"  2. Renombrá cada archivo como:")
-        _log(f"       VALOR_UUID.jpg")
-        _log(f"     (ej: '2kypRJK_a1b2c3d4e5f6.jpg')")
-        _log(f"  3. Corré: py -3.14 -m captcha_solver_imss.cnn_solver.train_v3")
+        _log("  2. Renombrá cada archivo como:")
+        _log("       VALOR_UUID.jpg")
+        _log("     (ej: '2kypRJK_a1b2c3d4e5f6.jpg')")
+        _log("  3. Corré: py -3.14 -m captcha_solver_imss.cnn_solver.train_v3")
         _log(f"{'='*60}")
 
         await browser.close()

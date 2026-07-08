@@ -18,7 +18,6 @@ Opción C: AttentionCNN — atención espacial (~1.2M params)
   - Ayuda a enfocarse en el caracter vs ruido
   - Inference: ~3-5ms en CPU
 """
-import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

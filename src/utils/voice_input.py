@@ -15,18 +15,28 @@ import tempfile
 
 from src.exceptions import VoiceInputError
 
-try:
-    import numpy as np  # noqa: F401
-    import sounddevice as sd
-    import soundfile as sf
-    import whisper
-    WHISPER_AVAILABLE = True
-except ImportError:
-    WHISPER_AVAILABLE = False
+# Los imports pesados (whisper, sounddevice, soundfile, numpy) se cargan
+# bajo demanda dentro de los métodos — no al importar el módulo.
+# WHISPER_AVAILABLE se evalúa lazy en _check_whisper().
+WHISPER_AVAILABLE: bool | None = None  # None = no evaluado aún
 
 
 class VoiceInput:
     """Reconocimiento de voz local con Whisper."""
+
+    @staticmethod
+    def _check_whisper() -> bool:
+        """Evalúa disponibilidad de whisper — lazy, una sola vez."""
+        global WHISPER_AVAILABLE
+        if WHISPER_AVAILABLE is None:
+            try:
+                import whisper  # noqa: F401
+                import sounddevice  # noqa: F401
+                import soundfile  # noqa: F401
+                WHISPER_AVAILABLE = True
+            except ImportError:
+                WHISPER_AVAILABLE = False
+        return WHISPER_AVAILABLE
 
     def __init__(self, model_size="base"):
         """
@@ -40,7 +50,7 @@ class VoiceInput:
                        "medium" - Muy preciso, lento
                        "large" - Máxima precisión, muy lento
         """
-        if not WHISPER_AVAILABLE:
+        if not self._check_whisper():
             raise VoiceInputError(
                 "Whisper no está instalado. Instálalo con:\n"
                 "pip install openai-whisper sounddevice soundfile"
@@ -52,6 +62,7 @@ class VoiceInput:
 
         print(f"  [VOZ] Cargando modelo Whisper '{model_size}'...")
         try:
+            import whisper  # import lazy — dentro del constructor
             self.model = whisper.load_model(model_size)
             print("  [VOZ] Modelo cargado [OK]")
         except Exception as e:
@@ -76,6 +87,10 @@ class VoiceInput:
                 time.sleep(1)
 
         print(f"  [VOZ] 🔴 GRABANDO ({duration} segundos)...")
+
+        # Imports lazy — no se cargan al importar el módulo
+        import sounddevice as sd
+        import soundfile as sf
 
         try:
             # Grabar audio

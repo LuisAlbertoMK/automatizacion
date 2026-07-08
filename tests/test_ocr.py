@@ -1,7 +1,5 @@
 """Tests unitarios para utils/ocr.py con pytesseract mockeado."""
 
-import os
-import sys
 from unittest.mock import patch
 
 import pytest

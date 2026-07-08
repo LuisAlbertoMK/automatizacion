@@ -1,14 +1,21 @@
 """
 Optimize CNN model: ONNX export + INT8 quantization + benchmark.
 """
-import time, os
+import time
 from pathlib import Path
-from captcha_solver_imss.cnn_solver.train_v2 import segment_captcha, normalize_char, CHAR_TO_IDX, IDX_TO_CHAR, N_CLASSES
-from captcha_solver_imss.cnn_solver.model_v2 import create_model
-import torch
-import torch.nn.functional as F
-import numpy as np
+
 import cv2
+import numpy as np
+import torch
+
+from captcha_solver_imss.cnn_solver.model_v2 import create_model
+from captcha_solver_imss.cnn_solver.train_v2 import (
+    CHAR_TO_IDX,
+    IDX_TO_CHAR,
+    N_CLASSES,
+    normalize_char,
+    segment_captcha,
+)
 
 MODEL_DIR = Path('captcha_solver_imss/cnn_solver/models')
 MODEL_PATH = MODEL_DIR / 'attention_s42_409_v4.pt'
@@ -54,7 +61,7 @@ print(f"  Available providers: {available}")
 
 # Try INT8 quantization first
 print("\n=== 4. INT8 Quantization ===")
-from onnxruntime.quantization import quantize_dynamic, QuantType, quantize_static
+from onnxruntime.quantization import QuantType, quantize_dynamic
 
 q8_path = MODEL_DIR / 'attention_s42_409_v4_q8.onnx'
 

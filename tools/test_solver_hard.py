@@ -2,6 +2,7 @@
 Debug: test only the 5 images that fail.
 """
 from pathlib import Path
+
 from captcha_solver_imss import IMSCaptchaSolver
 
 solver = IMSCaptchaSolver(verbose=True)

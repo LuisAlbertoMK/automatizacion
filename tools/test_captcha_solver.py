@@ -11,7 +11,7 @@ Uso:
 import sys
 from pathlib import Path
 
-from captcha_solver_imss import IMSCaptchaSolver, CaptchaStore
+from captcha_solver_imss import CaptchaStore, IMSCaptchaSolver
 
 
 def main():
@@ -38,7 +38,7 @@ def main():
     result = solver.solve_from_path(str(img_path))
 
     print(f"\n{'='*50}")
-    print(f"RESULTADO:")
+    print("RESULTADO:")
     print(f"  success:   {result['success']}")
     print(f"  value:     '{result['value']}'")
     print(f"  engine:    {result['engine']}")

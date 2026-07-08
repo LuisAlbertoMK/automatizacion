@@ -1,8 +1,6 @@
 """Tests para api._get_solver — sin autouse fixture que parchea _get_solver."""
 
 import os
-import sys
-from pathlib import Path
 from unittest.mock import patch
 
 

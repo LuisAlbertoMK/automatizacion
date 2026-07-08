@@ -16,15 +16,15 @@ Pipeline:
 """
 
 import re
-import time
 import string
+import time
 from pathlib import Path
 from typing import Optional
 
 import cv2
-from .store import CaptchaStore
-from .preprocess import preprocess_pipeline, load_image
 
+from .preprocess import load_image, preprocess_pipeline
+from .store import CaptchaStore
 
 # Caracteres válidos
 UPPER = string.ascii_uppercase
@@ -620,9 +620,8 @@ class IMSCaptchaSolver:
         """Lazy-load EasyOCR reader."""
         if self._reader is None:
             try:
-                import os as _os
-                import sys as _sys
                 import io as _io
+                import sys as _sys
                 old_out, old_err = _sys.stdout, _sys.stderr
                 _sys.stdout = _io.StringIO()
                 _sys.stderr = _io.StringIO()

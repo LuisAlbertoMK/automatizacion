@@ -1,11 +1,18 @@
 """Analyze confusion matrix of current CNN model."""
+from collections import Counter
 from pathlib import Path
-from captcha_solver_imss.cnn_solver.train_v2 import segment_captcha, normalize_char, CHAR_TO_IDX, IDX_TO_CHAR
-from captcha_solver_imss.cnn_solver.model_v2 import create_model
+
+import cv2
 import torch
 import torch.nn.functional as F
-import cv2
-from collections import Counter
+
+from captcha_solver_imss.cnn_solver.model_v2 import create_model
+from captcha_solver_imss.cnn_solver.train_v2 import (
+    CHAR_TO_IDX,
+    IDX_TO_CHAR,
+    normalize_char,
+    segment_captcha,
+)
 
 device = torch.device('cpu')
 model_path = Path('captcha_solver_imss/cnn_solver/models/attention_s42_409_v4.pt')
@@ -72,7 +79,7 @@ for c in by_char:
 
 avg_ms = sum(times) / len(times)
 
-print(f'=== OVERALL ===')
+print('=== OVERALL ===')
 print(f'Char acc: {char_correct}/{char_total} = {char_correct/char_total*100:.1f}%')
 print(f'Avg time per captcha: {avg_ms:.1f}ms')
 print()
@@ -109,5 +116,5 @@ print()
 all_classes = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 found = set(by_char.keys())
 missing = [c for c in all_classes if c not in found]
-print(f'=== MISSING CLASSES (0 samples) ===')
+print('=== MISSING CLASSES (0 samples) ===')
 print(f'  ({len(missing)}): {" ".join(missing)}')

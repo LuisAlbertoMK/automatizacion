@@ -1,8 +1,10 @@
 """
 Profile captcha solver timing in detail.
 """
-import os, time, cv2
+import time
 from pathlib import Path
+
+import cv2
 import numpy as np
 
 samples_dir = Path(__file__).resolve().parent / "captcha_solver_imss" / "test_samples"
@@ -24,7 +26,7 @@ print(f"  {elapsed:.1f}ms avg ({len(files)} files)")
 # ── 2. Segmentation time ──
 print()
 print("=== 2. Segmentation + normalize ===")
-from captcha_solver_imss.cnn_solver.train_v2 import segment_captcha, normalize_char
+from captcha_solver_imss.cnn_solver.train_v2 import normalize_char, segment_captcha
 
 start = time.time()
 chars_data = {}
@@ -40,11 +42,9 @@ print(f"  {elapsed:.1f}ms avg")
 print()
 print("=== 3. CNN inference ===")
 import torch
-import torch.nn.functional as F
 
 device = torch.device("cpu")
 from captcha_solver_imss.cnn_solver.model_v2 import create_model
-from captcha_solver_imss.cnn_solver.train_v2 import IDX_TO_CHAR
 
 model_path = Path(__file__).resolve().parent / "captcha_solver_imss" / "cnn_solver" / "models" / "original_s42_v3_full.pt"
 checkpoint = torch.load(model_path, map_location=device, weights_only=False)
@@ -82,6 +82,7 @@ print(f"  Batch 7:     {elapsed_ms:.1f}ms/captcha")
 print()
 print("=== 4. Full solver_v2 solve ===")
 from captcha_solver_imss.solver import IMSCaptchaSolver
+
 s = IMSCaptchaSolver(use_easyocr=False, use_tesseract=False, verbose=False)
 
 start = time.time()
@@ -111,6 +112,7 @@ print()
 print("=== 5. Optimized path (batch + skip solver overhead) ===")
 # Direct CNN solve
 from captcha_solver_imss.cnn_solver.solver_v2 import CNNSolverV2
+
 s2 = CNNSolverV2(verbose=False)
 
 start = time.time()

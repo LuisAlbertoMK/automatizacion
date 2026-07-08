@@ -4,8 +4,6 @@ Mide el overhead de launch/close browser en trámites secuenciales.
 """
 import asyncio
 import time
-import sys
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
@@ -127,7 +125,7 @@ async def benchmark_real_world():
     from src.utils.browser_pool import shutdown_browser_pool
     
     print(f"\n{'='*60}")
-    print(f"BENCHMARK REAL WORLD - 3 trámites secuenciales")
+    print("BENCHMARK REAL WORLD - 3 trámites secuenciales")
     print(f"{'='*60}")
     
     await shutdown_browser_pool()

@@ -7,10 +7,8 @@ Output: (32, 32) grayscale char images with class labels (0-35).
 """
 import os
 import random
-import math
 from pathlib import Path
-from typing import Optional, Tuple, List
-from collections import Counter
+from typing import List, Tuple
 
 import cv2
 import numpy as np

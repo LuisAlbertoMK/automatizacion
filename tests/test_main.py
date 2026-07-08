@@ -3,11 +3,9 @@
 import asyncio
 import os
 import sys
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 
 # ── Fixture global: neutraliza load_dotenv ────────────────────────────────────
 

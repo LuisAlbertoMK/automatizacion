@@ -1,7 +1,5 @@
 """Tests para exceptions.py — jerarquía unificada de errores."""
 
-import sys
-from pathlib import Path
 
 import pytest
 

@@ -16,7 +16,6 @@ import os
 import re
 import signal
 import sys
-from pathlib import Path
 
 from colorama import Fore, Style
 from colorama import init as colorama_init

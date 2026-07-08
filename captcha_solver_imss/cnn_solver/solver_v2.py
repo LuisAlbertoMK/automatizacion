@@ -9,16 +9,14 @@ Características:
   - ONNX Runtime (3x más rápido) cuando está disponible
   - Auto-selección del mejor modelo disponible
 """
-import json
 import time
 from pathlib import Path
-from typing import Optional, List, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 import numpy as np
 
 if TYPE_CHECKING:
-    import torch
-    import torch.nn.functional as F
+    pass
 
 # ONNX Runtime opcional
 try:
@@ -59,9 +57,9 @@ class CNNSolverV2:
         else:
             self._load_best()
 
-        engine = f"ONNX" if self.ort_sessions else \
+        engine = "ONNX" if self.ort_sessions else \
                  f"Ensemble({len(self.models)})" if self._is_ensemble else \
-                 f"PyTorch"
+                 "PyTorch"
         self._log(f"CNNSolverV2 listo "
                   f"[{'OK' if self._loaded else 'NO MODEL'}] "
                   f"({engine}, {len(self.models)} model(s))")
@@ -222,7 +220,7 @@ class CNNSolverV2:
         Returns:
             dict with: value, confidence, char_confidences, success, engine
         """
-        from .train_v2 import segment_captcha, normalize_char, IDX_TO_CHAR
+        from .train_v2 import IDX_TO_CHAR, normalize_char, segment_captcha
         start = time.time()
 
         if not self.is_loaded:

@@ -20,7 +20,6 @@ Uso:
 import argparse
 import os
 import random
-import sys
 import time
 from collections import Counter
 from pathlib import Path
@@ -32,9 +31,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from .model_v2 import create_model, count_params
-from .train_v2 import segment_captcha, normalize_char, CHAR_TO_IDX, IDX_TO_CHAR, N_CLASSES, MODEL_DIR, SAMPLES_DIR
-
+from .model_v2 import count_params, create_model
+from .train_v2 import (
+    CHAR_TO_IDX,
+    IDX_TO_CHAR,
+    MODEL_DIR,
+    N_CLASSES,
+    SAMPLES_DIR,
+    normalize_char,
+    segment_captcha,
+)
 
 # ═══════════════════════════════════════════════════════════════════════════
 # Augmentation (realista para captcha IMSS)
@@ -392,7 +398,7 @@ def train_single(arch: str, seed: int = 42, epochs_p1: int = 200,
     print(f"{'='*60}")
 
     # ── Data ───────────────────────────────────────────────────
-    print(f"\n  === Loading data ===")
+    print("\n  === Loading data ===")
     train_samples, val_samples = load_splits(
         val_ratio=val_ratio, augment_intensity=0.0, aug_mult=1,
         raw_dir=raw_dir,
@@ -579,7 +585,7 @@ def train_single(arch: str, seed: int = 42, epochs_p1: int = 200,
                       f"{el:.0f}s")
 
                 if no_improve >= patience // 2:
-                    print(f"  Early stopping (no improve)")
+                    print("  Early stopping (no improve)")
                     break
 
     # ══════════════════════════════════════════════════════════
@@ -590,7 +596,7 @@ def train_single(arch: str, seed: int = 42, epochs_p1: int = 200,
     # Recargar best checkpoint
     checkpoint = torch.load(best_path, map_location=device, weights_only=False)
     model.load_state_dict(checkpoint["model_state_dict"])
-    print(f"\n  === FINAL EVAL ===")
+    print("\n  === FINAL EVAL ===")
     print(f"  Best checkpoint: epoch={checkpoint['epoch']}, "
           f"val_acc={checkpoint['val_acc']:.1f}%")
 
@@ -598,7 +604,7 @@ def train_single(arch: str, seed: int = 42, epochs_p1: int = 200,
         model, device, verbose=True, raw_dir=raw_dir
     )
 
-    print(f"\n  === SUMMARY ===")
+    print("\n  === SUMMARY ===")
     print(f"  Arch: {arch} | Seed: {seed}")
     print(f"  Captcha acc: {captcha_acc:.1f}%")
     print(f"  Char acc: {char_acc:.1f}%")
@@ -659,12 +665,12 @@ def train_ensemble(arch: str, n_models: int = 3, seeds: list = None,
         accs.append(acc)
 
     print(f"\n{'='*60}")
-    print(f"  ENSEMBLE RESULTS:")
+    print("  ENSEMBLE RESULTS:")
     for i, (seed, acc) in enumerate(zip(seeds, accs)):
         print(f"    Model {i+1} (seed={seed}): {acc:.1f}%")
     mean_acc = sum(accs) / len(accs)
     print(f"    Mean: {mean_acc:.1f}%")
-    print(f"  (Ensemble voting accuracy evaluated separately)")
+    print("  (Ensemble voting accuracy evaluated separately)")
     print(f"{'='*60}")
 
     return models

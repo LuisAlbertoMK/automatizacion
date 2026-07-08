@@ -6,7 +6,7 @@ import asyncio
 import time
 from typing import Optional
 
-from playwright.async_api import async_playwright, Browser, Playwright
+from playwright.async_api import Browser, Playwright, async_playwright
 
 
 class BrowserPool:

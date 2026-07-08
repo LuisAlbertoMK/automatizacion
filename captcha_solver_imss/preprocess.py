@@ -12,11 +12,11 @@ Este CAPTCHA tiene ruido que el threshold no separa bien.
 Solución: NO binarizar. Mejorar contraste con CLAHE, upscale limpio.
 """
 
+from pathlib import Path
+from typing import Optional
+
 import cv2
 import numpy as np
-from typing import Optional
-from pathlib import Path
-
 
 UPSCALE_FACTOR = 4  # 220×40 → 880×160
 

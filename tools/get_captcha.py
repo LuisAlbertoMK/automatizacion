@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """get_captcha.py - Con la MISMA config del NSS module"""
-import asyncio, os
+import asyncio
+
 from playwright.async_api import async_playwright
+
 
 async def run():
     async with async_playwright() as pw:

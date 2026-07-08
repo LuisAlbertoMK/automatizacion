@@ -14,8 +14,8 @@ Para etiquetar imágenes de prueba:
     3. Ejecutá este script y te dice cuáles acertó y cuáles no
 """
 
-import sys
 import argparse
+import sys
 from pathlib import Path
 
 

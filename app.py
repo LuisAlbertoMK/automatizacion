@@ -10,7 +10,6 @@ Uso:
 
 import asyncio
 import os
-import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -18,12 +17,19 @@ import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / "config.env")
+from src.utils.secrets_manager import init_secrets  # noqa: E402
+init_secrets()
 
 from src.modules.curp import CURPModule  # noqa: E402
 from src.modules.nss import NSSModule  # noqa: E402
 from src.modules.orchestrator import listar_tramites  # noqa: E402
 from src.utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
-from src.utils.storage import delete_profile, list_profiles, load_profile, save_profile  # noqa: E402
+from src.utils.storage import (  # noqa: E402
+    delete_profile,
+    list_profiles,
+    load_profile,
+    save_profile,
+)
 
 # ── Config ──────────────────────────────────────────────────
 st.set_page_config(

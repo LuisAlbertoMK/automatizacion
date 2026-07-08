@@ -16,7 +16,6 @@ Total params: ~680K. Inference <1ms on CPU.
 """
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 
 class CaptchaCNN(nn.Module):

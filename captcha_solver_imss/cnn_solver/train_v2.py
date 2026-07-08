@@ -4,14 +4,16 @@ CNN with 62 classes (A-Z + a-z + 0-9) — preserves original case.
 Phase 1: train on clean data
 Phase 2: fine-tune with light augmentation
 """
-import time, random, os, sys
-import numpy as np
+import os
+import random
+import time
 from pathlib import Path
 
+import cv2
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import cv2
 
 from .model import CaptchaCNN, count_params
 
@@ -134,7 +136,7 @@ def load_all_chars(use_augmentation=False):
             if ch.upper() == src_ch.upper() or ch.lower() == src_ch.lower():
                 # Clone src images with label changed
                 count_added = 0
-                for norm, _ in random.sample([s for s in samples if s[1]==src_idx], 
+                for norm, _ in random.sample([s for s in samples if s[1]==src_idx],
                                               min(5, len([s for s in samples if s[1]==src_idx]))):
                     # Add slight noise
                     noisy = norm + np.random.randn(32,32).astype(np.float32)*0.02
@@ -273,7 +275,7 @@ def train():
     print(f"\n  === PHASE 1 DONE: {total:.0f}s, Best={best_acc:.1f}% ===")
     
     # Phase 2: fine-tune with light augmentation
-    print(f"\n  === PHASE 2: Fine-tune with light augmentation ===")
+    print("\n  === PHASE 2: Fine-tune with light augmentation ===")
     aug_samples = load_all_chars(use_augmentation=True)
     aug_imgs = np.array([s[0] for s in aug_samples], dtype=np.float32)
     aug_labels = np.array([s[1] for s in aug_samples], dtype=np.int64)

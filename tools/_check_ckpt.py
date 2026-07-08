@@ -1,4 +1,5 @@
 import torch
+
 cp = torch.load(
     'captcha_solver_imss/cnn_solver/models/attention_s123_409_v4.pt',
     weights_only=False, map_location='cpu'

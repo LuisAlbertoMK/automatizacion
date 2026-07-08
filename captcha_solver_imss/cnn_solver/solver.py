@@ -7,14 +7,13 @@ Pipeline:
   2. EasyOCR fallback (slow, ~7s, handles edge cases)
 """
 import time
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional
+
 import numpy as np
 
-from pathlib import Path
-from typing import Optional, TYPE_CHECKING
-
 if TYPE_CHECKING:
-    import torch
-    import torch.nn.functional as F
+    pass
 
 
 class CNNSolver:
@@ -54,7 +53,7 @@ class CNNSolver:
 
     def _load(self, model_path: Optional[str]):
         from .model import CaptchaCNN
-        from .train_v2 import N_CLASSES, MODEL_DIR
+        from .train_v2 import MODEL_DIR, N_CLASSES
         path = Path(model_path or MODEL_DIR / "best_v2.pt")
         if not path.exists():
             path = MODEL_DIR / "best.pt"
@@ -87,7 +86,7 @@ class CNNSolver:
         Returns:
             dict with: value, confidence, char_confidences, success
         """
-        from .train_v2 import segment_captcha, normalize_char, IDX_TO_CHAR
+        from .train_v2 import IDX_TO_CHAR, normalize_char, segment_captcha
         start = time.time()
 
         if not self.is_loaded:

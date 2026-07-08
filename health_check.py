@@ -14,8 +14,6 @@ import importlib
 import os
 import subprocess
 import sys
-from pathlib import Path
-
 
 OK = "\033[92m[OK]\033[0m"
 FAIL = "\033[91m[FAIL]\033[0m"
@@ -64,6 +62,8 @@ def main():
     try:
         from dotenv import load_dotenv
         load_dotenv("config.env")
+        from src.utils.secrets_manager import init_secrets
+        init_secrets()
     except Exception:
         pass
 

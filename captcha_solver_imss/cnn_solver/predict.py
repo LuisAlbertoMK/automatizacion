@@ -5,22 +5,19 @@ Inference: segment captcha → classify each char → return text.
 Uses trained CNN model. Falls back gracefully if model not found.
 """
 from pathlib import Path
-from typing import Optional, List, Tuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Tuple
 
-import cv2
 import numpy as np
 
 if TYPE_CHECKING:
-    import torch
-    import torch.nn.functional as F
+    pass
 
 from .dataset import (
-    segment_captcha,
-    normalize_char,
-    CHAR_TO_IDX,
     IDX_TO_CHAR,
     MODEL_DIR,
     N_CLASSES,
+    normalize_char,
+    segment_captcha,
 )
 
 

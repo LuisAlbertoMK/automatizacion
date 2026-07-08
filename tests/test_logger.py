@@ -2,8 +2,6 @@
 
 import json
 import os
-import sys
-from pathlib import Path
 from unittest.mock import patch
 
 from src.utils.logger import TramiteLogger, TramiteMetrics, get_logger, metrics  # noqa: E402

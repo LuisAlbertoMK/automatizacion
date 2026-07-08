@@ -1,7 +1,6 @@
 """Tests unitarios para utils/captcha.py con 2captcha mockeado."""
 
 import os
-import sys
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest

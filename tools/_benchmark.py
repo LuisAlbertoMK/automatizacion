@@ -1,14 +1,22 @@
 """
 Benchmark all inference backends: PyTorch, ONNX, TorchScript.
 """
-import time, os, gc
+import gc
+import time
 from pathlib import Path
-from captcha_solver_imss.cnn_solver.train_v2 import segment_captcha, normalize_char, CHAR_TO_IDX, IDX_TO_CHAR, N_CLASSES
-from captcha_solver_imss.cnn_solver.model_v2 import create_model
-import torch
-import torch.nn.functional as F
-import numpy as np
+
 import cv2
+import numpy as np
+import torch
+
+from captcha_solver_imss.cnn_solver.model_v2 import create_model
+from captcha_solver_imss.cnn_solver.train_v2 import (
+    CHAR_TO_IDX,
+    IDX_TO_CHAR,
+    N_CLASSES,
+    normalize_char,
+    segment_captcha,
+)
 
 MODEL_DIR = Path('captcha_solver_imss/cnn_solver/models')
 MODEL_PATH = MODEL_DIR / 'attention_s42_409_v4.pt'
@@ -33,6 +41,7 @@ ts_traced.eval()
 
 # ── ONNX Runtime ──
 import onnxruntime as ort
+
 ort_session = ort.InferenceSession(str(ONNX_PATH), providers=['CPUExecutionProvider'])
 
 # ── Load test images ──

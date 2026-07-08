@@ -9,16 +9,12 @@ Uso:
     python tools/generate_dataset.py --download 100           # Descargar N captchas nuevos
 """
 
-import os
-import sys
-import random
 import argparse
+import random
 from pathlib import Path
 
 import cv2
 import numpy as np
-from PIL import Image, ImageEnhance, ImageFilter
-
 
 # ── Rutas ──────────────────────────────────────────────────
 CAPTCHA_DIR = Path(__file__).parent.parent / "captcha_solver_imss" / "raw_captchas"

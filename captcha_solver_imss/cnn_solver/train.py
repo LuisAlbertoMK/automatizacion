@@ -8,16 +8,15 @@ Strategy:
   - Fixed LR with steps, NO label smoothing
   - Only 31 real classes (skip 5 missing: I,O,Z,0,1)
 """
-import time
-import random
-import numpy as np
 import os
+import time
 from pathlib import Path
 
+import cv2
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import cv2
 
 from .model import CaptchaCNN, count_params
 
@@ -167,7 +166,7 @@ def evaluate_captchas(model, device, verbose=True):
     if verbose:
         print(f"  [CNN] Captcha accuracy: {correct}/{total} = {accuracy:.1f}%")
         if errors and verbose:
-            print(f"  [CNN] Sample errors:")
+            print("  [CNN] Sample errors:")
             for f, e, p in errors[:5]:
                 print(f"    {f}: expected={e} got={p}")
     return accuracy, errors
@@ -275,7 +274,7 @@ def train():
 
             # Early exit if perfect accuracy
             if captcha_acc >= 99.0:
-                print(f"  [CNN] Near-perfect captcha accuracy! Stopping.")
+                print("  [CNN] Near-perfect captcha accuracy! Stopping.")
                 break
 
     total_time = time.time() - start
@@ -289,7 +288,7 @@ def train():
 
     # Show per-class accuracy
     char_acc, class_correct, class_total = per_char_accuracy(model, samples, device)
-    print(f"\n  [CNN] Per-class accuracy:")
+    print("\n  [CNN] Per-class accuracy:")
     for label in sorted(class_total.keys()):
         c = class_correct.get(label, 0)
         t = class_total[label]

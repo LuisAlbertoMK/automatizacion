@@ -18,12 +18,10 @@ Permite:
 
 import json
 import uuid
-import time
-from pathlib import Path
+from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Optional
-from dataclasses import dataclass, asdict
-
 
 CAPTCHAS_DIR = Path(__file__).parent / "capturas"
 METADATA_FILE = "metadata.json"
@@ -81,8 +79,9 @@ class CaptchaStore:
 
         # Detectar tamaño
         try:
-            from PIL import Image
             import io
+
+            from PIL import Image
             img = Image.open(io.BytesIO(image_bytes))
             size_str = f"{img.width}x{img.height}"
         except Exception:

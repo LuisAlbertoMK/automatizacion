@@ -3,6 +3,7 @@
 Script de depuración para inspeccionar el portal CURP
 """
 import asyncio
+
 from playwright.async_api import async_playwright
 
 PORTAL_URL = "https://consultas.curp.gob.mx/CurpSP/gobmx/default.jsp"

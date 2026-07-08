@@ -1,7 +1,6 @@
 """Tests unitarios para utils/storage.py — encriptacion y perfiles."""
 
 import os
-import sys
 
 import pytest
 
