@@ -295,7 +295,7 @@ class NSSModule(BaseModule):
                     valor = ocr_hint
                     self.debug(f"FreeCaptcha sugiere: '{valor}'")
             except Exception:
-                pass
+                self.debug("Error en step NSS")
 
         # ── 3. Fallback: variable de entorno (solo DEBUG) ──
         if not valor and os.getenv("DEBUG", "false").lower() == "true":
@@ -468,7 +468,7 @@ class NSSModule(BaseModule):
                             self.log(f"NSS encontrado tras verificar correo: {nss2[0]}")
                             return nss2[0]
                     except Exception:
-                        pass
+                        self.debug("Error en reintento")
             else:
                 self.warn(f"Revisá manualmente el correo {correo}")
                 return "ENVIADO_AL_CORREO"

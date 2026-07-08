@@ -46,24 +46,24 @@ class BrowserResources:
             try:
                 await self._context.close()
             except Exception:
-                pass
+                self.debug("OCR no disponible")
             self._context = None
 
         if self._pool:
             try:
                 await self._pool.release(self.browser)
             except Exception:
-                pass
+                self.debug("CaptchaSolver no disponible")
         else:
             try:
                 await self.browser.close()
             except Exception:
-                pass
+                self.debug("Cliente IMAP no disponible")
             if self._playwright:
                 try:
                     await self._playwright.__aexit__(None, None, None)
                 except Exception:
-                    pass
+                    self.debug("Whisper no disponible")
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "./output"))
 TIMEOUT = int(os.getenv("TIMEOUT", "60")) * 1000
@@ -229,7 +229,7 @@ class BaseModule:
                     await asyncio.sleep(0.3)
                     return True
             except Exception:
-                pass
+                self.debug("Selector cacheado fallo, probando resto")
 
         for sel in selectors:
             try:
@@ -264,7 +264,7 @@ class BaseModule:
                         await asyncio.sleep(1)
                     return True
             except Exception:
-                pass
+                self.debug("Cached click selector fallo")
 
         for sel in selectors:
             try:
@@ -503,7 +503,7 @@ class BaseModule:
                 await page.screenshot(path=path)
                 self.debug(f"Screenshot: {path}")
             except Exception:
-                pass
+                logger.debug("Error cerrando browser en close_all")
 
     # ── Logging estructurado ─────────────────────────────────────
     def log(self, msg: str):

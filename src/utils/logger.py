@@ -15,6 +15,8 @@ from typing import Optional
 
 from colorama import Fore, Style
 
+logger = logging.getLogger(__name__)
+
 # ── Directorio de logs ──────────────────────────────────────────────────
 LOG_DIR = Path(os.getenv("LOG_DIR", "./logs"))
 LOG_DIR.mkdir(exist_ok=True)
@@ -132,7 +134,7 @@ class TramiteMetrics:
             with open(METRICS_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
         except Exception:
-            pass
+            logger.debug("Error limpiando logs viejos")
         self._start = None
         return record
 
@@ -148,9 +150,9 @@ class TramiteMetrics:
                     try:
                         records.append(json.loads(line))
                     except Exception:
-                        pass
+                        logger.debug("Error rotando archivo")
         except Exception:
-            pass
+            logger.debug("Error en rotacion de logs")
 
         if not records:
             return {"total": 0}

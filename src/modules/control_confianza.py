@@ -130,6 +130,7 @@ class ControlConfianzaModule(BaseModule):
                         await page.select_option(s, valor)
                         break
                 except Exception:
+                    self.debug("Estado no encontrado")
                     continue
 
         # ── 4. Ingresos/egresos ─────────────────────────────────

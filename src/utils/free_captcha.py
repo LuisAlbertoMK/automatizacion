@@ -15,11 +15,14 @@ Modo de uso:
 from __future__ import annotations
 
 import asyncio
+import logging
 import io
 import os
 import re
 import tempfile
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 TESSERACT_PATHS = [
     r"C:\Program Files\Tesseract-OCR\tesseract.exe",
@@ -41,7 +44,7 @@ try:
     pytesseract.get_tesseract_version()
     TESSERACT_AVAILABLE = True
 except Exception:
-    pass
+    logger.debug("Tesseract no disponible")
 
 try:
     import whisper  # noqa: F401

@@ -72,7 +72,7 @@ class TenenciaModule(BaseModule):
             await page.screenshot(path="debug_tenencia.png")
             self.debug("Screenshot guardado: debug_tenencia.png")
         except Exception:
-            pass
+            self.debug("No se pudo cerrar sesion previa")
 
         # 2. Navegar a secci\u00f3n de tenencia si es necesario
         await self._navegar_a_tenencia(page)

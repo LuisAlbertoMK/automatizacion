@@ -75,7 +75,7 @@ class AntecedentesModule(BaseModule):
             await page.screenshot(path="debug_antecedentes.png")
             self.debug("Screenshot guardado: debug_antecedentes.png")
         except Exception:
-            pass
+            self.debug("No se pudo cerrar sesion previa")
 
         # 2. Verificar si necesita login o registro
         tiene_cuenta = password is not None
@@ -138,7 +138,7 @@ class AntecedentesModule(BaseModule):
         try:
             await page.click("button[type='submit']")
         except Exception:
-            pass
+            self.debug("Error en sub-paso del flujo")
         await asyncio.sleep(2)
 
         self.log("Sesi\u00f3n iniciada")
@@ -231,6 +231,7 @@ class AntecedentesModule(BaseModule):
                     self.log("Solicitud enviada")
                     return
             except Exception:
+                self.debug("Selector no disponible")
                 continue
 
     def _guardar_credenciales(self, curp: str, correo: str, password: str):

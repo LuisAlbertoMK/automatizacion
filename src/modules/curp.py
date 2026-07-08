@@ -218,7 +218,7 @@ class CURPModule(BaseModule):
             if await page.locator("select[name='sexo']").count() > 0:
                 await page.select_option("select[name='sexo']", sexo)
         except Exception:
-            pass
+            self.debug("No se pudo cerrar dialogo")
 
         # Estado
         estado_key = datos.get("estado", "").upper().replace("M\u00c9XICO", "MEXICO")
@@ -229,6 +229,7 @@ class CURPModule(BaseModule):
                     await page.select_option(sel, estado_val)
                     break
             except Exception:
+                self.debug("Link de descarga no disponible")
                 continue
 
         self.log("Datos personales ingresados")
@@ -267,6 +268,7 @@ class CURPModule(BaseModule):
                     self.log("Búsqueda enviada")
                     return
             except Exception:
+                self.debug("Selector PDF no disponible")
                 continue
 
         # Fallback: buscar cualquier botón con texto Buscar
@@ -278,7 +280,7 @@ class CURPModule(BaseModule):
                 self.log("Búsqueda enviada (fallback role)")
                 return
         except Exception:
-            pass
+            self.debug("No se pudo cerrar ventana")
 
         raise CURPError("No se encontr\u00f3 el bot\u00f3n de b\u00fasqueda")
 
@@ -335,7 +337,7 @@ class CURPModule(BaseModule):
                 try:
                     os.remove(screenshot_path)
                 except Exception:
-                    pass
+                    self.debug("Error procesando dato extra")
             except Exception as e:
                 self.warn(f"Error al extraer datos: {e}")
 

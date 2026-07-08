@@ -96,6 +96,7 @@ class PasaporteModule(BaseModule):
                         self.debug(f"Estado seleccionado: {estado}")
                         break
                 except Exception:
+                    self.debug("Estado no encontrado")
                     continue
         except Exception as e:
             self.debug(f"Selector de estado no encontrado: {e}")

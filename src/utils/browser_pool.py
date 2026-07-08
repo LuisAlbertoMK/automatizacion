@@ -3,10 +3,13 @@ utils/browser_pool.py
 Pool de browsers Firefox para reutilizar instancias y eliminar overhead de 3-5s por trámite.
 """
 import asyncio
+import logging
 import time
 from typing import Optional
 
 from playwright.async_api import Browser, Playwright, async_playwright
+
+logger = logging.getLogger(__name__)
 
 
 class BrowserPool:
@@ -55,7 +58,7 @@ class BrowserPool:
                 try:
                     await self._playwright.stop()
                 except Exception:
-                    pass
+                    logger.debug("Error cerrando browser")
             self._playwright = None
             self._pool = None
             self._initialized = False
@@ -82,7 +85,7 @@ class BrowserPool:
                         await browser.close()
                         del self._last_used[browser]
                     except Exception:
-                        pass
+                        logger.debug("Pool acquire timeout")
                 else:
                     await self._pool.put(browser)
                     
@@ -115,7 +118,7 @@ class BrowserPool:
                 browser = self._pool.get_nowait()
                 await browser.close()
             except Exception:
-                pass
+                logger.debug("Error cerrando pool")
                 
         await self._playwright.stop()
         self._initialized = False

@@ -13,7 +13,10 @@ Uso:
   store_all()     # una sola vez para migrar secrets a Credential Manager
 """
 
+import logging
 import os
+
+log = logging.getLogger(__name__)
 
 try:
     import keyring
@@ -41,7 +44,7 @@ def get_secret(key: str, default: str = "") -> str:
             if stored:
                 return stored
         except Exception:
-            pass
+            log.debug("keyring.get_password fallo")
     return os.getenv(key, default)
 
 
@@ -55,7 +58,7 @@ def init_secrets() -> None:
             if stored:
                 os.environ[key] = stored
         except Exception:
-            pass  # Si falla keyring, se queda el valor de config.env
+            log.debug("keyring.get_password fallo en init")
 
 
 def store_secret(key: str, value: str | None = None) -> bool:
