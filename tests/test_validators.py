@@ -1,107 +1,89 @@
-"""Tests para src/validators.py — CURP, RFC, email."""
+"""Tests unitarios para validators.py — CURP, RFC, email."""
 
 import pytest
-from src.validators import (
-    validar_curp,
-    validar_rfc,
-    validar_email,
-    CURP_RE,
-    RFC_RE,
-    EMAIL_RE,
-)
+
+from src.validators import validar_curp, validar_email, validar_rfc
 
 
-class TestCURP:
-    VALIDAS = [
-        "GODE561231HDFLRN03",
-        "RAMS801231MDFLRN09",
-        "HEGG660823HMNRRN05",
-        "MARS850201MDFLRN00",
-    ]
-    INVALIDAS = [
-        "",                    # vacía
-        "ABC",                 # muy corta
-        "GODE561231HDFLRN0",   # 17 caracteres
-        "GODE561231HDFLRN031", # 19 caracteres
-        "123456789012345678",  # solo dígitos
-        "GODE561231HDFLRN0A",  # dígito verificador con letra
-    ]
+class TestValidarCurp:
+    """validar_curp(): 18 chars, formato mexicano."""
 
-    def test_validas(self):
-        for c in self.VALIDAS:
-            assert validar_curp(c) == c
+    # ── Válidos ────────────────────────────────────────────────────
+    @pytest.mark.parametrize("input_curp,expected", [
+        ("GODE561231HDFLRN03", "GODE561231HDFLRN03"),
+        ("  xema920217hnlslr07  ", "XEMA920217HNLSLR07"),       # strip
+        ("MARS950101MDFLRN09", "MARS950101MDFLRN09"),
+        ("gode561231hdflrn03", "GODE561231HDFLRN03"),           # lower→upper
+    ])
+    def test_curp_valida(self, input_curp, expected):
+        assert validar_curp(input_curp) == expected
 
-    def test_validas_minusculas(self):
-        assert validar_curp("gode561231hdflrn03") == "GODE561231HDFLRN03"
-
-    def test_validas_con_espacios(self):
-        assert validar_curp("  GODE561231HDFLRN03  ") == "GODE561231HDFLRN03"
-
-    def test_invalidas(self):
-        for c in self.INVALIDAS:
-            with pytest.raises(ValueError, match="CURP inv"):
-                validar_curp(c)
-
-    def test_regex_matches_valid(self):
-        for c in self.VALIDAS:
-            assert CURP_RE.match(c)
-
-    def test_regex_rejects_invalid(self):
-        for c in self.INVALIDAS:
-            assert not CURP_RE.match(c)
+    # ── Inválidos ──────────────────────────────────────────────────
+    @pytest.mark.parametrize("bad_curp", [
+        "",                       # vacío
+        "GODE561231",             # muy corto
+        "GODE561231HDFLRN03X",    # muy largo
+        "GODE56123XHDFLRN03",     # letra en posición numérica
+        "123456789012345678",     # solo dígitos
+        "GODE561231HDFLRN0$",     # caracter especial
+    ])
+    def test_curp_invalida(self, bad_curp):
+        with pytest.raises(ValueError, match="CURP inválida"):
+            validar_curp(bad_curp)
 
 
-class TestRFC:
-    VALIDAS = [
-        "GODE561231KL7",       # persona física (13)
-        "RAMS801231ABC",       # persona física (13)
-        "MARS850201XYZ",       # persona física (13)
-        "AAA010101AAA",        # persona moral (12)
-    ]
-    INVALIDAS = [
-        "",                    # vacía
-        "ABC",                 # muy corta
-        "GODE561231KL",        # 11 caracteres
-        "GODE561231KL71",      # 14 caracteres
-        "1234567890123",       # solo dígitos
-    ]
+class TestValidarRfc:
+    """validar_rfc(): 12-13 chars, física (13) o moral (12)."""
 
-    def test_validas(self):
-        for r in self.VALIDAS:
-            assert validar_rfc(r) == r
+    # ── Válidos ────────────────────────────────────────────────────
+    @pytest.mark.parametrize("input_rfc,expected", [
+        ("GODE561231KL7", "GODE561231KL7"),   # física 13 chars
+        ("  abc123456kl7  ", "ABC123456KL7"), # strip + upper
+        ("AAA010101AAA", "AAA010101AAA"),     # moral 12 chars
+        ("ÑÑÑ010101AAA", "ÑÑÑ010101AAA"),    # Ñ permitida
+        ("&AB010101AAA", "&AB010101AAA"),     # & permitida en moral
+    ])
+    def test_rfc_valido(self, input_rfc, expected):
+        assert validar_rfc(input_rfc) == expected
 
-    def test_validas_minusculas(self):
-        assert validar_rfc("gode561231kl7") == "GODE561231KL7"
+    # ── Inválidos ──────────────────────────────────────────────────
+    @pytest.mark.parametrize("bad_rfc", [
+        "",                       # vacío
+        "GODE561231",             # muy corto
+        "GODE561231KL712",        # muy largo
+        "123456789012",           # solo dígitos
+        "GODE-61231KL7",          # caracter especial
+        "abc",                    # completamente inválido
+    ])
+    def test_rfc_invalido(self, bad_rfc):
+        with pytest.raises(ValueError, match="RFC inválido"):
+            validar_rfc(bad_rfc)
 
-    def test_invalidas(self):
-        for r in self.INVALIDAS:
-            with pytest.raises(ValueError, match="RFC inv"):
-                validar_rfc(r)
 
+class TestValidarEmail:
+    """validar_email(): formato RFC 5322 básico."""
 
-class TestEmail:
-    VALIDOS = [
-        "a@b.com",
-        "usuario@dominio.mx",
-        "test@sub.dominio.org",
-    ]
-    INVALIDOS = [
-        "",                    # vacío
-        "invalido",            # sin @
-        "@dominio.com",        # sin usuario
-        "usuario@",            # sin dominio
-        "usuario@dominio",     # sin TLD
-        "a b@c.com",           # espacio en usuario
-    ]
+    # ── Válidos ────────────────────────────────────────────────────
+    @pytest.mark.parametrize("input_email,expected", [
+        ("user@example.com", "user@example.com"),
+        ("  USER@Example.COM  ", "user@example.com"),  # strip + lower
+        ("a.b+c@sub.domain.co", "a.b+c@sub.domain.co"),
+        ("user+tag@domain.com.mx", "user+tag@domain.com.mx"),
+    ])
+    def test_email_valido(self, input_email, expected):
+        assert validar_email(input_email) == expected
 
-    def test_validos(self):
-        for e in self.VALIDOS:
-            assert validar_email(e) == e
-
-    def test_validos_mayusculas(self):
-        assert validar_email("User@Domain.COM") == "user@domain.com"
-
-    def test_invalidos(self):
-        for e in self.INVALIDOS:
-            with pytest.raises(ValueError, match="Email inv"):
-                validar_email(e)
+    # ── Inválidos ──────────────────────────────────────────────────
+    @pytest.mark.parametrize("bad_email", [
+        "",                     # vacío
+        "user",                 # sin @
+        "@domain.com",          # sin local
+        "user@",                # sin dominio
+        "user@.com",            # dominio inválido
+        "user@domain",          # sin TLD
+        "user name@domain.com", # espacio en local
+        "user@domain..com",     # doble punto es inválido
+    ])
+    def test_email_invalido(self, bad_email):
+        with pytest.raises(ValueError, match="Email inválido"):
+            validar_email(bad_email)

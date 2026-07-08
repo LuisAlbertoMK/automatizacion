@@ -14,8 +14,10 @@ CURP_RE = re.compile(r"^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$")
 #      persona moral  (12 chars: 3 letras  + 6 dígitos + 3 alfanum)
 RFC_RE = re.compile(r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$")
 
-# Email: formato básico RFC 5322
-EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+# Email: formato básico RFC 5322 (sin dobles puntos en dominio)
+EMAIL_RE = re.compile(
+    r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$"
+)
 
 
 # ── Validadores ───────────────────────────────────────────────────────
