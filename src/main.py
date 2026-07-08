@@ -331,8 +331,8 @@ class Agente:
     async def tramite_buro(self, perfil: dict = None) -> dict:
         """Ejecuta consulta de Buró de Crédito."""
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Buró de Crédito ━━━{Style.RESET_ALL}")
-        rfc = input("  RFC: ").strip().upper()
-        curp = input("  CURP: ").strip().upper()
+        rfc = self._pedir_dato("RFC", validar=self._validar_rfc)
+        curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
         from src.modules.buro import BuroModule
         modulo = BuroModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(rfc=rfc, curp=curp)
@@ -343,8 +343,8 @@ class Agente:
     async def tramite_circulo(self, perfil: dict = None) -> dict:
         """Ejecuta consulta de Círculo de Crédito."""
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Círculo de Crédito ━━━{Style.RESET_ALL}")
-        rfc = input("  RFC: ").strip().upper()
-        curp = input("  CURP: ").strip().upper()
+        rfc = self._pedir_dato("RFC", validar=self._validar_rfc)
+        curp = self._pedir_dato("CURP (18 caracteres)", validar=self._validar_curp)
         from src.modules.circulo import CirculoModule
         modulo = CirculoModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(rfc=rfc, curp=curp)
@@ -366,8 +366,11 @@ class Agente:
     async def tramite_cita_sat(self, perfil: dict = None) -> dict:
         """Ejecuta cita SAT."""
         print(f"\n{Fore.CYAN}━━━ TRÁMITE: Cita SAT ━━━{Style.RESET_ALL}")
-        rfc = input("  RFC: ").strip().upper()
-        curp = input("  CURP (opcional): ").strip().upper() or ""
+        rfc = self._pedir_dato("RFC", validar=self._validar_rfc)
+        curp = input("  CURP (opcional): ").strip().upper()
+        if curp and not self._validar_curp(curp):
+            print(f"  {Fore.RED}  Formato CURP inválido{Style.RESET_ALL}")
+            curp = ""
         from src.modules.cita_sat import CitaSATModule
         modulo = CitaSATModule(captcha_solver=self.solver)
         resultado = await modulo.consultar(rfc=rfc, curp=curp)
@@ -388,8 +391,8 @@ class Agente:
 
         if opcion == "1":
             alias   = input("  Nombre del perfil (ej: 'juan_garcia'): ").strip()
-            curp    = input("  CURP: ").strip().upper()
-            correo  = input("  Correo electrónico: ").strip()
+            curp    = self._pedir_dato("  CURP", validar=self._validar_curp)
+            correo  = self._pedir_dato("  Correo electrónico", validar=self._validar_email)
             placa   = input("  Placa del vehículo (opcional): ").strip()
             nombre  = input("  Nombre completo (opcional): ").strip()
             perfil = {
@@ -437,8 +440,32 @@ class Agente:
                 continue
             return val
 
-    def _validar_curp(self, curp: str) -> bool:
-        return bool(re.match(r"^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$", curp.upper()))
+    @staticmethod
+    def _validar_curp(curp: str) -> bool:
+        try:
+            from src.validators import validar_curp as _vc  # noqa: PLC0415
+            _vc(curp)
+            return True
+        except ValueError:
+            return False
+
+    @staticmethod
+    def _validar_rfc(rfc: str) -> bool:
+        try:
+            from src.validators import validar_rfc as _vr  # noqa: PLC0415
+            _vr(rfc)
+            return True
+        except ValueError:
+            return False
+
+    @staticmethod
+    def _validar_email(email: str) -> bool:
+        try:
+            from src.validators import validar_email as _ve  # noqa: PLC0415
+            _ve(email)
+            return True
+        except ValueError:
+            return False
 
     def _mostrar_resultado(self, tipo: str, resultado: dict):
         print(f"\n{Fore.GREEN}{'━'*50}")
@@ -608,13 +635,13 @@ async def modo_directo(args):
         await ControlConfianzaModule(captcha_solver=agente.solver).consultar(curp=curp)
 
     elif args.tramite == "buro":
-        rfc = args.rfc or input("RFC: ").strip().upper()
-        curp = args.curp or input("CURP: ").strip().upper()
+        rfc = args.rfc or _type_rfc(input("RFC: "))
+        curp = args.curp or _type_curp(input("CURP: "))
         await BuroModule(captcha_solver=agente.solver).consultar(rfc=rfc, curp=curp)
 
     elif args.tramite == "circulo":
-        rfc = args.rfc or input("RFC: ").strip().upper()
-        curp = args.curp or input("CURP: ").strip().upper()
+        rfc = args.rfc or _type_rfc(input("RFC: "))
+        curp = args.curp or _type_curp(input("CURP: "))
         await CirculoModule(captcha_solver=agente.solver).consultar(rfc=rfc, curp=curp)
 
     elif args.tramite == "cita_ine":
@@ -640,6 +667,30 @@ def _handle_shutdown(signum, frame):
         task.cancel()
 
 
+def _type_curp(val: str) -> str:
+    from src.validators import validar_curp  # noqa: PLC0415
+    try:
+        return validar_curp(val)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"CURP inválida: '{val}'")
+
+
+def _type_rfc(val: str) -> str:
+    from src.validators import validar_rfc  # noqa: PLC0415
+    try:
+        return validar_rfc(val)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"RFC inválido: '{val}'")
+
+
+def _type_correo(val: str) -> str:
+    from src.validators import validar_email  # noqa: PLC0415
+    try:
+        return validar_email(val)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"Email inválido: '{val}'")
+
+
 def main():
     signal.signal(signal.SIGINT, _handle_shutdown)
 
@@ -649,9 +700,9 @@ def main():
         "pasaporte", "semanas", "control_confianza",
         "buro", "circulo", "cita_ine", "cita_sat",
     ], help="Trámite a realizar")
-    parser.add_argument("--curp",    help="CURP de 18 caracteres")
-    parser.add_argument("--rfc",     help="RFC para trámites que lo requieran")
-    parser.add_argument("--correo",  help="Correo electrónico")
+    parser.add_argument("--curp",    type=_type_curp,   metavar="CURP",    help="CURP de 18 caracteres")
+    parser.add_argument("--rfc",     type=_type_rfc,    metavar="RFC",     help="RFC de 12-13 caracteres")
+    parser.add_argument("--correo",  type=_type_correo, metavar="EMAIL",   help="Correo electrónico")
     parser.add_argument("--perfil",  help="Alias de perfil guardado")
     parser.add_argument("--list-tramites", action="store_true", help="Listar todos los trámites disponibles")
     args = parser.parse_args()

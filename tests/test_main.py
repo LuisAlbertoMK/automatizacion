@@ -152,7 +152,7 @@ class TestArgparse:
             ["main.py", "--tramite", "curp"],
             ["main.py", "--tramite", "nss"],
             ["main.py", "--tramite", "ambos"],
-            ["main.py", "--curp", "TEST"],
+            ["main.py", "--curp", "GODE561231HDFLRN03"],
             ["main.py", "--correo", "a@b.com"],
             ["main.py", "--perfil", "juan"],
         ]

@@ -83,11 +83,6 @@ async def _verify_api_key(request: Request, call_next):
     return await call_next(request)
 
 
-# ── CURP validation ─────────────────────────────────────────
-
-CURP_RE = re.compile(r"^[A-Z]{4}\d{6}[H,M][A-Z]{5}[0-9A-Z]\d$")
-
-
 # ── Models ─────────────────────────────────────────────────
 
 class CurpRequest(BaseModel):
@@ -97,10 +92,8 @@ class CurpRequest(BaseModel):
     @field_validator("curp")
     @classmethod
     def validar_curp(cls, v: str) -> str:
-        v = v.upper()
-        if not CURP_RE.match(v):
-            raise ValueError("Formato CURP inválido (deben ser 18 caracteres alfanuméricos)")
-        return v
+        from src.validators import validar_curp as _vc  # noqa: PLC0415
+        return _vc(v)
 
 class NssRequest(BaseModel):
     curp: str
@@ -110,10 +103,8 @@ class NssRequest(BaseModel):
     @field_validator("curp")
     @classmethod
     def validar_curp(cls, v: str) -> str:
-        v = v.upper()
-        if not CURP_RE.match(v):
-            raise ValueError("Formato CURP inválido (deben ser 18 caracteres alfanuméricos)")
-        return v
+        from src.validators import validar_curp as _vc  # noqa: PLC0415
+        return _vc(v)
 
 class ProfileData(BaseModel):
     alias: str
