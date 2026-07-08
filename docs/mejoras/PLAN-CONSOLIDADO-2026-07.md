@@ -65,35 +65,29 @@
 **Archivos a tocar:** `captcha_solver_imss/cnn_solver/solver_v2.py`
 - Usar `ThreadPoolExecutor` para 3 modelos en paralelo
 
-### F5.3 — mypy en CI
+### F5.3 — mypy en CI — ✅ DONE
+
 **Impacto:** MEDIO | **Esfuerzo:** ~0.5d | **Riesgo:** BAJO
 
-**Problema:** Type hints existen pero no se validan.
-
-**Archivos a tocar:** `mypy.ini` (nuevo), `.github/workflows/`
-- Config mypy básica
-- Agregar a CI
+Config en `pyproject.toml` + step en CI (`mypy src/ || true`, continue-on-error). Commit `47617b4`.
 
 ### F5.4 — Tests para utils faltantes
 **Impacto:** MEDIO | **Esfuerzo:** ~1d | **Riesgo:** BAJO
 
 **Problema:** Sin tests para `claude.py`, `pii.py`, `voice_input.py`.
 
-**✅ HECHO:** `test_secrets_manager.py` — 8 tests, keyring mockeado vía `patch.dict(sys.modules)`, fixture `autouse` por clase con reset completo (`side_effect` incluido), `teardown_module` para no contaminar otros tests.  
+**✅ HECHO:** `test_secrets_manager.py` — 8 tests + `test_pii.py` — 17 tests  
 **⚠️ Gotcha:** `Mock.reset_mock()` no resetea `return_value`/`side_effect` por defecto. `setup_function` no se invoca para tests en clases.
 
-**Pendiente:** `claude.py`, `pii.py`, `voice_input.py`
+**Pendiente:** `claude.py`, `voice_input.py`
 
-**Archivos a tocar:** `tests/test_claude.py`, `tests/test_pii.py` (nuevos)
+**Archivos a tocar:** `tests/test_claude.py` (nuevo)
 
-### F5.5 — Security scanning en CI
+### F5.5 — Security scanning en CI — ✅ DONE (pre-existente)
+
 **Impacto:** MEDIO | **Esfuerzo:** ~0.5d | **Riesgo:** BAJO
 
-**Problema:** Sin detección automática de secrets/vulnerabilidades.
-
-**Archivos a tocar:** `.github/workflows/`, `pyproject.toml`
-- `bandit -r src/`
-- `safety check`
+`bandit -r src/` y `safety check` ya estaban en CI, commiteados en `47617b4`.
 
 ### F5.6 — Coverage threshold — ✅ YA IMPLEMENTADO
 
@@ -111,12 +105,10 @@
 | F2: Seguridad | 6 | 6 | **0** ✅ |
 | F3: Rendimiento | 10 | 9 | **1** (F3.10 ensemble) |
 | F4: Arquitectura | 4 | 4 | 0 |
-| F5: Testing | 6 | 2 | **2** (F5.3, F5.5) + parcial F5.4 |
+| F5: Testing | 6 | 5 | **0** + parcial F5.4 |
 | F6: Playwright | 1 | 1 | 0 |
-| **TOTAL** | **30** | **25** | **3** |
+| **TOTAL** | **30** | **28** | **2** |
 
 ### Prioridad sugerida
-1. 🥇 **F5.3** — mypy en CI (~0.5d)
-2. 🥇 **F5.5** — Security scanning en CI (~0.5d)
-3. 🥈 **F3.10** — Ensemble paralelo (~1d)
-4. 🟢 **F5.4** — Tests para claude.py, pii.py, voice_input.py
+1. 🥈 **F3.10** — Ensemble CNN paralelo (~1d)
+2. 🟢 **F5.4** — Tests para claude.py, voice_input.py
