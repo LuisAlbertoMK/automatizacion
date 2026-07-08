@@ -225,11 +225,12 @@ class CURPModule(BaseModule):
         estado_val = ESTADOS.get(estado_key, "MC")
         for sel in ["select[name='estado']", "#estadoNac"]:
             try:
+                self.debug(f"Buscando selector de estado: {sel} = {estado_val}")
                 if await page.locator(sel).count() > 0:
                     await page.select_option(sel, estado_val)
                     break
             except Exception:
-                self.debug("Link de descarga no disponible")
+                self.debug("Selector de estado no disponible")
                 continue
 
         self.log("Datos personales ingresados")

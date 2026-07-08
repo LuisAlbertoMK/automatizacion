@@ -199,6 +199,7 @@ class BaseModule:
         await _rate_limit()
         last_error = None
         try:
+            self.debug(f"Navegando a {url}")
             await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT)
             await page.wait_for_timeout(2000)
             return
@@ -206,6 +207,7 @@ class BaseModule:
             last_error = e
             if fallback_url:
                 try:
+                    self.debug(f"Fallback: navegando a {fallback_url}")
                     await page.goto(fallback_url, wait_until="domcontentloaded", timeout=TIMEOUT)
                     await page.wait_for_timeout(2000)
                     return
@@ -297,6 +299,7 @@ class BaseModule:
         """Detecta y resuelve CAPTCHA de imagen. Retorna True si lo resolvió."""
         captcha_img = None
         for sel in img_selectors:
+            self.debug(f"Buscando CAPTCHA en: {sel}")
             loc = page.locator(sel)
             if await loc.count() > 0:
                 captcha_img = loc.first
@@ -383,6 +386,7 @@ class BaseModule:
     async def detect_site_key(self, page: Page) -> str | None:
         """Extrae site key de reCAPTCHA de la página."""
         try:
+            self.debug("Detectando site key de reCAPTCHA")
             key = await page.evaluate(
                 "() => document.querySelector('[data-sitekey]')?.getAttribute('data-sitekey') || null"
             )
@@ -402,6 +406,7 @@ class BaseModule:
     async def inject_recaptcha_token(self, page: Page, token: str):
         """Inyecta token reCAPTCHA con sanitización."""
         token_safe = json.dumps(token)
+        self.debug("Inyectando token reCAPTCHA")
         await page.evaluate(f"""
             document.getElementById('g-recaptcha-response').innerHTML = {token_safe};
             if (typeof ___grecaptcha_cfg !== 'undefined') {{

@@ -126,6 +126,7 @@ class ControlConfianzaModule(BaseModule):
         ]:
             for s in sel:
                 try:
+                    self.debug(f"Buscando opcion: {s} = {valor}")
                     if await page.locator(s).count() > 0:
                         await page.select_option(s, valor)
                         break
