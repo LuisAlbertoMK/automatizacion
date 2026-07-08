@@ -77,9 +77,14 @@
 ### F5.4 — Tests para utils faltantes
 **Impacto:** MEDIO | **Esfuerzo:** ~1d | **Riesgo:** BAJO
 
-**Problema:** Sin tests para `claude.py`, `pii.py`, `voice_input.py`, `secrets_manager.py`.
+**Problema:** Sin tests para `claude.py`, `pii.py`, `voice_input.py`.
 
-**Archivos a tocar:** `tests/test_claude.py`, `tests/test_pii.py`, `tests/test_secrets.py` (nuevos)
+**✅ HECHO:** `test_secrets_manager.py` — 8 tests, keyring mockeado vía `patch.dict(sys.modules)`, fixture `autouse` por clase con reset completo (`side_effect` incluido), `teardown_module` para no contaminar otros tests.  
+**⚠️ Gotcha:** `Mock.reset_mock()` no resetea `return_value`/`side_effect` por defecto. `setup_function` no se invoca para tests en clases.
+
+**Pendiente:** `claude.py`, `pii.py`, `voice_input.py`
+
+**Archivos a tocar:** `tests/test_claude.py`, `tests/test_pii.py` (nuevos)
 
 ### F5.5 — Security scanning en CI
 **Impacto:** MEDIO | **Esfuerzo:** ~0.5d | **Riesgo:** BAJO
@@ -90,13 +95,11 @@
 - `bandit -r src/`
 - `safety check`
 
-### F5.6 — Coverage threshold
+### F5.6 — Coverage threshold — ✅ YA IMPLEMENTADO
+
 **Impacto:** BAJO | **Esfuerzo:** ~0.2d | **Riesgo:** BAJO
 
-**Problema:** Coverage se reporta pero no hay mínimo.
-
-**Archivos a tocar:** `pyproject.toml`
-- `--cov-fail-under=80` en pytest
+`--cov-fail-under=80` ya está en `pyproject.toml` y en CI. **(pre-existente de sesión anterior)**
 
 ---
 
@@ -108,10 +111,12 @@
 | F2: Seguridad | 6 | 6 | **0** ✅ |
 | F3: Rendimiento | 10 | 9 | **1** (F3.10 ensemble) |
 | F4: Arquitectura | 4 | 4 | 0 |
-| F5: Testing | 6 | 0 | **4** (F5.3-F5.6) |
+| F5: Testing | 6 | 2 | **2** (F5.3, F5.5) + parcial F5.4 |
 | F6: Playwright | 1 | 1 | 0 |
-| **TOTAL** | **30** | **23** | **5** |
+| **TOTAL** | **30** | **25** | **3** |
 
 ### Prioridad sugerida
-1. 🥇 **F5.3-F5.6** — CI/testing (~2d total)
-2. 🥈 **F3.10** — Ensemble paralelo (~1d)
+1. 🥇 **F5.3** — mypy en CI (~0.5d)
+2. 🥇 **F5.5** — Security scanning en CI (~0.5d)
+3. 🥈 **F3.10** — Ensemble paralelo (~1d)
+4. 🟢 **F5.4** — Tests para claude.py, pii.py, voice_input.py

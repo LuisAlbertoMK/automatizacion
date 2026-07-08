@@ -4,11 +4,13 @@ import os
 
 import pytest
 
+# Se necesita en collection por los imports internos de storage.py
 os.environ["STORAGE_KEY"] = "test-key-32-chars-for-aes!xx"
 
 from src.exceptions import StorageError  # noqa: E402
 from src.utils.storage import (  # noqa: E402
     DATA_FILE,
+    _get_cipher,
     _save_all,  # noqa: E402
     list_profiles,
     load_profile,
@@ -19,6 +21,10 @@ from src.utils.storage import (  # noqa: E402
 @pytest.fixture(autouse=True)
 def clean_data():
     """Resetea el archivo de datos antes de cada test."""
+    # Algunos tests del suite limpian os.environ via patch.dict(clear=True)
+    # Re-establecer STORAGE_KEY dentro del fixture asegura compatibilidad
+    if not os.getenv("STORAGE_KEY"):
+        os.environ["STORAGE_KEY"] = "test-key-32-chars-for-aes!xx"
     DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
     _save_all({})
     yield

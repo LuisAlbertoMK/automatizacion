@@ -1,6 +1,7 @@
 """Tests unitarios para utils/ocr.py con pytesseract mockeado."""
 
 from unittest.mock import patch
+import io
 
 import pytest
 from PIL import Image
@@ -142,22 +143,25 @@ class TestExtractFromScreenshot:
     """Lines 286-296: extract_from_screenshot integra image + all_data."""
 
     @patch("src.utils.ocr.pytesseract.image_to_string", return_value="CURP GOGG800101HDFPLN08")
+    @patch("builtins.open", return_value=io.BytesIO(b"fake"))
     @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
-    def test_screenshot_with_curp(self, mock_open, mock_its, ocr):
+    def test_screenshot_with_curp(self, mock_img_open, mock_open, mock_its, ocr):
         result = ocr.extract_from_screenshot("fake/screen.png")
         assert result["curp"] == "GOGG800101HDFPLN08"
         assert "raw_text" in result
 
     @patch("src.utils.ocr.pytesseract.image_to_string", return_value="sin datos importantes")
+    @patch("builtins.open", return_value=io.BytesIO(b"fake"))
     @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
-    def test_screenshot_no_data(self, mock_open, mock_its, ocr):
+    def test_screenshot_no_data(self, mock_img_open, mock_open, mock_its, ocr):
         result = ocr.extract_from_screenshot("fake/screen.png")
         assert result["curp"] is None
         assert result["nss"] is None
 
     @patch("src.utils.ocr.pytesseract.image_to_string", return_value="CURP GOGG800101HDFPLN08 NSS 12345678901")
+    @patch("builtins.open", return_value=io.BytesIO(b"fake"))
     @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
-    def test_screenshot_with_nss(self, mock_open, mock_its, ocr):
+    def test_screenshot_with_nss(self, mock_img_open, mock_open, mock_its, ocr):
         """Line 294: NSS encontrado en screenshot."""
         result = ocr.extract_from_screenshot("fake/screen.png")
         assert result["nss"] == "12345678901"
@@ -169,22 +173,25 @@ class TestOCRExtractor:
         assert isinstance(ocr, OCRExtractor)
 
     @patch("src.utils.ocr.pytesseract.image_to_string")
+    @patch("builtins.open", return_value=io.BytesIO(b"fake"))
     @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
-    def test_extract_from_image_basic(self, mock_open, mock_its, ocr):
+    def test_extract_from_image_basic(self, mock_img_open, mock_file_open, mock_its, ocr):
         mock_its.return_value = "Texto extraido"
         result = ocr.extract_from_image("fake/path.png")
         assert result == "Texto extraido"
 
     @patch("src.utils.ocr.pytesseract.image_to_string")
+    @patch("builtins.open", return_value=io.BytesIO(b"fake"))
     @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
-    def test_extract_from_image_strips_whitespace(self, mock_open, mock_its, ocr):
+    def test_extract_from_image_strips_whitespace(self, mock_img_open, mock_file_open, mock_its, ocr):
         mock_its.return_value = "  Hola mundo  \n"
         result = ocr.extract_from_image("fake/path.png")
         assert result == "Hola mundo"
 
     @patch("src.utils.ocr.pytesseract.image_to_string")
+    @patch("builtins.open", return_value=io.BytesIO(b"fake"))
     @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
-    def test_extract_from_image_supports_lang(self, mock_open, mock_its, ocr):
+    def test_extract_from_image_supports_lang(self, mock_img_open, mock_file_open, mock_its, ocr):
         mock_its.return_value = "Hello world"
         result = ocr.extract_from_image("fake/path.png", lang="eng")
         assert result == "Hello world"
@@ -192,7 +199,7 @@ class TestOCRExtractor:
         _, kwargs = mock_its.call_args
         assert kwargs.get("lang") == "eng"
 
-    @patch("src.utils.ocr.Image.open")
+    @patch("builtins.open")
     def test_extract_from_image_raises_on_error(self, mock_open, ocr):
         mock_open.side_effect = FileNotFoundError("No such file")
         with pytest.raises(OCRError):

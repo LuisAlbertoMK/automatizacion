@@ -75,8 +75,13 @@ class OCRExtractor:
         Returns:
             Texto extraído
         """
-        with open(image_path, "rb") as f:
-            return self.extract_from_bytes(f.read(), lang=lang)
+        try:
+            with open(image_path, "rb") as f:
+                return self.extract_from_bytes(f.read(), lang=lang)
+        except FileNotFoundError as e:
+            raise OCRError(f"Archivo de imagen no encontrado: {image_path}") from e
+        except PermissionError as e:
+            raise OCRError(f"Permiso denegado al leer imagen: {image_path}") from e
 
     def extract_from_bytes(self, image_bytes: bytes, lang: str = "spa") -> str:
         """
