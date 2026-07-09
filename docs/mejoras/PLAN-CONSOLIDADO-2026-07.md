@@ -79,7 +79,7 @@ Config en `pyproject.toml` + step en CI (`mypy src/ || true`, continue-on-error)
 **✅ HECHO:** `test_secrets_manager.py` — 8 tests + `test_pii.py` — 17 tests  
 **⚠️ Gotcha:** `Mock.reset_mock()` no resetea `return_value`/`side_effect` por defecto. `setup_function` no se invoca para tests en clases.
 
-**Pendiente:** `claude.py`, `voice_input.py`
+**✅ HECHO:** `test_claude.py` — 10 tests + `test_voice_input.py` — 51 tests (2 bugs corregidos)
 
 **Archivos a tocar:** `tests/test_claude.py` (nuevo)
 
@@ -105,10 +105,9 @@ Config en `pyproject.toml` + step en CI (`mypy src/ || true`, continue-on-error)
 | F2: Seguridad | 6 | 6 | **0** ✅ |
 | F3: Rendimiento | 10 | 9 | **1** (F3.10 ensemble) |
 | F4: Arquitectura | 4 | 4 | 0 |
-| F5: Testing | 6 | 5 | **0** + parcial F5.4 |
+| F5: Testing | 6 | 6 | **0** ✅ |
 | F6: Playwright | 1 | 1 | 0 |
-| **TOTAL** | **30** | **28** | **2** |
+| **TOTAL** | **30** | **29** | **1** |
 
-### Prioridad sugerida
-1. 🥈 **F3.10** — Ensemble CNN paralelo (~1d)
-2. 🟢 **F5.4** — Tests para claude.py, voice_input.py
+### Prioridad sugerida — solo queda
+1. 🥇 **F3.10** — Ensemble CNN paralelo (~1d)
