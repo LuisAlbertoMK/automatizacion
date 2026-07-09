@@ -30,6 +30,9 @@ def mock_page():
     page.select_option = AsyncMock()
     page.screenshot = AsyncMock()
     page.click = AsyncMock()
+    page.query_selector_all = AsyncMock(return_value=[])
+    page.get_by_role = MagicMock()  # return_value configurable
+    page.inner_text = AsyncMock(return_value="")
     return page
 
 
