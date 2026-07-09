@@ -212,12 +212,15 @@ class VoiceInput:
         Returns:
             Email encontrado o None
         """
-        # Limpiar texto
-        texto_limpio = texto.lower().replace(" ", "")
+        texto_limpio = texto.lower()
 
-        # Reemplazos comunes de voz a texto
-        texto_limpio = texto_limpio.replace("arroba", "@")
-        texto_limpio = texto_limpio.replace("punto", ".")
+        # Reemplazos de voz a texto — word boundaries para no tocar palabras anidadas
+        texto_limpio = re.sub(r'\barroba\b', '@', texto_limpio)
+        texto_limpio = re.sub(r'\bpunto\b', '.', texto_limpio)
+
+        # Normalizar espacios alrededor de @ y . para formar email válido
+        texto_limpio = re.sub(r'\s*@\s*', '@', texto_limpio)
+        texto_limpio = re.sub(r'\s*\.\s*', '.', texto_limpio)
 
         # Patrón email
         pattern = r'([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'
@@ -258,8 +261,9 @@ class VoiceInput:
 
     def _convertir_numeros_texto(self, texto):
         """
-        Convierte números en texto a dígitos.
+        Convierte números en texto a dígitos con boundaries.
         Ejemplo: "uno dos tres" -> "123"
+        No toca compuestos: "veintiuno" no se modifica.
         """
         numeros = {
             "cero": "0", "uno": "1", "dos": "2", "tres": "3",
@@ -269,7 +273,9 @@ class VoiceInput:
 
         texto_convertido = texto.lower()
         for palabra, digito in numeros.items():
-            texto_convertido = texto_convertido.replace(palabra, digito)
+            texto_convertido = re.sub(
+                rf'\b{palabra}\b', digito, texto_convertido
+            )
 
         return texto_convertido
 
