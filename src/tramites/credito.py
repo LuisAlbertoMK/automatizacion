@@ -176,6 +176,7 @@ class CreditoModule(BaseModule):
                 self.log(cfg["msgs"]["pdf_saved"].format(path=pdf_path))
             except Exception as e:
                 self.debug(f"Error guardando pantalla: {e}")
+                pdf_path = None  # no reportar como descargado si falló
 
         return {
             "status": "descargado" if pdf_path else "pendiente",

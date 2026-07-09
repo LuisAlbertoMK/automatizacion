@@ -249,15 +249,18 @@ Instrucciones adicionales: {datos.get('instrucciones', 'ninguna')}"""
         escrito["firmante"] = datos["nombre"]
 
         print("  📝 Construyendo documento...")
-        doc = self._construir_docx(escrito)
-
-        # Guardar
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        nombre_archivo = f"{tipo}-{timestamp}.docx"
-        ruta = OUTPUT_DIR / nombre_archivo
-        doc.save(str(ruta))
-        print(f"  ✅ Documento generado: {ruta}")
+        try:
+            doc = self._construir_docx(escrito)
+            # Guardar
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            nombre_archivo = f"{tipo}-{timestamp}.docx"
+            ruta = OUTPUT_DIR / nombre_archivo
+            doc.save(str(ruta))
+            print(f"  ✅ Documento generado: {ruta}")
+        except Exception as e:
+            print(f"  ❌ Error al generar documento: {e}")
+            return {"status": "error", "error": str(e)}
 
         return {
             "status": "ok",

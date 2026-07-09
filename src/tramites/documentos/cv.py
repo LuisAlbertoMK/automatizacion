@@ -307,15 +307,18 @@ Si falta información, usa placeholders descriptivos como "[Agregar empresa]".""
             return {"status": "error", "error": str(e)}
 
         print("  📝 Construyendo documento Word...")
-        doc = self._construir_docx(cv)
-
-        # Guardar
-        sanitized = re.sub(r"\s+", "-", datos["nombre"]).lower()
-        nombre_archivo = f"cv-{sanitized}.docx"
-        os.makedirs(OUTPUT_DIR, exist_ok=True)
-        ruta = OUTPUT_DIR / nombre_archivo
-        doc.save(str(ruta))
-        print(f"  ✅ CV generado: {ruta}")
+        try:
+            doc = self._construir_docx(cv)
+            # Guardar
+            sanitized = re.sub(r"\s+", "-", datos["nombre"]).lower()
+            nombre_archivo = f"cv-{sanitized}.docx"
+            os.makedirs(OUTPUT_DIR, exist_ok=True)
+            ruta = OUTPUT_DIR / nombre_archivo
+            doc.save(str(ruta))
+            print(f"  ✅ CV generado: {ruta}")
+        except Exception as e:
+            print(f"  ❌ Error al generar documento: {e}")
+            return {"status": "error", "error": str(e)}
 
         return {
             "status": "ok",
