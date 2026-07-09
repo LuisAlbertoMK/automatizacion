@@ -707,3 +707,317 @@ class TestBrowser:
         br = AsyncMock(spec=BrowserResources)
         await module.close_browser(br)
         br.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_launch_via_pool(self, module):
+        """Lines 157-171: launch_browser con pool exitoso."""
+        mock_browser = AsyncMock()
+        mock_context = AsyncMock()
+        mock_page = MagicMock()
+        mock_context.new_page.return_value = mock_page
+        mock_browser.new_context.return_value = mock_context
+        mock_pool = AsyncMock()
+        mock_pool.acquire.return_value = mock_browser
+
+        with patch("src.utils.browser_pool.get_browser_pool", return_value=mock_pool):
+            br = await module.launch_browser()
+        assert br._from_pool is True
+        assert br._pool is mock_pool
+        assert br.page is mock_page
+
+    @pytest.mark.asyncio
+    async def test_launch_with_sandbox(self, module):
+        """Line 178: PLAYWRIGHT_NO_SANDBOX=true → --no-sandbox."""
+        mock_pw = AsyncMock()
+        mock_firefox = MagicMock()
+        mock_firefox.launch = AsyncMock()
+        mock_browser = AsyncMock()
+        mock_context = AsyncMock()
+        mock_context.new_page.return_value = MagicMock()
+        mock_browser.new_context.return_value = mock_context
+        mock_firefox.launch.return_value = mock_browser
+        mock_pw.firefox = mock_firefox
+        mock_pw.__aenter__.return_value = mock_pw
+
+        with (
+            patch("src.utils.browser_pool.get_browser_pool", return_value=None),
+            patch("src.tramites.base.async_playwright", return_value=mock_pw),
+            patch.dict(os.environ, {"PLAYWRIGHT_NO_SANDBOX": "true"}),
+        ):
+            await module.launch_browser()
+        args = mock_firefox.launch.call_args[1]
+        assert "--no-sandbox" in args.get("args", [])
+
+
+# ── BrowserResources.close ─────────────────────────────────────────────────
+
+class TestBrowserResourcesClose:
+    """Lines 50-71: error handlers en BrowserResources.close()."""
+
+    @pytest.mark.asyncio
+    async def test_context_close_fails(self, capsys):
+        """Lines 53-54: _context.close() lanza → catch."""
+        br = BrowserResources(
+            browser=MagicMock(), page=MagicMock(),
+            _context=AsyncMock(),
+        )
+        br._context.close = AsyncMock(side_effect=Exception("ctx close fail"))
+        await br.close()
+        captured = capsys.readouterr()
+        assert "Error al cerrar context" in captured.out
+        assert br._context is None  # se resetea pese al error
+
+    @pytest.mark.asyncio
+    async def test_pool_release_fails(self, capsys):
+        """Lines 60-61: pool.release() lanza → catch."""
+        mock_pool = AsyncMock()
+        mock_pool.release = AsyncMock(side_effect=Exception("pool release fail"))
+        br = BrowserResources(
+            browser=MagicMock(), page=MagicMock(),
+            _pool=mock_pool, _context=MagicMock(),
+        )
+        br._context.close = AsyncMock()
+        await br.close()
+        captured = capsys.readouterr()
+        assert "Error al liberar browser al pool" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_browser_close_fails(self, capsys):
+        """Lines 65-66: browser.close() lanza → catch (sin pool)."""
+        mock_browser = MagicMock()
+        mock_browser.close = AsyncMock(side_effect=Exception("browser close fail"))
+        br = BrowserResources(
+            browser=mock_browser, page=MagicMock(),
+            _pool=None, _playwright=MagicMock(),
+        )
+        br._playwright.__aexit__ = AsyncMock()
+        await br.close()
+        captured = capsys.readouterr()
+        assert "Error al cerrar browser" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_playwright_exit_fails(self, capsys):
+        """Lines 69-71: __aexit__() lanza → catch."""
+        mock_pw = MagicMock()
+        mock_pw.__aexit__ = AsyncMock(side_effect=Exception("pw exit fail"))
+        br = BrowserResources(
+            browser=MagicMock(), page=MagicMock(),
+            _pool=None, _playwright=mock_pw,
+        )
+        await br.close()
+        captured = capsys.readouterr()
+        assert "Error al cerrar Playwright" in captured.out
+
+    @pytest.mark.asyncio
+    async def test_close_no_context_no_pool(self):
+        """Sin _context ni _pool — solo browser.close."""
+        mock_browser = MagicMock()
+        mock_browser.close = AsyncMock()
+        br = BrowserResources(
+            browser=mock_browser, page=MagicMock(),
+            _pool=None, _playwright=None,
+        )
+        await br.close()
+        mock_browser.close.assert_awaited_once()
+
+
+# ── Init — custom interaction ──────────────────────────────────────────────
+
+class TestInitCustomInteraction:
+    def test_custom_interaction(self):
+        """Line 125: interaction proporcionado → se usa."""
+        mock_interaction = MagicMock()
+        with (
+            patch("src.utils.ocr.OCRExtractor"),
+            patch("src.utils.logger.get_logger", return_value=None),
+        ):
+            m = BaseModule(
+                captcha_solver=None, use_ocr=False,
+                interaction=mock_interaction,
+            )
+        assert m.interaction is mock_interaction
+
+
+# ── Goto — fallback que también falla ──────────────────────────────────────
+
+class TestGotoFallbackFails:
+    """Lines 246-248: goto con primary y fallback que fallan."""
+
+    @pytest.mark.asyncio
+    async def test_both_urls_fail(self, module, mock_page):
+        from src.exceptions import ModuleError
+        mock_page.goto = AsyncMock(side_effect=Exception("fail"))
+        with patch("src.tramites.base._rate_limit", AsyncMock()):
+            with pytest.raises(ModuleError, match="No se pudo navegar"):
+                await module.goto(mock_page, "https://pri.com", fallback_url="https://fall.com")
+        assert mock_page.goto.call_count == 2
+
+
+# ── Fill Field — cache hit ─────────────────────────────────────────────────
+
+class TestFillFieldCache:
+    """Lines 266-273: fill_field con selector cacheado."""
+
+    def _cache_key(self, selectors):
+        return str(tuple(selectors))
+
+    @pytest.mark.asyncio
+    async def test_cache_hit(self, module, mock_page):
+        key = self._cache_key(["input#test-cached"])
+        module._selector_cache[key] = "input#test-cached"
+        result = await module.fill_field(mock_page, ["input#test-cached"], "valor")
+        assert result is True
+        mock_page.locator.assert_called_with("input#test-cached")
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_stale_goes_to_full_loop(self, module, mock_page):
+        """Cache hit pero locator no visible → recae en full loop."""
+        key = self._cache_key(["input#stale"])
+        module._selector_cache[key] = "input#stale"
+        calls = [0]
+        def locator_side(sel):
+            calls[0] += 1
+            if calls[0] == 1:  # cache lookup falla por no visible
+                loc = _make_mock_locator(visible=False)
+                return loc
+            return _make_mock_locator(visible=True)
+        mock_page.locator.side_effect = locator_side
+        result = await module.fill_field(mock_page, ["input#stale"], "val")
+        assert result is True
+        assert calls[0] >= 2  # full loop intentó el cached y luego fresh
+
+    @pytest.mark.asyncio
+    async def test_selector_raises_exception(self, module, mock_page):
+        """Lines 289-291: locator lanza Exception → catch y continua."""
+        def locator_side_effect(sel):
+            if sel == "#falla":
+                raise Exception("css inválido")
+            return _make_mock_locator(visible=True)
+        mock_page.locator.side_effect = locator_side_effect
+        result = await module.fill_field(mock_page, ["#falla", "#ok"], "val")
+        assert result is True
+
+
+# ── Click First — cache hit ────────────────────────────────────────────────
+
+class TestClickFirstCache:
+    """Lines 298-311: click_first con selector cacheado."""
+
+    def _cache_key(self, selectors):
+        return str(tuple(selectors))
+
+    @pytest.mark.asyncio
+    async def test_cache_hit(self, module, mock_page):
+        key = self._cache_key(["button#btn"])
+        module._selector_cache[key] = "button#btn"
+        result = await module.click_first(mock_page, ["button#btn"])
+        assert result is True
+        mock_page.locator.assert_called_with("button#btn")
+
+    @pytest.mark.asyncio
+    async def test_cache_hit_with_nav(self, module, mock_page):
+        key = self._cache_key(["button#nav-btn"])
+        module._selector_cache[key] = "button#nav-btn"
+        mock_page.expect_navigation = MagicMock()
+        mock_page.expect_navigation.return_value.__aenter__ = AsyncMock()
+        mock_page.expect_navigation.return_value.__aexit__ = AsyncMock()
+        result = await module.click_first(mock_page, ["button#nav-btn"], wait_nav=True)
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_selector_raises_exception(self, module, mock_page):
+        """Lines 335-337: locator lanza Exception → catch y continua."""
+        def locator_side_effect(sel):
+            if sel == "#falla":
+                raise Exception("bad selector")
+            return _make_mock_locator(visible=True)
+        mock_page.locator.side_effect = locator_side_effect
+        result = await module.click_first(mock_page, ["#falla", "#ok"])
+        assert result is True
+
+
+# ── Clear Selector Cache ───────────────────────────────────────────────────
+
+class TestClearCache:
+    """Line 342: clear_selector_cache."""
+
+    def test_clear_cache(self, module):
+        module._selector_cache["a"] = "b"
+        assert len(module._selector_cache) == 1
+        module.clear_selector_cache()
+        assert len(module._selector_cache) == 0
+
+
+# ── Wait for reCAPTCHA — error path ────────────────────────────────────────
+
+class TestWaitRecaptchaError:
+    """Lines 427-428: evaluate() lanza Exception → catch."""
+
+    @pytest.mark.asyncio
+    async def test_evaluate_exception(self, module, mock_page):
+        mock_page.evaluate = AsyncMock(side_effect=Exception("evaluate fail"))
+        with patch("src.tramites.base.asyncio.sleep"):
+            result = await module.wait_for_recaptcha(mock_page, max_wait=2)
+        assert result is False
+
+
+# ── Detect Site Key — error path ───────────────────────────────────────────
+
+class TestDetectSiteKeyError:
+    """Lines 449-450: page.content() lanza → catch."""
+
+    @pytest.mark.asyncio
+    async def test_content_raises(self, module, mock_page):
+        mock_page.evaluate = AsyncMock(return_value=None)
+        mock_page.content = AsyncMock(side_effect=Exception("DOM error"))
+        result = await module.detect_site_key(mock_page)
+        assert result is None
+
+
+# ── Download PDF — fallback click error ────────────────────────────────────
+
+class TestDownloadPDFFallbackError:
+    """Lines 511-513: fallback click lanza → continue."""
+
+    @pytest.mark.asyncio
+    async def test_fallback_click_exception(self, module, mock_page):
+        mock_loc = MagicMock()
+        mock_loc.count = AsyncMock(return_value=0)
+        mock_page.locator.side_effect = lambda sel: mock_loc
+        # Fallback links: visible but click fails
+        link = MagicMock()
+        link.is_visible = AsyncMock(return_value=True)
+        link.text_content = AsyncMock(return_value="descargar")
+        link.get_attribute = MagicMock(side_effect=lambda name: {
+            "href": "/file.pdf", "onclick": ""
+        }.get(name, ""))
+        link.click = AsyncMock(side_effect=Exception("click fail"))
+        mock_page.query_selector_all = AsyncMock(return_value=[link])
+        mock_page.expect_download.return_value.__aenter__ = AsyncMock()
+        mock_page.expect_download.return_value.__aexit__ = AsyncMock()
+        with patch.object(module, "debug"):
+            result = await module.download_pdf(mock_page, ["#btn"], Path("out.pdf"))
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_fallback_link_not_visible(self, module, mock_page):
+        """511-513: link no visible → continue al próximo."""
+        mock_page.locator.side_effect = lambda sel: _make_mock_locator(count=0)
+        link = MagicMock()
+        link.is_visible = AsyncMock(return_value=False)
+        link.text_content = AsyncMock(return_value="pdf")
+        mock_page.query_selector_all = AsyncMock(return_value=[link])
+        result = await module.download_pdf(mock_page, ["#btn"], Path("out.pdf"))
+        assert result is None
+
+
+# ── Open PDF — headless early return ───────────────────────────────────────
+
+class TestOpenPDFHeadless:
+    """Lines 523-524: HEADLESS=true → early return."""
+
+    def test_headless_early_return(self, module):
+        with patch("src.tramites.base.HEADLESS", True):
+            with patch.object(module, "debug") as mock_debug:
+                module.open_pdf(Path("test.pdf"))
+        mock_debug.assert_called_once()

@@ -1,5 +1,6 @@
 """Tests para src/tramites/orchestrator.py — orquestador de trámites."""
 
+import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -395,3 +396,228 @@ class TestModoInteractivo:
             with patch.object(orchestrator_multimodal, "ejecutar_tramite", mock_et):
                 orchestrator_multimodal.modo_interactivo_sync()
         mock_et.assert_any_call("curp", "image")
+
+
+# ── _get_module — import bajo demanda y cache ───────────────────────────────
+
+class TestGetModule:
+    """_get_module — import dinámico y caching (lines 92-104)."""
+
+    def test_cache_hit(self, orchestrator):
+        """Cuando ya está en _modules, retorna sin importar."""
+        mod = orchestrator._get_module("curp")
+        assert mod is orchestrator._modules["curp"]
+
+    def test_importa_y_cachea(self):
+        """Importa bajo demanda y guarda en _modules."""
+        from src.tramites.orchestrator import TramitesOrchestrator
+        with patch("src.tramites.orchestrator.MULTIMODAL_AVAILABLE", False):
+            orch = TramitesOrchestrator()
+        orch._modules = {}
+
+        with patch("importlib.import_module") as mock_import:
+            mock_mod = MagicMock()
+            mock_mod.CURPModule = MagicMock(
+                return_value=_make_mock_module())
+            mock_import.return_value = mock_mod
+
+            mod = orch._get_module("curp")
+            assert mod is not None
+            assert "curp" in orch._modules
+            assert orch._modules["curp"] is mod
+            mock_import.assert_called_once_with("modules.curp")
+            mock_mod.CURPModule.assert_called_once()
+
+    def test_importa_nss_con_mail_reader(self):
+        """_get_module('nss') pasa mail_reader en kwargs."""
+        from src.tramites.orchestrator import TramitesOrchestrator
+        with patch("src.tramites.orchestrator.MULTIMODAL_AVAILABLE", False):
+            orch = TramitesOrchestrator()
+        orch._mail_reader = MagicMock()
+        orch._modules = {}
+
+        with patch("importlib.import_module") as mock_import:
+            mock_mod = MagicMock()
+            mock_mod.NSSModule = MagicMock()
+            mock_import.return_value = mock_mod
+
+            orch._get_module("nss")
+            _, kwargs = mock_mod.NSSModule.call_args
+            assert kwargs.get("mail_reader") is orch._mail_reader
+
+    def test_cache_evita_segundo_import(self, orchestrator):
+        """Segunda llamada al mismo trámite usa cache."""
+        with patch("importlib.import_module") as mock_import:
+            mod1 = orchestrator._get_module("curp")
+            mod2 = orchestrator._get_module("curp")
+            assert mod1 is mod2
+            mock_import.assert_not_called()  # cache hit, no import
+
+
+# ── Trámites migrados — ejecutar_tramite + _ejecutar_* ─────────────────────
+
+class TestEjecutarMigrados:
+    """ejecutar_tramite + _ejecutar_* para rfc, acta, pasaporte, etc."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("tipo, inputs", [
+        ("rfc",             ["CURP123456HDF", "", "", ""]),
+        ("acta_nacimiento",  ["CURP123456HDF"]),
+        ("pasaporte",        ["CURP123456HDF", "", "", "", "MEX", "", ""]),
+        ("semanas",          ["CURP123456HDF", ""]),
+        ("control_confianza", ["CURP", "", "", "", ""]),
+        ("buro",             ["RFC", "CURP", "", "", "", ""]),
+        ("circulo",          ["RFC", "CURP", "", "", "", ""]),
+        ("cita_ine",         ["CURP123456HDF", ""]),
+        ("cita_sat",         ["RFC", "", ""]),
+    ])
+    async def test_ejecutar(self, orchestrator, tipo, inputs):
+        with patch("builtins.input", side_effect=inputs):
+            result = await orchestrator.ejecutar_tramite(tipo)
+        assert result == {"status": "ok"}
+
+    # ── Multimodal path (solo los que lo soportan) ──────────────────────
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("tipo, inputs", [
+        ("rfc",             ["", "", ""]),            # input para nombre/apellidos
+        ("acta_nacimiento",  []),
+        ("pasaporte",        ["", "", "", "MEX", "", ""]),
+        ("semanas",          [""]),
+        ("cita_ine",         [""]),
+    ])
+    async def test_ejecutar_con_multimodal(self, orchestrator_multimodal, tipo, inputs):
+        """Test con multimodal disponible (solo trámites que lo usan)."""
+        mock_mod = _make_mock_module()
+        orchestrator_multimodal._modules[tipo] = mock_mod
+        with patch("builtins.input", side_effect=inputs):
+            result = await orchestrator_multimodal.ejecutar_tramite(tipo)
+        assert result == {"status": "ok"}
+
+
+# ── Menu interactivo — opciones 6-16 ────────────────────────────────────────
+
+class TestMenuMigrados:
+    """Options 6-16 en modo_interactivo."""
+
+    @pytest.mark.parametrize("opcion, tramite", [
+        ("6", "rfc"),
+        ("7", "acta_nacimiento"),
+        ("8", "pasaporte"),
+        ("9", "semanas"),
+        ("10", "control_confianza"),
+        ("11", "buro"),
+        ("12", "circulo"),
+        ("13", "cita_ine"),
+        ("14", "cita_sat"),
+    ])
+    def test_menu_migrados(self, orchestrator, opcion, tramite):
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=[opcion, "0"]):
+            with patch.object(orchestrator, "ejecutar_tramite", mock_et):
+                orchestrator.modo_interactivo_sync()
+        mock_et.assert_any_call(tramite, "text")
+
+    def test_menu_cv(self, orchestrator):
+        """Option 15 → generar_cv_interactivo."""
+        with patch.object(orchestrator, "generar_cv_interactivo", AsyncMock()) as mock_cv:
+            with patch("builtins.input", side_effect=["15", "0"]):
+                orchestrator.modo_interactivo_sync()
+        mock_cv.assert_called_once()
+
+    def test_menu_escrito(self, orchestrator):
+        """Option 16 → generar_escrito_interactivo."""
+        with patch.object(orchestrator, "generar_escrito_interactivo", AsyncMock()) as mock_esc:
+            with patch("builtins.input", side_effect=["16", "0"]):
+                orchestrator.modo_interactivo_sync()
+        mock_esc.assert_called_once()
+
+
+# ── Modalidad multimodal sin voz/OCR ────────────────────────────────────────
+
+class TestModoInteractivoMultimodalIncompleto:
+    """Lines 421-423: multimodal sin voice/ocr."""
+
+    def test_sin_voz_falla_a_texto(self):
+        """Multimodal disponible pero voice=None → opción 2 cae a modo=text."""
+        from src.tramites.orchestrator import TramitesOrchestrator
+        mm = MagicMock()
+        mm.voice = None
+        mm.ocr = True
+        with patch("src.tramites.orchestrator.MultimodalInput", return_value=mm):
+            with patch("src.tramites.orchestrator.MULTIMODAL_AVAILABLE", True):
+                orch = TramitesOrchestrator()
+        orch._modules = {"curp": _make_mock_module()}
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=["1", "2", "0"]):
+            with patch.object(orch, "ejecutar_tramite", mock_et):
+                orch.modo_interactivo_sync()
+        mock_et.assert_any_call("curp", "text")
+
+    def test_sin_ocr_falla_a_texto(self):
+        """Multimodal disponible pero ocr=None → opción 3 cae a modo=text."""
+        from src.tramites.orchestrator import TramitesOrchestrator
+        mm = MagicMock()
+        mm.voice = True
+        mm.ocr = None
+        with patch("src.tramites.orchestrator.MultimodalInput", return_value=mm):
+            with patch("src.tramites.orchestrator.MULTIMODAL_AVAILABLE", True):
+                orch = TramitesOrchestrator()
+        orch._modules = {"curp": _make_mock_module()}
+        mock_et = AsyncMock(return_value={"status": "ok"})
+        with patch("builtins.input", side_effect=["1", "3", "0"]):
+            with patch.object(orch, "ejecutar_tramite", mock_et):
+                orch.modo_interactivo_sync()
+        mock_et.assert_any_call("curp", "text")
+
+
+# ── Generadores de documentos ──────────────────────────────────────────────
+
+class _ImportFailModule:
+    """Simula un módulo cuyo import falla (para except ImportError)."""
+    def __getattr__(self, name):
+        raise ImportError(f"No module named {name}")
+
+
+class TestGenerarDocumentos:
+    """generar_cv_interactivo y generar_escrito_interactivo."""
+
+    @pytest.mark.asyncio
+    async def test_cv_disponible(self, orchestrator):
+        with patch("src.tramites.documentos.CVGenerator") as mock_cv_cls:
+            mock_cv_cls.return_value.generar_interactivo.return_value = {"status": "ok"}
+            result = await orchestrator.generar_cv_interactivo()
+        assert result == {"status": "ok"}
+
+    @pytest.mark.asyncio
+    async def test_cv_no_disponible(self, orchestrator):
+        old_mod = sys.modules.pop("src.tramites.documentos", None)
+        sys.modules["src.tramites.documentos"] = _ImportFailModule()
+        try:
+            result = await orchestrator.generar_cv_interactivo()
+            assert result["status"] == "error"
+            assert "python-docx" in result.get("error", "")
+        finally:
+            sys.modules.pop("src.tramites.documentos", None)
+            if old_mod is not None:
+                sys.modules["src.tramites.documentos"] = old_mod
+
+    @pytest.mark.asyncio
+    async def test_escrito_disponible(self, orchestrator):
+        with patch("src.tramites.documentos.EscritoGenerator") as mock_esc_cls:
+            mock_esc_cls.return_value.generar_interactivo.return_value = {"status": "ok"}
+            result = await orchestrator.generar_escrito_interactivo()
+        assert result == {"status": "ok"}
+
+    @pytest.mark.asyncio
+    async def test_escrito_no_disponible(self, orchestrator):
+        old_mod = sys.modules.pop("src.tramites.documentos", None)
+        sys.modules["src.tramites.documentos"] = _ImportFailModule()
+        try:
+            result = await orchestrator.generar_escrito_interactivo()
+            assert result["status"] == "error"
+            assert "python-docx" in result.get("error", "")
+        finally:
+            sys.modules.pop("src.tramites.documentos", None)
+            if old_mod is not None:
+                sys.modules["src.tramites.documentos"] = old_mod

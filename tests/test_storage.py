@@ -1,8 +1,13 @@
 """Tests unitarios para utils/storage.py — encriptacion y perfiles."""
 
+import base64
+import hashlib
+import json
 import os
+from unittest.mock import patch
 
 import pytest
+from cryptography.fernet import Fernet
 
 # Se necesita en collection por los imports internos de storage.py
 os.environ["STORAGE_KEY"] = "test-key-32-chars-for-aes!xx"
@@ -10,11 +15,15 @@ os.environ["STORAGE_KEY"] = "test-key-32-chars-for-aes!xx"
 from src.exceptions import StorageError  # noqa: E402
 from src.utils.storage import (  # noqa: E402
     DATA_FILE,
+    SALT_FILE,
     _get_cipher,
+    _get_salt,
+    _load_all,
     _save_all,  # noqa: E402
     list_profiles,
     load_profile,
     save_profile,
+    storage_migrate_salt,
 )
 
 
@@ -167,3 +176,78 @@ class TestStorage:
         # Debe retornar None graceful, no crashear
         result = load_profile("_test_tamper")
         assert result is None
+
+
+# ── _get_salt ──────────────────────────────────────────────────────────────────
+
+class TestGetSalt:
+    """_get_salt() — generación de salt persistente (líneas 37-50)."""
+
+    def test_creates_new_salt_when_missing(self):
+        """Lines 47-50: genera y persiste salt de 16 bytes si no existe."""
+        if SALT_FILE.exists():
+            SALT_FILE.unlink()
+        salt = _get_salt()
+        assert SALT_FILE.exists()
+        assert len(salt) == 16
+
+    def test_returns_existing_salt(self):
+        """Lines 45-46: retorna el salt existente."""
+        assert SALT_FILE.exists()
+        salt = _get_salt()
+        assert len(salt) == 16
+
+
+# ── storage_migrate_salt ───────────────────────────────────────────────────────
+
+class TestStorageMigrateSalt:
+    """storage_migrate_salt() — migración de salt legacy (líneas 160-191)."""
+
+    @patch("src.utils.storage.os.getenv")
+    def test_errors_without_storage_key(self, mock_getenv):
+        """Line 167-168: levanta StorageError sin STORAGE_KEY."""
+        mock_getenv.return_value = None
+        with pytest.raises(StorageError, match="STORAGE_KEY no configurada"):
+            storage_migrate_salt()
+
+    def test_noop_when_data_file_missing(self):
+        """Lines 176-177: retorna si no hay DATA_FILE."""
+        if DATA_FILE.exists():
+            DATA_FILE.unlink()
+        if SALT_FILE.exists():
+            SALT_FILE.unlink()
+        storage_migrate_salt()  # No debe levantar excepción
+
+    def test_noop_on_already_migrated(self):
+        """Line 183-184: segunda llamada es no-op (InvalidToken catch)."""
+        save_profile("_test_mig", {"curp": "MIG"})
+        storage_migrate_salt()  # 1ra — migra (o es no-op si ya nuevo)
+        storage_migrate_salt()  # 2da — catch InvalidToken → return
+
+    def test_migrates_old_format(self):
+        """Lines 170-191: migra datos cifrados con salt hardcodeado.
+        
+        NO elimina SALT_FILE antes — así cubre la línea 189
+        (SALT_FILE.unlink() dentro de storage_migrate_salt).
+        """
+        # Crear datos con el salt VIEJO (b"fernet-key-salt", PBKDF2)
+        raw_key = os.environ["STORAGE_KEY"]
+        old_salt = b"fernet-key-salt"
+        old_stretched = hashlib.pbkdf2_hmac("sha256", raw_key.encode(), old_salt, 600_000)
+        old_cipher = Fernet(base64.urlsafe_b64encode(old_stretched))
+
+        # Dejar SALT_FILE existente (lo creó clean_data) para cubrir línea 189
+        DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+        old_data = json.dumps(
+            {"test_mig_profile": {"curp": "OLD"}}, ensure_ascii=False, indent=2
+        ).encode()
+        encrypted = old_cipher.encrypt(old_data)
+        DATA_FILE.write_bytes(encrypted)
+
+        # Migrar — SALT_FILE existe, pasa por línea 189
+        storage_migrate_salt()
+
+        # Verificar que los datos se leen con el nuevo salt
+        data = _load_all()
+        assert "test_mig_profile" in data
+        assert data["test_mig_profile"]["curp"] == "OLD"

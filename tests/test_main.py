@@ -11,8 +11,9 @@ import pytest
 
 @pytest.fixture(autouse=True)
 def _no_dotenv():
-    """Evita que load_dotenv cargue config.env desde disco en todos los tests."""
-    with patch("dotenv.load_dotenv"):
+    """Evita side-effects externos: load_dotenv + keyring/init_secrets."""
+    with patch("dotenv.load_dotenv"), \
+         patch("src.utils.secrets_manager.KEYRING_AVAILABLE", False):
         yield
 
 

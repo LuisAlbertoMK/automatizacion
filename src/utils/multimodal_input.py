@@ -170,6 +170,9 @@ class MultimodalInput:
             # Aquí iría la captura de imagen
             raise NotImplementedError("Captura de imagen en desarrollo")
 
+        else:
+            raise ValueError(f"Modo inválido: {mode}")
+
     # ──────────────────────────────────────────────────────────────
     # Métodos internos por modo
     # ──────────────────────────────────────────────────────────────

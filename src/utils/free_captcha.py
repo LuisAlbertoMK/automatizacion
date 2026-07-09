@@ -138,7 +138,7 @@ class FreeCaptchaSolver:
         print(f"  [FreeCaptcha] CAPTCHA resuelto: {text}")
         return text
 
-    def _ocr_with_preprocess(self, img: Image.Image, numeric: bool) -> str:
+    def _ocr_with_preprocess(self, img: "Image.Image", numeric: bool) -> str:
         """Preprocesa la imagen y aplica OCR."""
         import pytesseract
         from PIL import Image

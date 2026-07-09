@@ -139,7 +139,7 @@ class VoiceInput:
             try:
                 os.remove(audio_path)
             except Exception:
-                logger.debug("Error cargando modelo Whisper")
+                pass  # cleanup no crítico
 
             return texto
 

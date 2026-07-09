@@ -13,7 +13,7 @@ import hashlib
 import io
 import os
 import re
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import pytesseract
 from PIL import Image, ImageEnhance, ImageFilter
@@ -28,10 +28,14 @@ TESSERACT_PATHS = [
     r"C:\Users\Public\Tesseract-OCR\tesseract.exe",
 ]
 
+_tesseract_found = False
 for path in TESSERACT_PATHS:
     if os.path.exists(path):
         pytesseract.pytesseract.tesseract_cmd = path
+        _tesseract_found = True
         break
+
+OCR_AVAILABLE = _tesseract_found
 
 
 class OCRExtractor:
@@ -285,7 +289,7 @@ class OCRExtractor:
         match = re.search(pattern, text)
         return match.group(1) if match else None
 
-    def extract_all_data(self, text: str) -> Dict[str, any]:
+    def extract_all_data(self, text: str) -> Dict[str, Any]:
         """
         Extrae todos los datos posibles del texto.
         
@@ -305,7 +309,7 @@ class OCRExtractor:
             "raw_text": text,
         }
 
-    def extract_from_screenshot(self, screenshot_path: str) -> Dict[str, any]:
+    def extract_from_screenshot(self, screenshot_path: str) -> Dict[str, Any]:
         """
         Extrae datos de un screenshot de página web.
         

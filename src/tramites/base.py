@@ -51,24 +51,24 @@ class BrowserResources:
             try:
                 await self._context.close()
             except Exception:
-                self.debug("OCR no disponible")
+                print("[BrowserResources] Error al cerrar context")
             self._context = None
 
         if self._pool:
             try:
                 await self._pool.release(self.browser)
             except Exception:
-                self.debug("CaptchaSolver no disponible")
+                print("[BrowserResources] Error al liberar browser al pool")
         else:
             try:
                 await self.browser.close()
             except Exception:
-                self.debug("Cliente IMAP no disponible")
+                print("[BrowserResources] Error al cerrar browser")
             if self._playwright:
                 try:
                     await self._playwright.__aexit__(None, None, None)
                 except Exception:
-                    self.debug("Whisper no disponible")
+                    print("[BrowserResources] Error al cerrar Playwright")
 
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "./output"))
 TIMEOUT = int(os.getenv("TIMEOUT", "60")) * 1000
@@ -555,7 +555,7 @@ class BaseModule:
                 await page.screenshot(path=path)
                 self.debug(f"Screenshot: {path}")
             except Exception:
-                logger.debug("Error cerrando browser en close_all")
+                self.debug("Error tomando screenshot de debug")
 
     # ── Logging estructurado ─────────────────────────────────────
     def log(self, msg: str):
