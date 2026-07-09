@@ -24,7 +24,7 @@
 | **F2.5** API keys en logs | `7d81bec`, `85bfe62` | Ya no se muestran keys parciales |
 | **F2.6** Validación inputs | `b60e7d8` | `validators.py` con CURP, RFC, email, NSS |
 
-### FASE 3: RENDIMIENTO — ✅ 8/10
+### FASE 3: RENDIMIENTO — ✅ 9/10
 | Item | Commit | Cambio |
 |------|--------|--------|
 | **F3.1** Browser pool | `6af8cd8` | `BrowserPool` con asyncio.Queue (2-3 browsers) |
@@ -57,13 +57,14 @@
 
 ~~F3.9 — wait_for_timeout(2000) optimizado — ✅ DONE~~
 
-### F3.10 — Ensemble CNN paralelo
+### F3.10 — Ensemble CNN paralelo — ✅ DONE
 **Impacto:** BAJO | **Esfuerzo:** ~1d | **Riesgo:** BAJO
 
-**Problema:** Ensemble de modelos CNN itera secuencialmente.
+**Problema:** Ensemble de modelos CNN iteraba secuencialmente.
 
-**Archivos a tocar:** `captcha_solver_imss/cnn_solver/solver_v2.py`
-- Usar `ThreadPoolExecutor` para 3 modelos en paralelo
+**Archivo tocado:** `captcha_solver_imss/cnn_solver/solver_v2.py`
+- `ThreadPoolExecutor` para 3 modelos en paralelo (commit `b979891`)
+- Speedup ~2-3x en CPU (PyTorch suelta GIL durante model())
 
 ### F5.3 — mypy en CI — ✅ DONE
 
@@ -103,11 +104,10 @@ Config en `pyproject.toml` + step en CI (`mypy src/ || true`, continue-on-error)
 |------|-------|-------|-----------|
 | F1: Higiene | 3 | 3 | 0 |
 | F2: Seguridad | 6 | 6 | **0** ✅ |
-| F3: Rendimiento | 10 | 9 | **1** (F3.10 ensemble) |
+| F3: Rendimiento | 10 | 10 | **0** ✅ |
 | F4: Arquitectura | 4 | 4 | 0 |
 | F5: Testing | 6 | 6 | **0** ✅ |
 | F6: Playwright | 1 | 1 | 0 |
-| **TOTAL** | **30** | **29** | **1** |
+| **TOTAL** | **30** | **30** | **0** 🎉 |
 
-### Prioridad sugerida — solo queda
-1. 🥇 **F3.10** — Ensemble CNN paralelo (~1d)
+### Estado — 🎯 30/30 COMPLETADO
