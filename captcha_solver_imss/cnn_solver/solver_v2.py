@@ -10,6 +10,7 @@ Características:
   - Auto-selección del mejor modelo disponible
 """
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import TYPE_CHECKING, List, Optional
 
@@ -208,6 +209,22 @@ class CNNSolverV2:
     def is_loaded(self) -> bool:
         return self._loaded and len(self.models) > 0
 
+    # ── Ensemble helpers ───────────────────────────────────────
+
+    def _ensemble_infer(self, model, batch_t):
+        """Run single model inference — designed for thread pool dispatch.
+
+        Args:
+            model: PyTorch model in eval mode
+            batch_t: Pre-processed batch tensor on self.device
+
+        Returns:
+            Softmax probability tensor (batch_size × n_classes)
+        """
+        with self.torch.no_grad():
+            outputs = model(batch_t)
+            return self.F.softmax(outputs, dim=1)
+
     # ── Solve ─────────────────────────────────────────────────
 
     def solve(self, img: np.ndarray) -> dict:
@@ -251,15 +268,16 @@ class CNNSolverV2:
                 confs, preds = probs.max(1)
             engine = "CNNv2"
         else:
-            # Ensemble: average probabilities across models
+            # Ensemble: average probabilities across models in PARALLEL
+            # ThreadPoolExecutor funciona porque PyTorch suelta el GIL
+            # durante model() en CPU. Para CUDA los kernels se serializan
+            # por el default stream, pero el overhead de threads es mínimo.
             batch_t = self.torch.from_numpy(batch).to(self.device)
-            sum_probs = None
-            for model in self.models:
-                with self.torch.no_grad():
-                    outputs = model(batch_t)
-                    probs = self.F.softmax(outputs, dim=1)
-                    sum_probs = probs if sum_probs is None else sum_probs + probs
-            avg_probs = sum_probs / len(self.models)
+            with ThreadPoolExecutor(max_workers=len(self.models)) as pool:
+                futures = [pool.submit(self._ensemble_infer, m, batch_t)
+                           for m in self.models]
+                probs_list = [f.result() for f in as_completed(futures)]
+            avg_probs = sum(probs_list) / len(self.models)
             confs, preds = avg_probs.max(1)
             engine = f"CNNv2(ensemble={len(self.models)})"
 
