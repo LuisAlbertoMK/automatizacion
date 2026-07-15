@@ -33,6 +33,7 @@ SECRET_KEYS = [
     "IMAP_PASSWORD",
     "STORAGE_KEY",
     "ANTHROPIC_API_KEY",
+    "WEB_PASSWORD",
 ]
 
 
