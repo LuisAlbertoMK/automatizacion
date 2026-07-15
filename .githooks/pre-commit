@@ -78,7 +78,7 @@ if [ -n "$PY_FILES" ]; then
     # Show the staged content to ruff via stdin (not the working tree)
     FAILED_ANY=0
     for f in $PY_FILES; do
-        if git show :"$f" 2>/dev/null | python -m ruff check --stdin-filename "$f" - 2>&1; then
+        if git show :"$f" 2>/dev/null | py -m ruff check --stdin-filename "$f" - 2>&1; then
             :
         else
             FAILED_ANY=1
@@ -99,7 +99,7 @@ fi
 # ═══════════════════════════════════════════════════════════════
 if [ -n "$PY_FILES" ]; then
     echo -e "${YELLOW}[pre-commit] 5/5 🧪 Quick pytest (tests/)...${NC}"
-    if python -m pytest tests/ -q --tb=line -x 2>&1; then
+    if py -m pytest tests/ -q --tb=line -x 2>&1; then
         echo -e "${GREEN}[pre-commit] ✅ Tests OK${NC}"
     else
         echo -e "${RED}[pre-commit] ❌ Tests fallaron. Corregí antes de commitear.${NC}"

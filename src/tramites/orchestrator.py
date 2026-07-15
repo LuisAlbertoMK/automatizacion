@@ -1,16 +1,17 @@
 """
-modules/orchestrator.py
+tramites/orchestrator.py
 Orquestador de trámites con entrada multimodal
 
 Funcionalidades:
   - Ejecuta trámites con entrada por texto, voz o imagen
   - Gestiona flujos completos de múltiples trámites
   - Interfaz unificada para todos los módulos
+  - Schema declarativo para recolección de inputs
 """
 
 import asyncio
 import importlib
-from typing import Literal
+from typing import Any, Literal
 
 try:
     from src.utils.multimodal_input import MultimodalInput
@@ -50,23 +51,152 @@ def listar_tramites() -> dict:
     return dict(TRAMITES_REGISTRADOS)
 
 
+# ── Declarative Input Schemas ────────────────────────────────────────────────
+# Each schema defines the inputs a trámite needs. The orchestrator collects them
+# generically — no more _ejecutar_* boilerplate per trámite.
+#
+# Field keys:
+#   name       – kwarg name passed to module.consultar()
+#   prompt     – text shown to user in text mode
+#   type       – input type: "curp", "email", "rfc", "text", "placa"
+#   required   – if True, empty input is rejected
+#   default    – fallback value (makes field optional)
+#   multimodal – MultimodalInput method name for voice/image mode
+#   transform  – optional callable to post-process the raw string
+
+InputField = dict[str, Any]
+
+_TRAMITE_SCHEMAS: dict[str, list[InputField]] = {
+    "curp": [
+        {"name": "curp", "prompt": "CURP (18 caracteres)", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+    ],
+    "nss": [
+        {"name": "curp", "prompt": "CURP", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+        {"name": "correo", "prompt": "Correo electrónico", "type": "email",
+         "required": True, "multimodal": "get_email"},
+    ],
+    "ambos": [
+        {"name": "curp", "prompt": "CURP", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+        {"name": "correo", "prompt": "Correo electrónico", "type": "email",
+         "required": True, "multimodal": "get_email"},
+    ],
+    "rfc": [
+        {"name": "curp", "prompt": "CURP (18 caracteres)", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+        {"name": "nombre", "prompt": "Nombre (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "apellido_paterno", "prompt": "Apellido paterno (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "apellido_materno", "prompt": "Apellido materno (opcional)", "type": "text",
+         "required": False, "default": ""},
+    ],
+    "acta_nacimiento": [
+        {"name": "curp", "prompt": "CURP (18 caracteres)", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+    ],
+    "pasaporte": [
+        {"name": "curp", "prompt": "CURP (18 caracteres)", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+        {"name": "nombre", "prompt": "Nombre (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "apellido_paterno", "prompt": "Apellido paterno (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "apellido_materno", "prompt": "Apellido materno (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "estado", "prompt": "Estado/delegación (default MEX)", "type": "text",
+         "required": False, "default": "MEX"},
+        {"name": "telefono", "prompt": "Teléfono (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "email", "prompt": "Email (opcional)", "type": "email",
+         "required": False, "default": ""},
+    ],
+    "semanas": [
+        {"name": "curp", "prompt": "CURP (18 caracteres)", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+        {"name": "nss", "prompt": "NSS (si lo tenés, opcional)", "type": "text",
+         "required": False, "default": ""},
+    ],
+    "control_confianza": [
+        {"name": "curp", "prompt": "CURP (18 caracteres)", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+        {"name": "rfc", "prompt": "RFC (opcional)", "type": "rfc",
+         "required": False, "default": ""},
+        {"name": "nombre", "prompt": "Nombre completo", "type": "text",
+         "required": False, "default": ""},
+        {"name": "fecha_nacimiento", "prompt": "Fecha de nacimiento (DD/MM/YYYY)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "estado_nacimiento", "prompt": "Estado de nacimiento", "type": "text",
+         "required": False, "default": ""},
+    ],
+    "buro": [
+        {"name": "rfc", "prompt": "RFC", "type": "rfc",
+         "required": True, "multimodal": "get_rfc"},
+        {"name": "curp", "prompt": "CURP", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+        {"name": "nombre", "prompt": "Nombre (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "apellido_paterno", "prompt": "Apellido paterno (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "apellido_materno", "prompt": "Apellido materno (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "fecha_nacimiento", "prompt": "Fecha de nacimiento (DD/MM/YYYY, opcional)", "type": "text",
+         "required": False, "default": ""},
+    ],
+    "circulo": [
+        {"name": "rfc", "prompt": "RFC", "type": "rfc",
+         "required": True, "multimodal": "get_rfc"},
+        {"name": "curp", "prompt": "CURP", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+        {"name": "nombre", "prompt": "Nombre (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "apellido_paterno", "prompt": "Apellido paterno (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "apellido_materno", "prompt": "Apellido materno (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "fecha_nacimiento", "prompt": "Fecha de nacimiento (DD/MM/YYYY, opcional)", "type": "text",
+         "required": False, "default": ""},
+    ],
+    "cita_ine": [
+        {"name": "curp", "prompt": "CURP (18 caracteres)", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+        {"name": "nombre", "prompt": "Nombre (opcional)", "type": "text",
+         "required": False, "default": ""},
+    ],
+    "cita_sat": [
+        {"name": "rfc", "prompt": "RFC", "type": "rfc",
+         "required": True, "multimodal": "get_rfc"},
+        {"name": "curp", "prompt": "CURP (opcional)", "type": "curp",
+         "required": False, "default": ""},
+        {"name": "email", "prompt": "Email (opcional)", "type": "email",
+         "required": False, "default": ""},
+    ],
+}
+
+# Trámites with special input logic (conditional prompts, extra steps).
+# These keep their custom _ejecutar_* methods.
+_SCHEMA_BASED = set(_TRAMITE_SCHEMAS.keys()) - {"antecedentes", "tenencia", "ambos"}
+
+
 class TramitesOrchestrator:
     """Orquestador de trámites gubernamentales con entrada multimodal."""
 
     _MODULE_REGISTRY = {
-        "curp":              ("modules.curp", "CURPModule"),
-        "nss":               ("modules.nss", "NSSModule"),
-        "antecedentes":      ("modules.antecedentes", "AntecedentesModule"),
-        "tenencia":          ("modules.tenencia", "TenenciaModule"),
-        "rfc":               ("modules.rfc", "RFCModule"),
-        "acta_nacimiento":   ("modules.acta_nacimiento", "ActaNacimientoModule"),
-        "pasaporte":         ("modules.pasaporte", "PasaporteModule"),
-        "semanas":           ("modules.semanas", "SemanasModule"),
-        "control_confianza": ("modules.control_confianza", "ControlConfianzaModule"),
-        "buro":              ("modules.buro", "BuroModule"),
-        "circulo":           ("modules.circulo", "CirculoModule"),
-        "cita_ine":          ("modules.cita_ine", "CitaINEModule"),
-        "cita_sat":          ("modules.cita_sat", "CitaSATModule"),
+        "curp":              ("src.tramites.curp", "CURPModule"),
+        "nss":               ("src.tramites.nss", "NSSModule"),
+        "antecedentes":      ("src.tramites.antecedentes", "AntecedentesModule"),
+        "tenencia":          ("src.tramites.tenencia", "TenenciaModule"),
+        "rfc":               ("src.tramites.rfc", "RFCModule"),
+        "acta_nacimiento":   ("src.tramites.acta_nacimiento", "ActaNacimientoModule"),
+        "pasaporte":         ("src.tramites.pasaporte", "PasaporteModule"),
+        "semanas":           ("src.tramites.semanas", "SemanasModule"),
+        "control_confianza": ("src.tramites.control_confianza", "ControlConfianzaModule"),
+        "buro":              ("src.tramites.buro", "BuroModule"),
+        "circulo":           ("src.tramites.circulo", "CirculoModule"),
+        "cita_ine":          ("src.tramites.cita_ine", "CitaINEModule"),
+        "cita_sat":          ("src.tramites.cita_sat", "CitaSATModule"),
     }
 
     def __init__(self, captcha_solver=None, mail_reader=None, voice_model="base"):
@@ -119,62 +249,94 @@ class TramitesOrchestrator:
         print(f"  Modo de entrada: {modo_entrada}")
         print(f"{'='*60}\n")
 
-        if tipo == "curp":
-            return await self._ejecutar_curp(modo_entrada)
+        # Schema-based trámites (generic input collection)
+        if tipo in _SCHEMA_BASED:
+            inputs = self._collect_inputs(tipo, modo_entrada)
+            return await self._get_module(tipo).consultar(**inputs)
 
-        elif tipo == "nss":
-            return await self._ejecutar_nss(modo_entrada)
-
-        elif tipo == "antecedentes":
+        # Special-case trámites (conditional prompts or composite)
+        if tipo == "ambos":
+            return await self._ejecutar_ambos(modo_entrada)
+        if tipo == "antecedentes":
             return await self._ejecutar_antecedentes(modo_entrada)
-
-        elif tipo == "tenencia":
+        if tipo == "tenencia":
             return await self._ejecutar_tenencia(modo_entrada)
 
-        elif tipo == "ambos":
-            return await self._ejecutar_ambos(modo_entrada)
+        raise ValueError(f"Tipo de trámite no soportado: {tipo}")
 
-        elif tipo == "rfc":
-            return await self._ejecutar_rfc(modo_entrada)
-        elif tipo == "acta_nacimiento":
-            return await self._ejecutar_acta(modo_entrada)
-        elif tipo == "pasaporte":
-            return await self._ejecutar_pasaporte(modo_entrada)
-        elif tipo == "semanas":
-            return await self._ejecutar_semanas(modo_entrada)
-        elif tipo == "control_confianza":
-            return await self._ejecutar_control_confianza(modo_entrada)
-        elif tipo == "buro":
-            return await self._ejecutar_buro(modo_entrada)
-        elif tipo == "circulo":
-            return await self._ejecutar_circulo(modo_entrada)
-        elif tipo == "cita_ine":
-            return await self._ejecutar_cita_ine(modo_entrada)
-        elif tipo == "cita_sat":
-            return await self._ejecutar_cita_sat(modo_entrada)
+    # ── Schema-based input collection ────────────────────────────────────────
 
-        else:
-            raise ValueError(f"Tipo de trámite no soportado: {tipo}")
+    def _collect_inputs(self, tipo: str, modo: InputMode) -> dict:
+        """Collects inputs generically from the trámite's schema."""
+        schema = _TRAMITE_SCHEMAS[tipo]
+        collected = {}
+        for field in schema:
+            value = self._collect_single_input(field, modo)
+            collected[field["name"]] = value
+        return collected
 
-    async def _ejecutar_curp(self, modo: InputMode) -> dict:
-        """Ejecuta trámite de CURP."""
-        if self.multimodal:
-            curp = self.multimodal.get_curp(mode=modo)
-        else:
-            curp = input("  CURP (18 caracteres): ").strip().upper()
+    def _collect_single_input(self, field: dict, modo: InputMode) -> str:
+        """Collects a single input, trying multimodal first, then text."""
+        prompt = field["prompt"]
+        required = field.get("required", False)
+        default = field.get("default", "")
+        multimodal_method = field.get("multimodal")
 
-        return await self._get_module("curp").consultar(curp=curp)
+        # Try multimodal source first
+        if self.multimodal and multimodal_method:
+            getter = getattr(self.multimodal, multimodal_method, None)
+            if getter:
+                value = getter(mode=modo)
+                if value:
+                    return value
 
-    async def _ejecutar_nss(self, modo: InputMode) -> dict:
-        """Ejecuta trámite de NSS."""
-        if self.multimodal:
-            curp = self.multimodal.get_curp(mode=modo)
-            correo = self.multimodal.get_email(mode=modo)
-        else:
-            curp = input("  CURP: ").strip().upper()
-            correo = input("  Correo electrónico: ").strip()
+        # Text input
+        raw = input(f"  {prompt}: ").strip()
+        if not raw:
+            if required and not default:
+                # Re-prompt for required fields
+                raw = input(f"  ⚠️  {prompt} (requerido): ").strip()
+            else:
+                return default
 
-        return await self._get_module("nss").consultar(curp=curp, correo=correo)
+        # Normalize based on type
+        field_type = field.get("type", "text")
+        if field_type in ("curp", "rfc"):
+            return raw.upper()
+        return raw
+
+    async def _ejecutar_ambos(self, modo: InputMode) -> dict:
+        """Ejecuta CURP + NSS en secuencia."""
+        print("\n  Ejecutando CURP + NSS...")
+
+        inputs = self._collect_inputs("nss", modo)
+        curp = inputs["curp"]
+        correo = inputs["correo"]
+
+        resultados = {}
+
+        # CURP
+        print("\n  [1/2] Ejecutando CURP...")
+        res_curp = await self._get_module("curp").consultar(curp=curp)
+        resultados["curp"] = res_curp
+
+        # NSS
+        print("\n  [2/2] Ejecutando NSS...")
+        res_nss = await self._get_module("nss").consultar(curp=curp, correo=correo)
+        resultados["nss"] = res_nss
+
+        # Resumen
+        from src.utils.pii import sanitize_curp, sanitize_nss
+        print(f"\n{'='*60}")
+        print("  RESUMEN FINAL")
+        print(f"{'='*60}")
+        print(f"  CURP:  {sanitize_curp(res_curp.get('curp', '—'))}")
+        print(f"  NSS:   {sanitize_nss(res_nss.get('nss', '—'))}")
+        if res_curp.get("pdf_path"):
+            print(f"  PDF CURP: {res_curp['pdf_path']}")
+        print(f"{'='*60}\n")
+
+        return resultados
 
     async def _ejecutar_antecedentes(self, modo: InputMode) -> dict:
         """Ejecuta trámite de Antecedentes No Penales."""
@@ -216,145 +378,6 @@ class TramitesOrchestrator:
             placa=placa,
             numero_serie=numero_serie
         )
-
-    async def _ejecutar_ambos(self, modo: InputMode) -> dict:
-        """Ejecuta CURP y NSS en secuencia."""
-        print("\n  Ejecutando CURP + NSS...")
-
-        if self.multimodal:
-            curp = self.multimodal.get_curp(mode=modo)
-            correo = self.multimodal.get_email(mode=modo)
-        else:
-            curp = input("  CURP: ").strip().upper()
-            correo = input("  Correo electrónico: ").strip()
-
-        resultados = {}
-
-        # CURP
-        print("\n  [1/2] Ejecutando CURP...")
-        res_curp = await self._get_module("curp").consultar(curp=curp)
-        resultados["curp"] = res_curp
-
-        # NSS
-        print("\n  [2/2] Ejecutando NSS...")
-        res_nss = await self._get_module("nss").consultar(curp=curp, correo=correo)
-        resultados["nss"] = res_nss
-
-        # Resumen
-        from src.utils.pii import sanitize_curp, sanitize_nss
-        print(f"\n{'='*60}")
-        print("  RESUMEN FINAL")
-        print(f"{'='*60}")
-        print(f"  CURP:  {sanitize_curp(res_curp.get('curp', '—'))}")
-        print(f"  NSS:   {sanitize_nss(res_nss.get('nss', '—'))}")
-        if res_curp.get("pdf_path"):
-            print(f"  PDF CURP: {res_curp['pdf_path']}")
-        print(f"{'='*60}\n")
-
-        return resultados
-
-    async def _ejecutar_rfc(self, modo: InputMode) -> dict:
-        """Ejecuta consulta de RFC."""
-        if self.multimodal:
-            curp = self.multimodal.get_curp(mode=modo)
-        else:
-            curp = input("  CURP (18 caracteres): ").strip().upper()
-        nombre = input("  Nombre (opcional): ").strip() or ""
-        ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
-        ap_mat = input("  Apellido materno (opcional): ").strip() or ""
-        return await self._get_module("rfc").consultar(
-            curp=curp, nombre=nombre, apellido_paterno=ap_pat, apellido_materno=ap_mat
-        )
-
-    async def _ejecutar_acta(self, modo: InputMode) -> dict:
-        """Ejecuta descarga de Acta de Nacimiento."""
-        if self.multimodal:
-            curp = self.multimodal.get_curp(mode=modo)
-        else:
-            curp = input("  CURP (18 caracteres): ").strip().upper()
-        return await self._get_module("acta_nacimiento").consultar(curp=curp)
-
-    async def _ejecutar_pasaporte(self, modo: InputMode) -> dict:
-        """Ejecuta cita de pasaporte."""
-        if self.multimodal:
-            curp = self.multimodal.get_curp(mode=modo)
-        else:
-            curp = input("  CURP (18 caracteres): ").strip().upper()
-        nombre = input("  Nombre (opcional): ").strip() or ""
-        ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
-        ap_mat = input("  Apellido materno (opcional): ").strip() or ""
-        estado = input("  Estado/delegación (default MEX): ").strip() or "MEX"
-        tel = input("  Teléfono (opcional): ").strip() or ""
-        email = input("  Email (opcional): ").strip() or ""
-        return await self._get_module("pasaporte").consultar(
-            curp=curp, nombre=nombre, apellido_paterno=ap_pat,
-            apellido_materno=ap_mat, estado=estado, telefono=tel, email=email
-        )
-
-    async def _ejecutar_semanas(self, modo: InputMode) -> dict:
-        """Ejecuta consulta de semanas cotizadas."""
-        if self.multimodal:
-            curp = self.multimodal.get_curp(mode=modo)
-        else:
-            curp = input("  CURP (18 caracteres): ").strip().upper()
-        nss = input("  NSS (si lo tenés, opcional): ").strip() or ""
-        return await self._get_module("semanas").consultar(curp=curp, nss=nss)
-
-    async def _ejecutar_control_confianza(self, modo: InputMode) -> dict:
-        """Ejecuta Control de Confianza."""
-        curp = input("  CURP (18 caracteres): ").strip().upper()
-        rfc = input("  RFC (opcional): ").strip() or ""
-        nombre = input("  Nombre completo: ").strip() or ""
-        fecha_nac = input("  Fecha de nacimiento (DD/MM/YYYY): ").strip() or ""
-        edo_nac = input("  Estado de nacimiento: ").strip() or ""
-        return await self._get_module("control_confianza").consultar(
-            curp=curp, rfc=rfc, nombre=nombre,
-            fecha_nacimiento=fecha_nac, estado_nacimiento=edo_nac
-        )
-
-    async def _ejecutar_buro(self, modo: InputMode) -> dict:
-        """Ejecuta consulta de Buró de Crédito."""
-        rfc = input("  RFC: ").strip().upper()
-        curp = input("  CURP: ").strip().upper()
-        nombre = input("  Nombre (opcional): ").strip() or ""
-        ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
-        ap_mat = input("  Apellido materno (opcional): ").strip() or ""
-        fecha = input("  Fecha de nacimiento (DD/MM/YYYY, opcional): ").strip() or ""
-        return await self._get_module("buro").consultar(
-            rfc=rfc, curp=curp, nombre=nombre,
-            apellido_paterno=ap_pat, apellido_materno=ap_mat,
-            fecha_nacimiento=fecha
-        )
-
-    async def _ejecutar_circulo(self, modo: InputMode) -> dict:
-        """Ejecuta consulta de Círculo de Crédito."""
-        rfc = input("  RFC: ").strip().upper()
-        curp = input("  CURP: ").strip().upper()
-        nombre = input("  Nombre (opcional): ").strip() or ""
-        ap_pat = input("  Apellido paterno (opcional): ").strip() or ""
-        ap_mat = input("  Apellido materno (opcional): ").strip() or ""
-        fecha = input("  Fecha de nacimiento (DD/MM/YYYY, opcional): ").strip() or ""
-        return await self._get_module("circulo").consultar(
-            rfc=rfc, curp=curp, nombre=nombre,
-            apellido_paterno=ap_pat, apellido_materno=ap_mat,
-            fecha_nacimiento=fecha
-        )
-
-    async def _ejecutar_cita_ine(self, modo: InputMode) -> dict:
-        """Ejecuta cita INE."""
-        if self.multimodal:
-            curp = self.multimodal.get_curp(mode=modo)
-        else:
-            curp = input("  CURP (18 caracteres): ").strip().upper()
-        nombre = input("  Nombre (opcional): ").strip() or ""
-        return await self._get_module("cita_ine").consultar(curp=curp, nombre=nombre)
-
-    async def _ejecutar_cita_sat(self, modo: InputMode) -> dict:
-        """Ejecuta cita SAT."""
-        rfc = input("  RFC: ").strip().upper()
-        curp = input("  CURP (opcional): ").strip().upper() or ""
-        email = input("  Email (opcional): ").strip() or ""
-        return await self._get_module("cita_sat").consultar(rfc=rfc, curp=curp, email=email)
 
     # ── Documentos ───────────────────────────────────────────────────────────
 

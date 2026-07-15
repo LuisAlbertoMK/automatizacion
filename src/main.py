@@ -13,7 +13,6 @@ Uso:
 import argparse
 import asyncio
 import os
-import re
 import signal
 import sys
 
@@ -559,102 +558,69 @@ async def modo_interactivo():
 
 
 async def modo_directo(args):
-    """Modo sin interacción para scripts y automatización."""
-    from src.tramites.acta_nacimiento import ActaNacimientoModule
-    from src.tramites.buro import BuroModule
-    from src.tramites.circulo import CirculoModule
-    from src.tramites.cita_ine import CitaINEModule
-    from src.tramites.cita_sat import CitaSATModule
-    from src.tramites.control_confianza import ControlConfianzaModule
-    from src.tramites.curp import CURPModule
-    from src.tramites.nss import NSSModule
-    from src.tramites.pasaporte import PasaporteModule
-    from src.tramites.rfc import RFCModule
-    from src.tramites.semanas import SemanasModule
+    """Modo sin interacción para scripts y automatización.
+
+    Usa el orchestrator para lazy loading de módulos — no importa todos
+    los módulos al startup (elimina duplicación con orchestrator.py).
+    """
+    from src.tramites.orchestrator import TramitesOrchestrator
 
     agente = Agente()
-    perfil = None
+    orchestrator = TramitesOrchestrator(
+        captcha_solver=agente.solver,
+        mail_reader=agente.mail_reader,
+    )
 
+    perfil = None
     if args.perfil:
         perfil = load_profile(args.perfil)
         if not perfil:
             print(f"Perfil '{args.perfil}' no encontrado.")
             sys.exit(1)
 
-    if args.tramite == "curp":
+    # Mapear args a kwargs del orchestrator
+    tramite = args.tramite
+    kwargs = {}
+
+    if tramite in ("curp", "acta_nacimiento", "pasaporte", "semanas",
+                    "control_confianza", "cita_ine"):
         curp = args.curp or (perfil and perfil.get("curp"))
         if not curp:
-            print("Error: se requiere --curp")
+            print(f"Error: se requiere --curp para {tramite}")
             sys.exit(1)
-        await CURPModule(captcha_solver=agente.solver).consultar(curp=curp)
+        kwargs["curp"] = curp
 
-    elif args.tramite == "nss":
-        curp   = args.curp   or (perfil and perfil.get("curp"))
+    elif tramite == "nss":
+        curp = args.curp or (perfil and perfil.get("curp"))
         correo = args.correo or (perfil and perfil.get("correo"))
         if not curp or not correo:
             print("Error: se requieren --curp y --correo")
             sys.exit(1)
-        mail_reader = agente.mail_reader
-        await NSSModule(captcha_solver=agente.solver, mail_reader=mail_reader).consultar(
-            curp=curp, correo=correo
-        )
+        kwargs["curp"] = curp
+        kwargs["correo"] = correo
 
-    elif args.tramite == "rfc":
+    elif tramite == "rfc":
         curp = args.curp or (perfil and perfil.get("curp"))
         if not curp:
             print("Error: se requiere --curp")
             sys.exit(1)
-        await RFCModule(captcha_solver=agente.solver).consultar(curp=curp)
+        kwargs["curp"] = curp
 
-    elif args.tramite == "acta_nacimiento":
-        curp = args.curp or (perfil and perfil.get("curp"))
-        if not curp:
-            print("Error: se requiere --curp")
-            sys.exit(1)
-        await ActaNacimientoModule(captcha_solver=agente.solver).consultar(curp=curp)
-
-    elif args.tramite == "pasaporte":
-        curp = args.curp or (perfil and perfil.get("curp"))
-        if not curp:
-            print("Error: se requiere --curp")
-            sys.exit(1)
-        await PasaporteModule(captcha_solver=agente.solver).consultar(curp=curp)
-
-    elif args.tramite == "semanas":
-        curp = args.curp or (perfil and perfil.get("curp"))
-        if not curp:
-            print("Error: se requiere --curp")
-            sys.exit(1)
-        await SemanasModule(captcha_solver=agente.solver).consultar(curp=curp)
-
-    elif args.tramite == "control_confianza":
-        curp = args.curp or (perfil and perfil.get("curp"))
-        if not curp:
-            print("Error: se requiere --curp")
-            sys.exit(1)
-        await ControlConfianzaModule(captcha_solver=agente.solver).consultar(curp=curp)
-
-    elif args.tramite == "buro":
+    elif tramite in ("buro", "circulo"):
         rfc = args.rfc or _type_rfc(input("RFC: "))
         curp = args.curp or _type_curp(input("CURP: "))
-        await BuroModule(captcha_solver=agente.solver).consultar(rfc=rfc, curp=curp)
+        kwargs["rfc"] = rfc
+        kwargs["curp"] = curp
 
-    elif args.tramite == "circulo":
-        rfc = args.rfc or _type_rfc(input("RFC: "))
-        curp = args.curp or _type_curp(input("CURP: "))
-        await CirculoModule(captcha_solver=agente.solver).consultar(rfc=rfc, curp=curp)
-
-    elif args.tramite == "cita_ine":
-        curp = args.curp or (perfil and perfil.get("curp"))
-        if not curp:
-            print("Error: se requiere --curp")
-            sys.exit(1)
-        await CitaINEModule(captcha_solver=agente.solver).consultar(curp=curp)
-
-    elif args.tramite == "cita_sat":
+    elif tramite == "cita_sat":
         rfc = args.rfc or input("RFC: ").strip().upper()
         curp = args.curp or ""
-        await CitaSATModule(captcha_solver=agente.solver).consultar(rfc=rfc, curp=curp)
+        kwargs["rfc"] = rfc
+        kwargs["curp"] = curp
+
+    # Ejecutar via orchestrator (lazy loading)
+    module = orchestrator._get_module(tramite)
+    await module.consultar(**kwargs)
 
 
 def _handle_shutdown(signum, frame):

@@ -164,36 +164,36 @@ class TestEjecutarTramite:
 
 
 class TestEjecutarCurp:
-    """Lines 118-125: _ejecutar_curp con y sin multimodal."""
+    """CURP via ejecutar_tramite — schema-based dispatch."""
 
     @pytest.mark.asyncio
     async def test_sin_multimodal(self, orchestrator):
         with patch("builtins.input", return_value="CURP123456HDF"):
-            result = await orchestrator._ejecutar_curp("text")
+            result = await orchestrator.ejecutar_tramite("curp")
         assert result == {"status": "ok"}
         orchestrator._modules["curp"].consultar.assert_awaited_once_with(curp="CURP123456HDF")
 
     @pytest.mark.asyncio
     async def test_con_multimodal(self, orchestrator_multimodal):
-        result = await orchestrator_multimodal._ejecutar_curp("text")
+        result = await orchestrator_multimodal.ejecutar_tramite("curp")
         assert result == {"status": "ok"}
         orchestrator_multimodal.multimodal.get_curp.assert_called_once_with(mode="text")
 
 
 class TestEjecutarNss:
-    """Lines 127-136: _ejecutar_nss con y sin multimodal."""
+    """NSS via ejecutar_tramite — schema-based dispatch."""
 
     @pytest.mark.asyncio
     async def test_sin_multimodal(self, orchestrator):
         inputs = ["CURP123456HDF", "test@test.com"]
         with patch("builtins.input", side_effect=inputs):
-            result = await orchestrator._ejecutar_nss("text")
+            result = await orchestrator.ejecutar_tramite("nss")
         assert result == {"status": "ok"}
         orchestrator._modules["nss"].consultar.assert_awaited_once_with(curp="CURP123456HDF", correo="test@test.com")
 
     @pytest.mark.asyncio
     async def test_con_multimodal(self, orchestrator_multimodal):
-        result = await orchestrator_multimodal._ejecutar_nss("text")
+        result = await orchestrator_multimodal.ejecutar_tramite("nss")
         assert result == {"status": "ok"}
         orchestrator_multimodal.multimodal.get_curp.assert_called_once()
         orchestrator_multimodal.multimodal.get_email.assert_called_once()
@@ -425,7 +425,7 @@ class TestGetModule:
             assert mod is not None
             assert "curp" in orch._modules
             assert orch._modules["curp"] is mod
-            mock_import.assert_called_once_with("modules.curp")
+            mock_import.assert_called_once_with("src.tramites.curp")
             mock_mod.CURPModule.assert_called_once()
 
     def test_importa_nss_con_mail_reader(self):
