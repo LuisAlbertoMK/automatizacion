@@ -9,7 +9,6 @@ Estrategia:
 """
 
 import builtins
-import sys
 import tempfile
 from unittest.mock import MagicMock, patch
 
@@ -18,7 +17,6 @@ import pytest
 import src.utils.voice_input as vi_module
 from src.exceptions import VoiceInputError
 from src.utils.voice_input import VoiceInput
-
 
 # ──────────────────────────────────────────────────────────────────────
 # Fixtures
@@ -54,7 +52,7 @@ def voice():
     deps_patch, model_mock, _ = _mock_deps()
     with deps_patch:
         v = VoiceInput(model_size="tiny")
-        v.model = model_mock  # asegura que apunte al mock
+        v._model = model_mock  # setear directamente el modelo lazy
         yield v
 
 
@@ -273,21 +271,28 @@ class TestInit:
                 VoiceInput(model_size="tiny")
 
     def test_modelo_valido(self):
-        """Instancia correcta con modelo tiny."""
+        """Modelo se carga bajo demanda (lazy load)."""
         deps_patch, model_mock, mock_whisper = _mock_deps()
         with deps_patch:
             v = VoiceInput(model_size="tiny")
             assert v.model_size == "tiny"
             assert v.sample_rate == 16000
+            # Modelo NO se carga en __init__
+            mock_whisper.load_model.assert_not_called()
+            # Se carga al primer _get_model()
+            m = v._get_model()
             mock_whisper.load_model.assert_called_once_with("tiny")
+            assert m is model_mock
 
     def test_modelo_error_carga(self):
-        """Error al cargar modelo → VoiceInputError."""
+        """Error al cargar modelo → VoiceInputError (lazy)."""
         deps_patch, _, mock_whisper = _mock_deps()
         with deps_patch:
             mock_whisper.load_model.side_effect = RuntimeError("no memory")
+            v = VoiceInput(model_size="tiny")
+            # El error ocurre al acceder al modelo, no al instanciar
             with pytest.raises(VoiceInputError, match="Error cargando modelo Whisper"):
-                VoiceInput(model_size="tiny")
+                v._get_model()
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -299,7 +304,6 @@ class TestRecordAudio:
     def test_retorna_path_wav(self, voice):
         """record_audio devuelve path a un .wav existente."""
         import sounddevice as sd
-        import soundfile as sf
 
         sd.rec.return_value = None
         sd.wait.return_value = None
@@ -342,7 +346,7 @@ class TestRecordAudio:
 class TestTranscribe:
     def test_transcribe_exitoso(self, voice):
         """Transcripción exitosa devuelve texto."""
-        voice.model.transcribe.return_value = {"text": "  hola mundo  "}
+        voice._model.transcribe.return_value = {"text": "  hola mundo  "}
 
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         tmp_path = tmp.name
@@ -358,7 +362,7 @@ class TestTranscribe:
 
     def test_transcribe_pasa_fp16_false(self, voice):
         """Llama a model.transcribe con fp16=False."""
-        voice.model.transcribe.return_value = {"text": "ok"}
+        voice._model.transcribe.return_value = {"text": "ok"}
 
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         tmp_path = tmp.name
@@ -366,8 +370,8 @@ class TestTranscribe:
 
         try:
             voice.transcribe(tmp_path, language="en")
-            voice.model.transcribe.assert_called_once()
-            _, kwargs = voice.model.transcribe.call_args
+            voice._model.transcribe.assert_called_once()
+            _, kwargs = voice._model.transcribe.call_args
             assert kwargs["language"] == "en"
             assert kwargs["fp16"] is False
         finally:
@@ -377,13 +381,13 @@ class TestTranscribe:
 
     def test_error_transcripcion(self, voice):
         """Error en whisper → VoiceInputError."""
-        voice.model.transcribe.side_effect = RuntimeError("whisper crash")
+        voice._model.transcribe.side_effect = RuntimeError("whisper crash")
         with pytest.raises(VoiceInputError, match="Error transcribiendo audio"):
             voice.transcribe("fake.wav")
 
     def test_limpia_archivo_temporal(self, voice):
         """Archivo temporal se elimina tras transcribir."""
-        voice.model.transcribe.return_value = {"text": "test"}
+        voice._model.transcribe.return_value = {"text": "test"}
 
         tmp = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
         tmp_path = tmp.name

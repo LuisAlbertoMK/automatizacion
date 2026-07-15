@@ -38,7 +38,7 @@ async def benchmark_legacy(num_tramites: int = 3):
         mock_page.close = AsyncMock()
         mock_pw.__aexit__ = AsyncMock()
         
-        with patch("modules.base.async_playwright", return_value=mock_pw):
+        with patch("src.tramites.base.async_playwright", return_value=mock_pw):
             p, browser, page = await module.launch_browser()
             t_launch = time.time() - t0
             print(f"  launch_browser: {t_launch:.3f}s")
@@ -164,7 +164,7 @@ async def benchmark_real_world():
     print("\nSin pool (legacy):")
     t0 = time.time()
     
-    with patch("modules.base.async_playwright", return_value=mock_pw):
+    with patch("src.tramites.base.async_playwright", return_value=mock_pw):
         for i in range(3):
             p, browser, page = await module.launch_browser()
             await asyncio.sleep(0.1)

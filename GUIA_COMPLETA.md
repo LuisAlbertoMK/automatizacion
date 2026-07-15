@@ -45,7 +45,7 @@ Sistema de automatización semiautomática para trámites gubernamentales mexica
 
 **Uso:**
 ```python
-from modules.curp import CURPModule
+from src.tramites.curp import CURPModule
 
 modulo = CURPModule(captcha_solver=None)
 resultado = await modulo.consultar(curp="OOLL940914HMCRGS08")
@@ -68,7 +68,7 @@ resultado = await modulo.consultar(curp="OOLL940914HMCRGS08")
 
 **Uso:**
 ```python
-from modules.nss import NSSModule
+from src.tramites.nss import NSSModule
 
 modulo = NSSModule(captcha_solver=None, mail_reader=None)
 resultado = await modulo.consultar(

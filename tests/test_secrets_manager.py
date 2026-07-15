@@ -1,11 +1,10 @@
 """Tests para src/utils/secrets_manager.py — con keyring mockeado."""
 
-from unittest.mock import patch, MagicMock
 import os
 import sys
+from unittest.mock import MagicMock, patch
 
 import pytest
-
 
 # Mock de keyring a nivel módulo antes de importar secrets_manager
 _fake_keyring = MagicMock()
@@ -20,12 +19,12 @@ for p in _patches:
     p.start()
 
 from src.utils.secrets_manager import (  # noqa: E402
+    SECRET_KEYS,
     get_secret,
     init_secrets,
     main_cli,
     store_all,
     store_secret,
-    SECRET_KEYS,
 )
 
 
@@ -179,7 +178,7 @@ class TestStoreAll:
         with patch.dict(os.environ, env_vals, clear=True):
             store_all()
         out, _ = capsys.readouterr()
-        assert "3/5" in out
+        assert "3/6" in out
         assert _fake_keyring.set_password.call_count == 3
 
 

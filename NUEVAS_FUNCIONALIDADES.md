@@ -45,7 +45,7 @@ USE_OCR=true
 **Uso en Módulos:**
 
 ```python
-from modules.curp import CURPModule
+from src.tramites.curp import CURPModule
 
 # OCR activado por defecto
 modulo = CURPModule(use_ocr=True)
