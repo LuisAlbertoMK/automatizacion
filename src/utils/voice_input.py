@@ -30,9 +30,9 @@ class VoiceInput:
         global WHISPER_AVAILABLE
         if WHISPER_AVAILABLE is None:
             try:
-                import whisper  # noqa: F401
                 import sounddevice  # noqa: F401
                 import soundfile  # noqa: F401
+                import whisper  # noqa: F401
                 WHISPER_AVAILABLE = True
             except ImportError:
                 WHISPER_AVAILABLE = False
@@ -57,16 +57,20 @@ class VoiceInput:
             )
 
         self.model_size = model_size
-        self.model = None
+        self._model = None  # lazy — solo se carga al primer transcribe()
         self.sample_rate = 16000  # Whisper requiere 16kHz
 
-        print(f"  [VOZ] Cargando modelo Whisper '{model_size}'...")
-        try:
-            import whisper  # import lazy — dentro del constructor
-            self.model = whisper.load_model(model_size)
-            print("  [VOZ] Modelo cargado [OK]")
-        except Exception as e:
-            raise VoiceInputError(f"Error cargando modelo Whisper: {e}")
+    def _get_model(self):
+        """Carga el modelo Whisper bajo demanda (lazy load)."""
+        if self._model is None:
+            print(f"  [VOZ] Cargando modelo Whisper '{self.model_size}'...")
+            try:
+                import whisper  # noqa: PLC0415
+                self._model = whisper.load_model(self.model_size)
+                print("  [VOZ] Modelo cargado [OK]")
+            except Exception as e:
+                raise VoiceInputError(f"Error cargando modelo Whisper: {e}")
+        return self._model
 
     def record_audio(self, duration=5, countdown=True):
         """
@@ -126,7 +130,7 @@ class VoiceInput:
         print("  [VOZ] 🔄 Transcribiendo...")
 
         try:
-            result = self.model.transcribe(
+            result = self._get_model().transcribe(
                 audio_path,
                 language=language,
                 fp16=False  # Compatibilidad con CPU

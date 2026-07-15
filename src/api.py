@@ -13,8 +13,9 @@ Uso:
     # o via docker: docker compose --profile api up
 """
 
+import hmac
 import os
-import re
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +30,17 @@ except ImportError:
 
 from dotenv import load_dotenv
 
+from src.exceptions import (
+    CaptchaError,
+    ClaudeError,
+    DocumentoError,
+    MailReaderError,
+    ModuleError,
+    OCRError,
+    StorageError,
+    TramiteError,
+    VoiceInputError,
+)
 from src.utils.logger import get_logger
 
 load_dotenv(Path(__file__).parent.parent / "config.env")
@@ -47,7 +59,7 @@ if not FASTAPI_AVAILABLE:
 
 from src.tramites.curp import CURPModule  # noqa: E402
 from src.tramites.nss import NSSModule  # noqa: E402
-from src.utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
+from src.utils.captcha import CaptchaSolver  # noqa: E402
 from src.utils.storage import list_profiles, save_profile  # noqa: E402
 
 # ── Rate limiting (slowapi) ─────────────────────────────────
@@ -67,18 +79,80 @@ def _rate_limit(key: str, default: str) -> str:
     return os.getenv(f"RATE_LIMIT_{key}", default)
 
 
+# ── Exception → HTTP code mapping ───────────────────────────
+
+_EXCEPTION_STATUS_MAP: dict[type, int] = {
+    CaptchaError: 409,        # Conflict — CAPTCHA needs manual solving
+    OCRError: 422,            # Unprocessable — OCR failed to extract text
+    MailReaderError: 502,     # Bad Gateway — mail service unreachable
+    VoiceInputError: 422,     # Unprocessable — voice input failed
+    DocumentoError: 422,      # Unprocessable — document generation failed
+    ClaudeError: 502,         # Bad Gateway — AI service error
+    StorageError: 500,        # Internal — profile storage error
+    ModuleError: 502,         # Bad Gateway — government portal error
+    TramiteError: 500,        # Internal — base system error
+}
+
+_EXCEPTION_DETAIL_MAP: dict[type, str] = {
+    CaptchaError: "CAPTCHA no resuelto — intentá con 2captcha o resolvé manualmente",
+    OCRError: "No se pudo extraer texto por OCR",
+    MailReaderError: "Error al leer correo — verificá credenciales IMAP",
+    VoiceInputError: "Error en entrada por voz",
+    DocumentoError: "Error al generar documento",
+    ClaudeError: "Servicio de IA no disponible — reintentá más tarde",
+    ModuleError: "Error al consultar el portal gubernamental",
+}
+
+
+def _tramite_exception_to_http(exc: TramiteError) -> HTTPException:
+    """Convierte una excepción del dominio a HTTPException con status code apropiado."""
+    exc_type = type(exc)
+    status = 500
+    for cls in exc_type.__mro__:
+        if cls in _EXCEPTION_STATUS_MAP:
+            status = _EXCEPTION_STATUS_MAP[cls]
+            break
+    # Si es ModuleError (portal gubernamental) pero el mensaje indica input
+    # del usuario, reasignar a 422 (Unprocessable) en vez de 502 (Bad Gateway).
+    msg = str(exc)
+    if isinstance(exc, ModuleError):
+        _validation_hints = ("Se requiere", "inválido", "faltante", "rechazó el portal")
+        if any(hint in msg for hint in _validation_hints):
+            status = 422
+    detail = msg or _EXCEPTION_DETAIL_MAP.get(exc_type, "Error interno del servidor")
+    return HTTPException(status_code=status, detail=detail)
+
+
 # ── Auth middleware ─────────────────────────────────────────
 
 API_KEY = os.getenv("API_KEY", "")
-# NOTA: DISABLE_API_AUTH eliminado por seguridad (C4 del análisis).
-#       Para desarrollo local, simplemente no configurar API_KEY.
+PROD = os.getenv("PRODUCTION", "").lower() in ("1", "true", "yes")
+
+if PROD and not API_KEY:
+    logger.critical("API_KEY no configurada en producción — Abortando")
+    sys.exit(1)
+
+# Endpoints que NO requieren auth (health check, docs)
+_PUBLIC_PATHS = frozenset({"/health", "/docs", "/redoc", "/openapi.json"})
 
 
 async def _verify_api_key(request: Request, call_next):
-    if not API_KEY:
+    # Health check y docs siempre accesibles
+    if request.url.path in _PUBLIC_PATHS:
         return await call_next(request)
+
+    if not API_KEY:
+        # Development: permitir pero registrar warning (1 vez)
+        if not hasattr(_verify_api_key, "_warned"):
+            logger.warning(
+                "API_KEY no configurada — auth desactivado (solo desarrollo). "
+                "Configurá API_KEY en config.env o Windows Credential Manager."
+            )
+            _verify_api_key._warned = True
+        return await call_next(request)
+
     key = request.headers.get("X-API-Key", "")
-    if key != API_KEY:
+    if not hmac.compare_digest(key, API_KEY):
         return JSONResponse(status_code=403, content={"detail": "API key inválida o faltante"})
     return await call_next(request)
 
@@ -106,6 +180,12 @@ class NssRequest(BaseModel):
         from src.validators import validar_curp as _vc  # noqa: PLC0415
         return _vc(v)
 
+    @field_validator("correo")
+    @classmethod
+    def validar_correo(cls, v: str) -> str:
+        from src.validators import validar_email as _ve  # noqa: PLC0415
+        return _ve(v)
+
 class ProfileData(BaseModel):
     alias: str
     curp: Optional[str] = None
@@ -115,8 +195,6 @@ class ProfileData(BaseModel):
 
 
 # ── App & Routers ─────────────────────────────────────────────
-
-PROD = os.getenv("PRODUCTION", "").lower() in ("1", "true", "yes")
 
 app = FastAPI(
     title="Agente de Trámites GOB.MX",
@@ -236,8 +314,11 @@ async def consultar_curp(request: Request, req: CurpRequest):
     try:
         resultado = await modulo.consultar(curp=req.curp.upper())
         return {"success": True, "data": resultado}
+    except TramiteError as e:
+        logger.warning("Error CURP: %s", e)
+        raise _tramite_exception_to_http(e) from e
     except Exception:
-        logger.error("Error en consulta CURP", exc_info=True)
+        logger.error("Error inesperado en consulta CURP", exc_info=True)
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
@@ -252,8 +333,11 @@ async def consultar_nss(request: Request, req: NssRequest):
             curp=req.curp.upper(), correo=req.correo
         )
         return {"success": True, "data": resultado}
+    except TramiteError as e:
+        logger.warning("Error NSS: %s", e)
+        raise _tramite_exception_to_http(e) from e
     except Exception:
-        logger.error("Error en consulta NSS", exc_info=True)
+        logger.error("Error inesperado en consulta NSS", exc_info=True)
         raise HTTPException(status_code=500, detail="Error interno del servidor")
 
 
@@ -261,17 +345,23 @@ async def consultar_nss(request: Request, req: NssRequest):
 @limiter.limit(_rate_limit("PERFILES", "10/minute"))
 def listar_perfiles(request: Request):
     """Devuelve la lista de todos los alias de perfiles guardados localmente."""
-    perfiles = list_profiles()
-    return {"perfiles": perfiles}
+    try:
+        perfiles = list_profiles()
+        return {"perfiles": perfiles}
+    except StorageError as e:
+        raise HTTPException(status_code=500, detail=f"Error listando perfiles: {e}")
 
 
 @perfiles_router.post("/perfiles", summary="Guardar un perfil")
 @limiter.limit(_rate_limit("PERFILES", "10/minute"))
 def guardar_perfil(request: Request, data: ProfileData):
     """Guarda un perfil con datos persona (CURP, correo, nombre) bajo un alias."""
-    profile = {k: v for k, v in data.model_dump().items() if v and k != "alias"}
-    save_profile(data.alias, profile)
-    return {"success": True, "alias": data.alias}
+    try:
+        profile = {k: v for k, v in data.model_dump().items() if v and k != "alias"}
+        save_profile(data.alias, profile)
+        return {"success": True, "alias": data.alias}
+    except StorageError as e:
+        raise HTTPException(status_code=500, detail=f"Error guardando perfil: {e}")
 
 
 # ── Registrar routers (después de definir todas las rutas) ───

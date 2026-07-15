@@ -19,7 +19,7 @@ class BrowserPool:
     Características:
     - Pre-lanza N browsers al inicializar
     - Reutiliza browsers entre trámites (acquire/release)
-    - Timeout de inactividad para cerrar browsers no usados
+    - Timeout de inactividad: lazy check en acquire() (sin background drain)
     - Singleton pattern para compartir entre módulos
     """
     
@@ -35,7 +35,7 @@ class BrowserPool:
         self._playwright: Optional[Playwright] = None
         self._initialized = False
         self._last_used: dict[Browser, float] = {}
-        self._cleanup_task: Optional[asyncio.Task] = None
+        self._lock = asyncio.Lock()
         
     async def initialize(self):
         """Inicializa el pool lanzando browsers."""
@@ -52,77 +52,63 @@ class BrowserPool:
                 await self._pool.put(browser)
                 
             self._initialized = True
-            self._cleanup_task = asyncio.create_task(self._cleanup_idle())
         except Exception:
             if self._playwright:
                 try:
                     await self._playwright.stop()
                 except Exception:
-                    logger.debug("Error cerrando browser")
+                    logger.debug("Error cerrando playwright")
             self._playwright = None
             self._pool = None
             self._initialized = False
             raise
-        
-    async def _cleanup_idle(self):
-        """Cierra browsers inactivos después de idle_timeout."""
-        while self._initialized:
-            await asyncio.sleep(60)
-            now = time.time()
-            
-            browsers_to_check = []
-            while not self._pool.empty():
-                try:
-                    browser = self._pool.get_nowait()
-                    browsers_to_check.append(browser)
-                except asyncio.QueueEmpty:
-                    break
-                    
-            for browser in browsers_to_check:
-                last_used = self._last_used.get(browser, 0)
-                if now - last_used > self.idle_timeout:
-                    try:
-                        await browser.close()
-                        del self._last_used[browser]
-                    except Exception:
-                        logger.debug("Pool acquire timeout")
-                else:
-                    await self._pool.put(browser)
-                    
+
+    async def _close_idle_browser(self, browser: Browser) -> bool:
+        """Cierra un browser inactivo. Retorna True si se cerró."""
+        last_used = self._last_used.get(browser, 0)
+        if time.time() - last_used > self.idle_timeout:
+            try:
+                await browser.close()
+            except Exception:
+                logger.debug("Error cerrando browser inactivo")
+            self._last_used.pop(browser, None)
+            return True
+        return False
+
     async def acquire(self) -> Browser:
-        """Adquiere un browser del pool."""
+        """Adquiere un browser del pool. Cierra inactivos lazy."""
         await self.initialize()
-        browser = await self._pool.get()
-        self._last_used[browser] = time.time()
-        return browser
+        async with self._lock:
+            browser = await self._pool.get()
+            # Lazy cleanup: si este browser está inactivo, crear uno nuevo
+            if await self._close_idle_browser(browser):
+                browser = await self._playwright.firefox.launch(headless=True)
+            self._last_used[browser] = time.time()
+            return browser
         
     async def release(self, browser: Browser):
         """Libera un browser de vuelta al pool."""
-        self._last_used[browser] = time.time()
-        await self._pool.put(browser)
-        
+        async with self._lock:
+            self._last_used[browser] = time.time()
+            await self._pool.put(browser)
+            
     async def close(self):
         """Cierra todos los browsers y detiene el pool."""
         if not self._initialized:
             return
-            
-        if self._cleanup_task:
-            self._cleanup_task.cancel()
-            try:
-                await self._cleanup_task
-            except asyncio.CancelledError:
-                pass
                 
-        while not self._pool.empty():
-            try:
-                browser = self._pool.get_nowait()
-                await browser.close()
-            except Exception:
-                logger.debug("Error cerrando pool")
-                
-        await self._playwright.stop()
-        self._initialized = False
-        self._last_used.clear()
+        async with self._lock:
+            while not self._pool.empty():
+                try:
+                    browser = self._pool.get_nowait()
+                    await browser.close()
+                except Exception:
+                    logger.debug("Error cerrando pool")
+                    
+            if self._playwright:
+                await self._playwright.stop()
+            self._initialized = False
+            self._last_used.clear()
 
 
 _pool_instance: Optional[BrowserPool] = None

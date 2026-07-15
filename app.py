@@ -6,10 +6,15 @@ Uso:
     streamlit run app.py
     # o via docker:
     docker compose --profile api run --service-ports app
+
+Autenticación:
+    Configurá WEB_PASSWORD en config.env o Windows Credential Manager.
+    Si no está configurada, se genera una password temporal (visible en consola).
 """
 
 import asyncio
 import os
+import secrets
 from datetime import datetime
 from pathlib import Path
 
@@ -17,7 +22,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv(Path(__file__).parent / "config.env")
-from src.utils.secrets_manager import init_secrets  # noqa: E402
+from src.utils.secrets_manager import init_secrets  # noqa: E402, I001
 init_secrets()
 
 from src.tramites.curp import CURPModule  # noqa: E402
@@ -30,6 +35,7 @@ from src.utils.storage import (  # noqa: E402
     load_profile,
     save_profile,
 )
+from src.validators import validar_curp, validar_email  # noqa: E402
 
 # ── Config ──────────────────────────────────────────────────
 st.set_page_config(
@@ -38,6 +44,73 @@ st.set_page_config(
     layout="centered",
     initial_sidebar_state="expanded",
 )
+
+# ── SEO: Meta tags + Structured Data ─────────────────────────
+st.markdown(
+    """
+    <meta name="description" content="Agente automatizado de trámites gubernamentales mexicanos — CURP, NSS, INE, SAT y más.">
+    <meta property="og:title" content="Trámites GOB.MX">
+    <meta property="og:description" content="Automatización de trámites gubernamentales — CURP, NSS, INE, SAT.">
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="es_MX">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Trámites GOB.MX">
+    <meta name="twitter:description" content="Automatización de trámites gubernamentales mexicanos.">
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "Trámites GOB.MX",
+        "description": "Agente automatizado de trámites gubernamentales mexicanos",
+        "applicationCategory": "GovernmentApplication",
+        "operatingSystem": "Cross-platform",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "MXN" }
+    }
+    </script>
+    """,
+    unsafe_allow_html=True,
+)
+
+# ── Auth ────────────────────────────────────────────────────
+WEB_PASSWORD = os.getenv("WEB_PASSWORD", "")
+if not WEB_PASSWORD:
+    # Generar password temporal si no está configurada
+    WEB_PASSWORD = secrets.token_urlsafe(16)
+    print(f"\n{'='*60}")
+    print("  ⚠️  WEB_PASSWORD no configurada — password temporal generada:")
+    print(f"  🔑 {WEB_PASSWORD}")
+    print("  Configurá WEB_PASSWORD en config.env para una fija.")
+    print(f"{'='*60}\n")
+
+
+def _check_auth() -> bool:
+    """Verifica si el usuario está autenticado via session state."""
+    return st.session_state.get("authenticated", False)
+
+
+def _login_form():
+    """Muestra formulario de login y retorna True si autenticación exitosa."""
+    st.title("🔐 Acceso Requerido")
+    st.markdown("Ingresá la password para acceder al sistema de trámites.")
+
+    with st.form("login"):
+        password = st.text_input("Password", type="password")
+        submitted = st.form_submit_button("Ingresar", use_container_width=True)
+
+        if submitted:
+            if password == WEB_PASSWORD:
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("Password incorrecta")
+                return False
+    return False
+
+
+# Bloquear acceso si no autenticado
+if not _check_auth():
+    _login_form()
+    st.stop()
 
 API_KEY = os.getenv("CAPTCHA_API_KEY", "")
 
@@ -109,8 +182,10 @@ elif menu == "📋 CURP":
                          help="Ej: GALJ800101HDFXXXX00").strip().upper()
 
     if st.button("🔍 Consultar CURP", type="primary", use_container_width=True):
-        if not curp or len(curp) != 18:
-            st.error("La CURP debe tener exactamente 18 caracteres")
+        try:
+            curp = validar_curp(curp)
+        except ValueError as e:
+            st.error(str(e))
         else:
             with st.spinner("Consultando CURP... (~16s)"):
                 try:
@@ -143,30 +218,36 @@ elif menu == "🔢 NSS IMSS":
     correo = st.text_input("Correo electrónico", key="correo_nss").strip()
 
     if st.button("🔍 Obtener NSS", type="primary", use_container_width=True):
-        if not curp_nss or len(curp_nss) != 18:
-            st.error("CURP inválida")
-        elif not correo or "@" not in correo:
-            st.error("Correo inválido")
+        if not curp_nss:
+            st.error("La CURP es requerida")
+        elif not correo:
+            st.error("El correo es requerido")
         else:
-            with st.spinner("Consultando NSS... (~30-60s)"):
-                try:
-                    solver = _get_solver()
-                    modulo = NSSModule(captcha_solver=solver)
-                    resultado = asyncio.run(
-                        modulo.consultar(curp=curp_nss, correo=correo)
-                    )
+            try:
+                curp_nss = validar_curp(curp_nss)
+                correo = validar_email(correo)
+            except ValueError as e:
+                st.error(str(e))
+            else:
+                with st.spinner("Consultando NSS... (~30-60s)"):
+                    try:
+                        solver = _get_solver()
+                        modulo = NSSModule(captcha_solver=solver)
+                        resultado = asyncio.run(
+                            modulo.consultar(curp=curp_nss, correo=correo)
+                        )
 
-                    if resultado.get("nss") == "ENVIADO_AL_CORREO":
-                        st.info("📧 Solicitud enviada. Revisá tu correo.")
-                    elif resultado.get("nss"):
-                        st.success(f"✅ NSS: {resultado['nss']}")
-                        for k, v in resultado.items():
-                            if v:
-                                st.text_input(k.upper(), str(v), disabled=True)
-                    else:
-                        st.warning("No se pudo obtener el NSS")
-                except Exception as e:
-                    st.error(f"Error: {e}")
+                        if resultado.get("nss") == "ENVIADO_AL_CORREO":
+                            st.info("📧 Solicitud enviada. Revisá tu correo.")
+                        elif resultado.get("nss"):
+                            st.success(f"✅ NSS: {resultado['nss']}")
+                            for k, v in resultado.items():
+                                if v:
+                                    st.text_input(k.upper(), str(v), disabled=True)
+                        else:
+                            st.warning("No se pudo obtener el NSS")
+                    except Exception as e:
+                        st.error(f"Error: {e}")
 
 
 # ── Perfiles ────────────────────────────────────────────────
@@ -187,16 +268,30 @@ elif menu == "👤 Perfiles":
         p_placa = st.text_input("Placa (opcional)")
 
         if st.button("💾 Guardar", use_container_width=True):
-            if alias and p_curp:
-                data = {k: v for k, v in {
-                    "curp": p_curp, "correo": p_correo,
-                    "nombre": p_nombre, "placa": p_placa,
-                }.items() if v}
-                save_profile(alias, data)
-                st.success(f"Perfil '{alias}' guardado")
-                st.rerun()
-            else:
+            if not alias or not p_curp:
                 st.error("Alias y CURP son requeridos")
+            else:
+                # Validar formato CURP antes de guardar
+                try:
+                    p_curp = validar_curp(p_curp)
+                except ValueError as e:
+                    st.error(f"CURP inválida: {e}")
+                else:
+                    # Validar email si se proporcionó
+                    if p_correo:
+                        try:
+                            p_correo = validar_email(p_correo)
+                        except ValueError as e:
+                            st.error(f"Email inválido: {e}")
+                            p_correo = ""
+
+                    data = {k: v for k, v in {
+                        "curp": p_curp, "correo": p_correo,
+                        "nombre": p_nombre, "placa": p_placa,
+                    }.items() if v}
+                    save_profile(alias, data)
+                    st.success(f"Perfil '{alias}' guardado")
+                    st.rerun()
 
     with col2:
         st.subheader("Perfiles guardados")
@@ -210,8 +305,17 @@ elif menu == "👤 Perfiles":
                                 masked = v[:4] + "****" if k == "curp" else v
                                 st.text(f"{k}: {masked}")
                     if st.button(f"🗑️ Eliminar {p}", key=f"del_{p}"):
-                        delete_profile(p)
-                        st.rerun()
+                        st.session_state[f"confirm_del_{p}"] = True
+                    if st.session_state.get(f"confirm_del_{p}"):
+                        st.warning(f"¿Eliminar perfil '{p}'? Esta acción no se puede deshacer.")
+                        c1, c2 = st.columns(2)
+                        if c1.button("✅ Sí, eliminar", key=f"yes_{p}"):
+                            delete_profile(p)
+                            st.session_state[f"confirm_del_{p}"] = False
+                            st.rerun()
+                        if c2.button("❌ Cancelar", key=f"no_{p}"):
+                            st.session_state[f"confirm_del_{p}"] = False
+                            st.rerun()
         else:
             st.info("No hay perfiles guardados")
 
