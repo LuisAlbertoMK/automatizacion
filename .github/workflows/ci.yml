@@ -39,14 +39,13 @@ jobs:
         run: python -m compileall -q src/ app.py health_check.py
 
       - name: Type check with mypy
-        continue-on-error: true
-        run: mypy src/ || true
+        run: mypy src/ --ignore-missing-imports
 
       - name: Security scan (bandit)
-        run: bandit -r src/ -x tests/ --quiet || true
+        run: bandit -r src/ -x tests/ -ll --quiet
 
       - name: Security scan (safety)
-        run: safety check --full-report --ignore=70612 || true
+        run: safety check --full-report --ignore=70612
         continue-on-error: true
 
       - name: Tests unitarios + coverage (threshold 80%)

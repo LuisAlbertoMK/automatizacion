@@ -5,6 +5,7 @@ services:
     build: .
     image: agente-tramites-gobmx:latest
     container_name: tramites
+    restart: unless-stopped
     env_file:
       - config.env
     environment:
@@ -19,11 +20,16 @@ services:
     stdin_open: true
     tty: true
     command: ["--help"]
+    deploy:
+      resources:
+        limits:
+          memory: 4G
 
   # ── Web UI (Streamlit) ──
   app:
     build: .
     container_name: tramites-app
+    restart: unless-stopped
     env_file:
       - config.env
     environment:
@@ -36,13 +42,24 @@ services:
       - ./logs:/app/logs
       - ./data:/app/data
     command: ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     profiles:
       - app
+    deploy:
+      resources:
+        limits:
+          memory: 4G
 
   # ── API REST (opcional) ──
   api:
     build: .
     container_name: tramites-api
+    restart: unless-stopped
     env_file:
       - config.env
     environment:
@@ -55,5 +72,15 @@ services:
       - ./logs:/app/logs
       - ./data:/app/data
     command: ["uvicorn", "src.api:app", "--host", "0.0.0.0", "--port", "8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     profiles:
       - api
+    deploy:
+      resources:
+        limits:
+          memory: 4G

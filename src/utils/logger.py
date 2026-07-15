@@ -6,6 +6,7 @@ Reemplaza los print() dispersos por un sistema estructurado.
 
 import json
 import logging
+import logging.handlers
 import os
 import re
 import time
@@ -50,7 +51,12 @@ class TramiteLogger:
         # Python logging estándar (a archivo)
         self._logger = logging.getLogger(f"tramites.{modulo}")
         if not self._logger.handlers:
-            fh = logging.FileHandler(LOG_DIR / "tramites.log", encoding="utf-8")
+            fh = logging.handlers.RotatingFileHandler(
+                LOG_DIR / "tramites.log",
+                maxBytes=10 * 1024 * 1024,  # 10 MB
+                backupCount=5,
+                encoding="utf-8",
+            )
             fh.setFormatter(logging.Formatter(
                 "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
             ))
