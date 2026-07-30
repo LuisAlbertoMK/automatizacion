@@ -131,7 +131,7 @@ async def check_portal():
             print(f"      [{tag}] text='{text}' class={cls[:40]}")
 
         # ── 6. Check CURP input selectors ──
-        print(f"\n  [6] CURP input selector matching:")
+        print("\n  [6] CURP input selector matching:")
         matched_curp = False
         for sel in CURP_INPUT_SELECTORS:
             try:
@@ -146,7 +146,7 @@ async def check_portal():
             print("      NO MATCH for any CURP input selector")
 
         # ── 7. Check submit buttons ──
-        print(f"\n  [7] Submit button selector matching:")
+        print("\n  [7] Submit button selector matching:")
         matched_submit = False
         for sel in SUBMIT_BUTTON_SELECTORS:
             try:
@@ -162,7 +162,7 @@ async def check_portal():
             print("      NO MATCH for any submit button selector")
 
         # ── 8. Check captcha ──
-        print(f"\n  [8] Captcha selector matching:")
+        print("\n  [8] Captcha selector matching:")
         matched_captcha = False
         for sel in CAPTCHA_IMG_SELECTORS:
             try:
@@ -176,7 +176,7 @@ async def check_portal():
             print("      NO CAPTCHA IMAGE found (may appear after filling form)")
 
         # ── 9. Check tabs ──
-        print(f"\n  [9] Tab 'Por CURP' selector matching:")
+        print("\n  [9] Tab 'Por CURP' selector matching:")
         matched_tab = False
         for sel in TAB_SELECTORS:
             try:

@@ -1,6 +1,5 @@
 """E2E NSS v4 — headed mode Firefox para bypass Incapsula."""
 import asyncio
-import time
 
 
 async def test_nss_headed():

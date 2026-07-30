@@ -29,10 +29,11 @@ class TestVerifyBalance:
 
     @patch("src.utils.captcha.requests.get")
     def test_balance_insufficient(self, mock_get):
-        """Balance < 0.001 debe levantar CaptchaError."""
+        """Balance < 0.001 debe levantar CaptchaError al resolver."""
         mock_get.return_value.text = "0.0005"
+        solver = CaptchaSolver()
         with pytest.raises(CaptchaError, match="Saldo insuficiente"):
-            CaptchaSolver()
+            solver.solve_image(b"\x00\x00")
 
     @patch("src.utils.captcha.requests.get")
     def test_balance_request_error_caught(self, mock_get):

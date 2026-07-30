@@ -90,7 +90,7 @@ async def check_portal():
             "input[placeholder*='CURP']",
             "input[placeholder*='curp']",
         ]
-        print(f"\n  [6] CURP input selector matching:")
+        print("\n  [6] CURP input selector matching:")
         matched_curp = False
         for sel in curp_selectors:
             try:
@@ -113,7 +113,7 @@ async def check_portal():
             "input[placeholder*='email']",
             "input[name*='mail']",
         ]
-        print(f"\n  [7] Email input selector matching:")
+        print("\n  [7] Email input selector matching:")
         matched_email = False
         for sel in email_selectors:
             try:
@@ -138,7 +138,7 @@ async def check_portal():
             "#btnBuscar",
             "#btnConsultar",
         ]
-        print(f"\n  [8] Submit button selector matching:")
+        print("\n  [8] Submit button selector matching:")
         matched_submit = False
         for sel in submit_selectors:
             try:
@@ -161,7 +161,7 @@ async def check_portal():
             "iframe[title*='reCAPTCHA']",
             "img[src*='captcha']",
         ]
-        print(f"\n  [9] Captcha/reCAPTCHA selector matching:")
+        print("\n  [9] Captcha/reCAPTCHA selector matching:")
         matched_captcha = False
         for sel in captcha_selectors:
             try:

@@ -9872,3 +9872,22 @@ Exception: Mocked module
 2026-07-30 17:00:05,703 [tramites.API] WARNING: slowapi no instalado — rate limiting desactivado
 2026-07-30 17:15:59,621 [tramites.API] WARNING: slowapi no instalado — rate limiting desactivado
 2026-07-30 17:17:10,771 [tramites.API] WARNING: slowapi no instalado — rate limiting desactivado
+2026-07-30 17:19:58,163 [tramites.API] WARNING: slowapi no instalado — rate limiting desactivado
+2026-07-30 17:21:15,415 [tramites.API] WARNING: slowapi no instalado — rate limiting desactivado
+2026-07-30 17:22:14,749 [tramites.API] WARNING: slowapi no instalado — rate limiting desactivado
+2026-07-30 17:28:06,658 [tramites.API] ERROR: Error inesperado en consulta CURP
+Traceback (most recent call last):
+  File "D:\automatizacion\src\api.py", line 331, in consultar_curp
+    resultado = await modulo.consultar(curp=req.curp.upper())
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MK\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 2291, in _execute_mock_call
+    raise effect
+Exception: Mocked module
+2026-07-30 17:28:06,782 [tramites.API] ERROR: Error inesperado en consulta NSS
+Traceback (most recent call last):
+  File "D:\automatizacion\src\api.py", line 348, in consultar_nss
+    resultado = await modulo.consultar(
+                ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\MK\AppData\Local\Programs\Python\Python312\Lib\unittest\mock.py", line 2291, in _execute_mock_call
+    raise effect
+Exception: Mocked module
