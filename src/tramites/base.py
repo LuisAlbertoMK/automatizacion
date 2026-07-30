@@ -20,8 +20,13 @@ import requests
 from playwright.async_api import Browser, Page, async_playwright
 from playwright.async_api import TimeoutError as PwTimeout
 
+from urllib.parse import urlparse
+
 from src.exceptions import ModuleError
 from src.utils.browser_pool import BrowserPool
+from src.utils.rate_limiter import RateLimiter
+
+_domain_limiter = RateLimiter()
 
 # Telemetría Playwright desactivada por defecto
 os.environ.setdefault("PLAYWRIGHT_TELEMETRY_OPTOUT", "1")
@@ -79,8 +84,11 @@ REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", "2.0"))
 _last_request_time = 0.0
 
 
+# DEPRECATED: Use _domain_limiter.wait(domain) instead — global rate limiting
+# delays ALL requests even when hitting different domains. The per-domain
+# RateLimiter only throttles repeated hits to the same host.
 async def _rate_limit():
-    """Espera si es necesario para respetar REQUEST_DELAY entre requests."""
+    """DEPRECATED: global rate limiter. Use _domain_limiter.wait(domain)."""
     global _last_request_time
     now = time.time()
     elapsed = now - _last_request_time
@@ -228,7 +236,8 @@ class BaseModule:
         2. networkidle con timeout 5s (espera si la página termina pronto)
         3. 500ms de gracia post-carga (mínimo seguro)
         """
-        await _rate_limit()
+        domain = urlparse(url).netloc
+        await _domain_limiter.wait(domain)
         last_error = None
         try:
             self.debug(f"Navegando a {url}")
@@ -256,7 +265,7 @@ class BaseModule:
             await page.wait_for_load_state("networkidle", timeout=5000)
         except Exception:
             pass  # time out = la página no calló en 5s, seguimos igual
-        await page.wait_for_timeout(500)
+        await page.wait_for_timeout(100)
 
     async def fill_field(self, page: Page, selectors: list, value: str) -> bool:
         """Llena un campo probando múltiples selectores. Retorna True si encontró alguno."""
@@ -395,6 +404,10 @@ class BaseModule:
         if not solution and os.getenv("DEBUG", "false").lower() == "true":
             solution = os.getenv("CAPTCHA_VALUE", "").strip()
             if solution:
+                import logging
+                logging.getLogger(__name__).warning(
+                    "CAPTCHA_VALUE bypass active — DEBUG mode should NOT be used in production!"
+                )
                 self.log("CAPTCHA desde variable de entorno (DEBUG mode)")
 
         if not solution:

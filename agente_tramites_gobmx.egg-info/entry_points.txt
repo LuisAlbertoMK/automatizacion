@@ -1,0 +1,2 @@
+[console_scripts]
+tramites = src.main:main

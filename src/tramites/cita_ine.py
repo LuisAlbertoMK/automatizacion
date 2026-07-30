@@ -1,9 +1,10 @@
 """
 modules/cita_ine.py
 Automatiza el agendamiento de cita en el INE.
-Portal: https://www.ine.mx/credencial/citas/
+Portal: https://inetel-citas.ine.mx/ReservaCitas/
 
 Migrado de: tramites-auto/tramites-bot/tramites/cita_ine.js
+Updated: 2026-07-23 — URL actualizada (portal anterior devolvía 404)
 """
 
 import time
@@ -11,7 +12,7 @@ import time
 from src.exceptions import CitaINEerror
 from src.tramites.base import OUTPUT_DIR, BaseModule
 
-PORTAL_URL = "https://www.ine.mx/credencial/citas/"
+PORTAL_URL = "https://inetel-citas.ine.mx/ReservaCitas/"
 
 
 class CitaINEModule(BaseModule):

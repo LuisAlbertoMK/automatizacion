@@ -80,7 +80,7 @@ DOCS_MODULOS = "CV · Escritos" if DOCUMENTOS_AVAILABLE else ""
 
 BANNER = f"""
 {Fore.CYAN}╔════════════════════════════════════════════════════════════════╗
-║  🤖  Agente de Trámites GOB.MX  — v2.0  (jun 2026)          ║
+║  🤖  Agente de Trámites GOB.MX  — v1.0.0                    ║
 ║  Módulos: CURP · NSS · RFC · Acta · Pasaporte · Semanas      ║
 ║           Antecedentes · Tenencia · ControlConf · Buró        ║
 ║           Círculo · CitaINE · CitaSAT · {DOCS_MODULOS:<27s}║
@@ -187,7 +187,7 @@ class Agente:
         correo = self._pedir_dato(
             f"Correo electrónico{correo_hint}",
             default=correo_default,
-            validar=lambda x: "@" in x and "." in x,
+            validar=self._validar_email,
         )
 
         from src.tramites.nss import NSSModule
@@ -231,7 +231,7 @@ class Agente:
         correo = self._pedir_dato(
             f"Correo electrónico{correo_hint}",
             default=correo_default,
-            validar=lambda x: "@" in x and "." in x,
+            validar=self._validar_email,
         )
 
         resultados = {}
@@ -467,12 +467,22 @@ class Agente:
             return False
 
     def _mostrar_resultado(self, tipo: str, resultado: dict):
+        from src.utils.pii import sanitize_curp, sanitize_nss, sanitize_email
+
+        _SANITIZERS = {
+            "curp": sanitize_curp,
+            "nss": sanitize_nss,
+            "email": sanitize_email,
+            "correo": sanitize_email,
+        }
+
         print(f"\n{Fore.GREEN}{'━'*50}")
         print(f"  {tipo} — RESULTADO")
         print(f"{'━'*50}{Style.RESET_ALL}")
         for k, v in resultado.items():
             if v:
-                print(f"  {k.upper()}: {v}")
+                safe = _SANITIZERS.get(k)(str(v)) if k in _SANITIZERS else v
+                print(f"  {k.upper()}: {safe}")
         print(f"{Fore.GREEN}{'━'*50}{Style.RESET_ALL}\n")
 
 

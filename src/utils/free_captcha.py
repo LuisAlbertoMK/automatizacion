@@ -57,6 +57,19 @@ try:
 except ImportError:
     pass
 
+# ── Whisper model singleton ────────────────────────────────────────
+_whisper_model = None
+
+
+def _get_whisper_model():
+    """Lazy-load Whisper model once per process (~140MB)."""
+    global _whisper_model
+    if _whisper_model is None:
+        import whisper as _whisper
+        print("  [FreeCaptcha] Cargando Whisper (base)...")
+        _whisper_model = _whisper.load_model("base")
+    return _whisper_model
+
 
 from src.exceptions import FreeCaptchaError  # noqa: E402
 
@@ -76,7 +89,6 @@ class FreeCaptchaSolver:
     def __init__(self, use_ocr: bool = True, use_whisper: bool = True):
         self.use_ocr = use_ocr and TESSERACT_AVAILABLE
         self.use_whisper = use_whisper and WHISPER_AVAILABLE
-        self._whisper_model = None
         self._init_verify()
 
     def _init_verify(self):
@@ -234,14 +246,11 @@ class FreeCaptchaSolver:
                 audio_path = f.name
 
             try:
-                # Cargar Whisper (una sola vez)
-                if not self._whisper_model:
-                    print("  [FreeCaptcha] Cargando Whisper (base)...")
-                    import whisper
-                    self._whisper_model = whisper.load_model("base")
+                # Cargar Whisper (singleton)
+                whisper_model = _get_whisper_model()
 
                 print("  [FreeCaptcha] Transcribiendo audio...")
-                result = self._whisper_model.transcribe(audio_path, language="en")
+                result = whisper_model.transcribe(audio_path, language="en")
                 text = result["text"].strip()
                 print(f"  [FreeCaptcha] Transcripción: '{text}'")
 

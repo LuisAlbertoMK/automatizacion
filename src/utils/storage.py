@@ -50,6 +50,9 @@ def _get_salt() -> bytes:
     return salt
 
 
+_fernet_cache: dict[tuple[str, str], Fernet] = {}
+
+
 def _get_cipher() -> Fernet:
     """Deriva una clave Fernet desde STORAGE_KEY del .env + salt aleatorio."""
     raw_key = os.getenv("STORAGE_KEY")
@@ -60,10 +63,15 @@ def _get_cipher() -> Fernet:
             "Generá una con: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )
     salt = _get_salt()
+    cache_key = (raw_key, salt.hex())
+    if cache_key in _fernet_cache:
+        return _fernet_cache[cache_key]
     # bcrypt KDF -> 32 bytes -> base64url para Fernet
     stretched = bcrypt.kdf(raw_key.encode(), salt, 32, rounds=_KDF_ROUNDS)
     fernet_key = base64.urlsafe_b64encode(stretched)
-    return Fernet(fernet_key)
+    fernet = Fernet(fernet_key)
+    _fernet_cache[cache_key] = fernet
+    return fernet
 
 
 def _load_all() -> dict:
@@ -75,7 +83,17 @@ def _load_all() -> dict:
         encrypted = DATA_FILE.read_bytes()
         decrypted = cipher.decrypt(encrypted)
         return json.loads(decrypted)
-    except (InvalidToken, json.JSONDecodeError):
+    except (InvalidToken, json.JSONDecodeError) as e:
+        import logging
+        import shutil
+        from datetime import datetime
+
+        logger = logging.getLogger(__name__)
+        logger.warning("Storage decryption/data failed: %s — backing up corrupted file", e)
+
+        backup = f"{DATA_FILE}.{datetime.now().strftime('%Y%m%d%H%M%S')}.bak"
+        shutil.copy2(DATA_FILE, backup)
+
         return {}
 
 

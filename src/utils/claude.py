@@ -13,15 +13,21 @@ import os
 
 import httpx
 
+from src.exceptions import ClaudeError
+
 ANTHROPIC_VERSION = "2023-06-01"
 DEFAULT_MODEL = "claude-sonnet-4-20250514"
 DEFAULT_TIMEOUT = 60  # segundos
 DEFAULT_MAX_TOKENS = 2000
 
+_httpx_client = None
 
-class ClaudeError(Exception):
-    """Error en llamada a Anthropic Claude API."""
-    pass
+
+def _get_httpx_client(timeout: int = DEFAULT_TIMEOUT) -> httpx.Client:
+    global _httpx_client
+    if _httpx_client is None:
+        _httpx_client = httpx.Client(timeout=timeout)
+    return _httpx_client
 
 
 def call_claude(
@@ -66,8 +72,8 @@ def call_claude(
     }
 
     try:
-        with httpx.Client(timeout=timeout) as client:
-            resp = client.post(url, json=payload, headers=headers)
+        client = _get_httpx_client(timeout)
+        resp = client.post(url, json=payload, headers=headers)
     except httpx.TimeoutException:
         raise ClaudeError(f"Timeout tras {timeout}s llamando a Claude API")
     except httpx.RequestError as e:

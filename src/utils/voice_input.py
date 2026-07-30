@@ -61,15 +61,25 @@ class VoiceInput:
         self.sample_rate = 16000  # Whisper requiere 16kHz
 
     def _get_model(self):
-        """Carga el modelo Whisper bajo demanda (lazy load)."""
+        """Carga el modelo Whisper bajo demanda (lazy load, shared singleton).
+
+        Reutiliza el singleton de free_captcha para evitar cargar
+        2x el modelo (~140MB) en el mismo proceso.
+        """
         if self._model is None:
-            print(f"  [VOZ] Cargando modelo Whisper '{self.model_size}'...")
             try:
-                import whisper  # noqa: PLC0415
-                self._model = whisper.load_model(self.model_size)
-                print("  [VOZ] Modelo cargado [OK]")
-            except Exception as e:
-                raise VoiceInputError(f"Error cargando modelo Whisper: {e}")
+                # Intentar reutilizar singleton existente
+                from src.utils.free_captcha import _get_whisper_model  # noqa: PLC0415
+                self._model = _get_whisper_model()
+                print("  [VOZ] Modelo Whisper reutilizado del singleton [OK]")
+            except Exception:
+                print(f"  [VOZ] Cargando modelo Whisper '{self.model_size}'...")
+                try:
+                    import whisper  # noqa: PLC0415
+                    self._model = whisper.load_model(self.model_size)
+                    print("  [VOZ] Modelo cargado [OK]")
+                except Exception as e:
+                    raise VoiceInputError(f"Error cargando modelo Whisper: {e}")
         return self._model
 
     def record_audio(self, duration=5, countdown=True):

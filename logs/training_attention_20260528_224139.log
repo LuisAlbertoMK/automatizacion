@@ -1,0 +1,90 @@
+
+============================================================
+  Model: ATTENTION | Seed: 42
+  Device: cpu
+  Classes: 62
+============================================================
+
+  === Loading data ===
+  [CNN] Captchas totales: 149
+  [CNN] Train captchas: 127, Val captchas: 22
+  [CNN] train: 889 chars, 52/62 clases, min=1, max=28
+  [CNN] val: 154 chars, 48/62 clases, min=1, max=8
+  Params: 667,618
+
+  === PHASE 1: Clean (889 train, 154 val) ===
+  P1 E  1 | train=0.0259 | val=2.6% | best=2.6% | lr=0.00300 | 6s
+  P1 E 10 | train=0.3746 | val=0.6% | best=2.6% | lr=0.00300 | 29s
+  P1 E 20 | train=0.6682 | val=2.6% | best=2.6% | lr=0.00300 | 57s
+  P1 E 30 | train=0.8065 | val=0.0% | best=2.6% | lr=0.00300 | 88s
+  P1 E 40 | train=0.8684 | val=2.6% | best=2.6% | lr=0.00300 | 119s
+  P1 E 50 | train=0.8853 | val=1.3% | best=2.6% | lr=0.00150 | 150s
+  P1 E 60 | train=0.9449 | val=0.6% | best=2.6% | lr=0.00150 | 182s
+  P1 E 70 | train=0.9516 | val=1.9% | best=2.6% | lr=0.00150 | 216s
+  P1 E 80 | train=0.9280 | val=0.6% | best=2.6% | lr=0.00150 | 248s
+  P1 E 90 | train=0.9438 | val=1.3% | best=2.6% | lr=0.00150 | 281s
+  P1 E100 | train=0.9629 | val=0.6% | best=2.6% | lr=0.00075 | 318s
+  P1 E110 | train=0.9561 | val=0.6% | best=2.6% | lr=0.00075 | 353s
+  P1 E120 | train=0.9573 | val=0.6% | best=2.6% | lr=0.00075 | 383s
+  P1 E130 | train=0.9651 | val=0.6% | best=2.6% | lr=0.00075 | 414s
+  P1 E140 | train=0.9719 | val=0.6% | best=2.6% | lr=0.00075 | 446s
+  P1 E150 | train=0.9618 | val=1.3% | best=2.6% | lr=0.00038 | 477s
+  P1 E160 | train=0.9640 | val=1.9% | best=2.6% | lr=0.00038 | 509s
+  P1 E170 | train=0.9674 | val=0.6% | best=2.6% | lr=0.00038 | 543s
+  P1 E180 | train=0.9786 | val=0.6% | best=2.6% | lr=0.00038 | 578s
+  P1 E190 | train=0.9651 | val=1.3% | best=2.6% | lr=0.00038 | 611s
+  P1 E200 | train=0.9663 | val=1.3% | best=2.6% | lr=0.00019 | 645s
+
+  === PHASE 1 DONE: 645s, Best val=2.6% ===
+
+  === PHASE 2: Augmented (intensity=0.6, mult=3) ===
+  [CNN] Captchas totales: 149
+  [CNN] Train captchas: 127, Val captchas: 22
+  [CNN] train: 2667 chars, 52/62 clases, min=3, max=84
+  [CNN] val: 154 chars, 48/62 clases, min=1, max=9
+  Combined train: 2667 samples
+  P2 E  1 | train=0.6438 | val=4.5% | best=4.5% | 657s
+  P2 E 10 | train=0.8774 | val=66.2% | best=66.2% | 752s
+  P2 E 20 | train=0.9576 | val=78.6% | best=78.6% | 863s
+  P2 E 30 | train=0.9659 | val=79.2% | best=79.2% | 977s
+  P2 E 40 | train=0.9760 | val=78.6% | best=79.2% | 1092s
+  P2 E 50 | train=0.9775 | val=77.9% | best=79.2% | 1211s
+  P2 E 60 | train=0.9794 | val=79.9% | best=79.9% | 1330s
+  P2 E 70 | train=0.9828 | val=78.6% | best=79.9% | 1449s
+  P2 E 80 | train=0.9753 | val=78.6% | best=79.9% | 1569s
+  P2 E 90 | train=0.9824 | val=79.2% | best=79.9% | 1689s
+  P2 E100 | train=0.9801 | val=77.3% | best=79.9% | 1809s
+
+  === FINAL EVAL ===
+  Best checkpoint: epoch=260, val_acc=79.9%
+  [CNN] Captcha: 102/149 = 68.5%
+  [CNN] Char-level: 963/1043 = 92.3%
+  [CNN] Errors (47):
+    4B2mUn4.PNG: exp=4B2mUn4 got=4B2mUJ4
+                ^ 
+    5YYJLCV.jpg: exp=5YYJLCV got=5YYJLuV
+                ^ 
+    6VGWQ8X.jpg: exp=6VGWQ8X got=6wqWF8X
+            ^^ ^  
+    6VRXreM.jpg: exp=6VRXreM got=6VWXreM
+             ^    
+    7drrydH.jpg: exp=7drrydH got=7drsy6H
+              ^ ^ 
+    8SWs3sq.jpg: exp=8SWs3sq got=GUP8xKq
+           ^^^^^^ 
+    8XKTcyq.jpg: exp=8XKTcyq got=8XqTcyq
+             ^    
+    AQWUd2b.jpg: exp=AQWUd2b got=AQWRh2b
+              ^^  
+    BUrRbjt.jpg: exp=BUrRbjt got=BUqRbjt
+             ^    
+    CLTqHWM.jpg: exp=CLTqHWM got=CLTqHcM
+                ^ 
+
+  === SUMMARY ===
+  Arch: attention | Seed: 42
+  Captcha acc: 68.5%
+  Char acc: 92.3%
+  Best val: 79.9%
+  Total time: 1809s
+  Saved: D:\automatizacion\captcha_solver_imss\cnn_solver\models\attention_s42_v3.pt

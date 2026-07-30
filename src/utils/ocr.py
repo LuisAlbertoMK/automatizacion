@@ -13,6 +13,7 @@ import hashlib
 import io
 import os
 import re
+from collections import OrderedDict
 from typing import Any, Dict, List, Optional
 
 import pytesseract
@@ -44,18 +45,18 @@ class OCRExtractor:
     def __init__(self, cache_size: int = 128):
         self._verify_tesseract()
         self._cache: Dict[str, str] = {}
-        self._cache_order: List[str] = []
+        self._cache_order: OrderedDict = OrderedDict()
         self._max_cache = max(cache_size, 1)
 
     def _cache_result(self, key: str, result: str) -> str:
         """Guarda resultado en caché LRU."""
         if key in self._cache:
-            self._cache_order.remove(key)
+            self._cache_order.move_to_end(key)
         elif len(self._cache) >= self._max_cache:
-            oldest = self._cache_order.pop(0)
-            self._cache.pop(oldest, None)
+            oldest_key, _ = self._cache_order.popitem(last=False)
+            self._cache.pop(oldest_key, None)
         self._cache[key] = result
-        self._cache_order.append(key)
+        self._cache_order[key] = None
         return result
 
     def _verify_tesseract(self):

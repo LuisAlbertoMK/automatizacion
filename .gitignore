@@ -1,50 +1,27 @@
-node_modules
-.env
+# Byte-compiled / cached
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Env files
 config.env
-__pycache__
-
-# Logs
-logs/
-
-# Debug screenshots
-debug_*.png
-captcha_*.png
-curp_*.png
-nss_*.png
-resultado_*.png
-
-# Model weights (too heavy for git)
-*.pt
-*.onnx
-*.onnx.data
-
-# Audio artifacts (whisper)
-*.wav
+.env
 
 # IDE
-.vscode/
 .idea/
-
-# Raw captcha artifacts
-captcha_solver_imss/raw_captchas/
-
-# Runtime data (profiles, creds)
-data/
+.vscode/
+*.swp
+*.swo
 
 # OS
 Thumbs.db
 .DS_Store
 
-# Build artifacts
-*.egg-info/
+# Streamlit
+.streamlit/
 
-# Synthetic dataset
-data/synthetic/
-
-# Runtime output (PDFs, generated files)
-output/
-
-# Coverage artifacts
-.coverage
-coverage_html/
-coverage.xml
+# Atlassian
+.atl/

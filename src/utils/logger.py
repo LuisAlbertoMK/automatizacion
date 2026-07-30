@@ -18,6 +18,19 @@ from colorama import Fore, Style
 
 logger = logging.getLogger(__name__)
 
+
+class JsonFormatter:
+    def format(self, record):
+        log_entry = {
+            "timestamp": self.formatTime(record),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        if hasattr(record, "extra_data"):
+            log_entry.update(record.extra_data)
+        return json.dumps(log_entry, ensure_ascii=False)
+
 # ── Directorio de logs ──────────────────────────────────────────────────
 LOG_DIR = Path(os.getenv("LOG_DIR", "./logs"))
 LOG_DIR.mkdir(exist_ok=True)
@@ -60,6 +73,8 @@ class TramiteLogger:
             fh.setFormatter(logging.Formatter(
                 "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
             ))
+            if os.getenv("LOG_FORMAT") == "json":
+                fh.setFormatter(JsonFormatter())
             self._logger.addHandler(fh)
             self._logger.setLevel(logging.DEBUG)
 
@@ -93,6 +108,10 @@ class TramiteLogger:
     def warn(self, msg: str):
         self._print("warning", msg)
         self._logger.warning(self._sanitize(msg))
+
+    def warning(self, msg: str):
+        """Alias for warn() — matches Python logging API."""
+        self.warn(msg)
 
     def error(self, msg: str, exc_info: bool = False):
         self._print("error", msg)
@@ -146,13 +165,14 @@ class TramiteMetrics:
 
     @staticmethod
     def resumen() -> dict:
-        """Retorna resumen de métricas."""
+        """Retorna resumen de métricas (last 1000 lines only)."""
         if not METRICS_FILE.exists():
             return {"total": 0}
         records = []
         try:
+            from collections import deque
             with open(METRICS_FILE, "r", encoding="utf-8") as f:
-                for line in f:
+                for line in deque(f, maxlen=1000):
                     try:
                         records.append(json.loads(line))
                     except Exception:

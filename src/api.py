@@ -119,7 +119,7 @@ def _tramite_exception_to_http(exc: TramiteError) -> HTTPException:
         _validation_hints = ("Se requiere", "inválido", "faltante", "rechazó el portal")
         if any(hint in msg for hint in _validation_hints):
             status = 422
-    detail = msg or _EXCEPTION_DETAIL_MAP.get(exc_type, "Error interno del servidor")
+    detail = _EXCEPTION_DETAIL_MAP.get(exc_type, "Error interno del servidor")
     return HTTPException(status_code=status, detail=detail)
 
 
@@ -193,6 +193,22 @@ class ProfileData(BaseModel):
     nombre: Optional[str] = None
     placa: Optional[str] = None
 
+    @field_validator("curp")
+    @classmethod
+    def validate_curp(cls, v):
+        if v:
+            from src.validators import validar_curp as _vc
+            return _vc(v)
+        return v
+
+    @field_validator("correo")
+    @classmethod
+    def validate_correo(cls, v):
+        if v:
+            from src.validators import validar_email as _ve
+            return _ve(v)
+        return v
+
 
 # ── App & Routers ─────────────────────────────────────────────
 
@@ -221,7 +237,7 @@ if PROD:
         )
     origins = [o.strip() for o in _CORS_ORIGINS.split(",") if o.strip() and o.strip() != "*"]
 else:
-    origins = ["*"]
+    origins = ["http://localhost:8501", "http://127.0.0.1:8501"]
 
 app.add_middleware(
     CORSMiddleware,

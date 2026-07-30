@@ -4,8 +4,10 @@ Módulo unificado para consulta de Reportes de Crédito.
 Reemplaza buro.py y circulo.py (~95% idénticos).
 
 Portales:
-  - Buró:     https://www.burodecredito.com.mx/reporte-especial
+  - Buró:     https://www.burodecredito.com.mx/personas-físicas/productos/reporte-de-crédito-especial/
   - Círculo:  https://www.circulodecredito.com.mx/reporte-credito-especial
+
+Updated: 2026-07-23 — URL Buró actualizada (portal anterior devolvía 404)
 """
 
 import time
@@ -20,7 +22,7 @@ _CONFIGS = {
     "buro": {
         "name": "Buro",
         "label": "Buró",
-        "portal_url": "https://www.burodecredito.com.mx/reporte-especial",
+        "portal_url": "https://www.burodecredito.com.mx/personas-f%C3%ADsicas/productos/reporte-de-cr%C3%A9dito-especial/",
         "error_cls": BuroError,
         "selectors": {
             "rfc":             ["#rfc", "input[name='rfc']"],

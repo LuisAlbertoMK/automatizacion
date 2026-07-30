@@ -1,0 +1,6 @@
+CURP: GARC850101HDFRRN09
+Correo: test@example.com
+Timestamp: 2026-07-23 12:21:01
+Frames: 2
+Indicadores: {'resultado': False, 'no encontrado': False, 'error': False, 'captcha': False, 'datos': False, 'continuar': False, 'correo': False}
+============================================================

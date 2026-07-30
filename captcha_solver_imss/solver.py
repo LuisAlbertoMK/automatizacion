@@ -23,7 +23,7 @@ from typing import Optional
 
 import cv2
 
-from .preprocess import load_image, preprocess_pipeline
+from .preprocess import load_image, preprocess_pipeline, generate_variants
 from .store import CaptchaStore
 
 # Caracteres válidos
@@ -143,7 +143,7 @@ class IMSCaptchaSolver:
             return result
 
         # ── 2. EasyOCR ensemble (fallback si CNN falló) ──────
-        variants = preprocess_pipeline(img)
+        variants = self._build_variants_lazy(img)
         n_variants = len(variants)
 
         candidates = self._try_easyocr(variants)
@@ -218,6 +218,63 @@ class IMSCaptchaSolver:
 
     def solve_from_path(self, path: str, **kwargs) -> dict:
         return self.solve(Path(path), **kwargs)
+
+    def _build_variants_lazy(self, img):
+        """Build variants dict lazily from generator — only computes what's accessed."""
+        _cache = {}
+
+        class _LazyDict:
+            """Dict-like that populates on first access via generate_variants."""
+
+            def __init__(self, image):
+                self._gen = generate_variants(image)
+                self._cache = {}
+                self._exhausted = False
+
+            def _ensure(self, key):
+                if key in self._cache:
+                    return
+                if self._exhausted:
+                    return
+                for name, variant in self._gen:
+                    self._cache[name] = variant
+                    if name == key:
+                        return
+
+            def get(self, key, default=None):
+                self._ensure(key)
+                return self._cache.get(key, default)
+
+            def __getitem__(self, key):
+                self._ensure(key)
+                return self._cache[key]
+
+            def __len__(self):
+                return len(self._cache)
+
+            def __contains__(self, key):
+                self._ensure(key)
+                return key in self._cache
+
+            def keys(self):
+                self._exhausted = True
+                for name, variant in self._gen:
+                    self._cache[name] = variant
+                return list(self._cache.keys())
+
+            def values(self):
+                self._exhausted = True
+                for name, variant in self._gen:
+                    self._cache[name] = variant
+                return list(self._cache.values())
+
+            def items(self):
+                self._exhausted = True
+                for name, variant in self._gen:
+                    self._cache[name] = variant
+                return list(self._cache.items())
+
+        return _LazyDict(img)
 
     # ── EasyOCR ──────────────────────────────────────────────────
 
@@ -627,8 +684,13 @@ class IMSCaptchaSolver:
                 _sys.stderr = _io.StringIO()
                 try:
                     import easyocr
+                    try:
+                        import torch
+                        gpu_available = torch.cuda.is_available()
+                    except ImportError:
+                        gpu_available = False
                     self._reader = easyocr.Reader(
-                        ["en"], gpu=True, verbose=False,
+                        ["en"], gpu=gpu_available, verbose=False,
                     )
                     self._log("  EasyOCR listo [OK]")
                 finally:

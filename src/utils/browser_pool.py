@@ -76,15 +76,27 @@ class BrowserPool:
         return False
 
     async def acquire(self) -> Browser:
-        """Adquiere un browser del pool. Cierra inactivos lazy."""
+        """Adquiere un browser del pool. Cierra inactivos sin bloquear el lock.
+
+        Fix: el relaunch de un browser inactivo se hace FUERA del lock
+        para no serializar los otros acquire() calls.
+        """
         await self.initialize()
+
+        # Fase 1: sacar browser del queue bajo lock
         async with self._lock:
             browser = await self._pool.get()
-            # Lazy cleanup: si este browser está inactivo, crear uno nuevo
-            if await self._close_idle_browser(browser):
-                browser = await self._playwright.firefox.launch(headless=True)
+            needs_relaunch = await self._close_idle_browser(browser)
+
+        # Fase 2: relaunch FUERA del lock (puede tomar 3-5s)
+        if needs_relaunch:
+            browser = await self._playwright.firefox.launch(headless=True)
+
+        # Fase 3: actualizar timestamp
+        async with self._lock:
             self._last_used[browser] = time.time()
-            return browser
+
+        return browser
         
     async def release(self, browser: Browser):
         """Libera un browser de vuelta al pool."""

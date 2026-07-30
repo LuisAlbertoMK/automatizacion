@@ -15,6 +15,7 @@ Tiempo estimado: 45-90 segundos
 """
 
 import asyncio
+import secrets
 import time
 
 from playwright.async_api import Page
@@ -158,9 +159,8 @@ class AntecedentesModule(BaseModule):
             if "password" in datos:
                 password = datos["password"]
             else:
-                import secrets
                 suffix = secrets.token_hex(4)  # 8 chars aleatorios
-                password = f"Auto{curp[:4]}{suffix}!"
+                password = f"Auto{secrets.token_urlsafe(8)}{suffix}!"
             self._generated_password = password
             await self.fill_field(page, ["input[name='password']", "input[type='password']"], password)
 

@@ -10,13 +10,11 @@ import pytest
 _fake_keyring = MagicMock()
 _fake_keyring.get_password.return_value = None
 
-_patches = [
-    patch.dict("sys.modules", {"keyring": _fake_keyring}),
-    patch("src.utils.secrets_manager.KEYRING_AVAILABLE", True),
-    patch("src.utils.secrets_manager.keyring", _fake_keyring),
-]
-for p in _patches:
-    p.start()
+# Si el módulo ya fue cacheado, lo removemos para forzar re-importación
+sys.modules.pop("src.utils.secrets_manager", None)
+
+patcher = patch.dict("sys.modules", {"keyring": _fake_keyring})
+patcher.start()
 
 from src.utils.secrets_manager import (  # noqa: E402
     SECRET_KEYS,

@@ -1,11 +1,10 @@
-version: "3.9"
-
 services:
+  # ── CLI interactivo (docker exec -it tramites python main.py) ──
   tramites:
     build: .
     image: agente-tramites-gobmx:latest
     container_name: tramites
-    restart: unless-stopped
+    restart: "no"
     env_file:
       - config.env
     environment:
@@ -19,11 +18,14 @@ services:
       - ./data:/app/data
     stdin_open: true
     tty: true
-    command: ["--help"]
+    entrypoint: ["tail", "-f", "/dev/null"]
+    profiles:
+      - cli
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 2G
+          cpus: "1.0"
 
   # ── Web UI (Streamlit) ──
   app:
@@ -36,7 +38,7 @@ services:
       - HEADLESS=true
       - REQUEST_DELAY=2.0
     ports:
-      - "8501:8501"
+      - "127.0.0.1:8501:8501"
     volumes:
       - ./output:/app/output
       - ./logs:/app/logs
@@ -54,6 +56,7 @@ services:
       resources:
         limits:
           memory: 4G
+          cpus: "2.0"
 
   # ── API REST (opcional) ──
   api:
@@ -66,7 +69,7 @@ services:
       - HEADLESS=true
       - REQUEST_DELAY=2.0
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./output:/app/output
       - ./logs:/app/logs
@@ -84,3 +87,4 @@ services:
       resources:
         limits:
           memory: 4G
+          cpus: "2.0"

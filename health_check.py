@@ -19,20 +19,24 @@ OK = "\033[92m[OK]\033[0m"
 FAIL = "\033[91m[FAIL]\033[0m"
 WARN = "\033[93m[WARN]\033[0m"
 QUICK = False
+failed_count = 0
 
 
 def check(module: str, name: str = "", critical: bool = False) -> bool:
     """Verifica que un import funcione."""
+    global failed_count
     label = name or module
     try:
         importlib.import_module(module)
         print(f"  {OK} {label}")
         return True
     except ImportError as e:
+        failed_count += 1
         icon = FAIL if critical else WARN
         print(f"  {icon} {label}: {e}")
         return False
     except Exception as e:
+        failed_count += 1
         icon = FAIL if critical else WARN
         print(f"  {icon} {label}: {e}")
         return False
@@ -40,11 +44,13 @@ def check(module: str, name: str = "", critical: bool = False) -> bool:
 
 def check_env(key: str, critical: bool = False) -> bool:
     """Verifica variable de entorno."""
+    global failed_count
     val = os.getenv(key, "")
     if val and val != "tu_api_key_aqui" and "placeholder" not in val.lower() and "your-" not in val.lower():
         print(f"  {OK} {key}")
         return True
     else:
+        failed_count += 1
         icon = FAIL if critical else WARN
         print(f"  {icon} {key} {'(no configurada)' if not val else '(placeholder)'}")
         return False
@@ -157,6 +163,9 @@ def main():
     print(f"\n{'=' * 50}")
     print("  Health check complete")
     print("=" * 50)
+
+    if failed_count > 0:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

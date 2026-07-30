@@ -33,7 +33,12 @@ class CaptchaSolver:
                 "Configurala en config.env, como variable de entorno, "
                 "o en Windows Credential Manager (via utils/secrets_manager.py)"
             )
-        self._verify_balance()
+        self._balance_checked = False
+
+    def _ensure_balance(self):
+        if not self._balance_checked:
+            self._verify_balance()
+            self._balance_checked = True
 
     def _verify_balance(self):
         """Verifica saldo en 2captcha con cache de 60s."""
@@ -66,6 +71,7 @@ class CaptchaSolver:
         numeric=True indica que solo contiene dígitos.
         Costo aprox: $0.001–0.002 USD
         """
+        self._ensure_balance()
         b64 = base64.b64encode(image_bytes).decode()
 
         params = {
@@ -109,6 +115,7 @@ class CaptchaSolver:
             print("  [captcha] Resuelve el reCAPTCHA manualmente en el navegador")
             return "MANUAL"  # Señal para que el módulo espere
 
+        self._ensure_balance()
         params = {
             "key": self.api_key,
             "method": "userrecaptcha",
@@ -152,6 +159,7 @@ class CaptchaSolver:
             print("  [captcha] reCAPTCHA v3 se resolverá automáticamente por el navegador")
             return "MANUAL"
 
+        self._ensure_balance()
         params = {
             "key": self.api_key,
             "method": "userrecaptcha",
@@ -177,6 +185,7 @@ class CaptchaSolver:
     # -------------------------------------------------------------------------
     async def solve_image_async(self, image_bytes: bytes, numeric: bool = True) -> str:
         """Async: Resuelve un CAPTCHA de imagen sin bloquear."""
+        self._ensure_balance()
         b64 = base64.b64encode(image_bytes).decode()
         params = {"key": self.api_key, "method": "base64", "body": b64, "json": 1}
         if numeric:
@@ -195,6 +204,7 @@ class CaptchaSolver:
         if not auto:
             print("  [captcha] [!] Modo SEMIAUTOMÁTICO activado")
             return "MANUAL"
+        self._ensure_balance()
         params = {
             "key": self.api_key, "method": "userrecaptcha",
             "googlekey": site_key, "pageurl": page_url, "json": 1,
@@ -214,6 +224,7 @@ class CaptchaSolver:
         if not auto:
             print("  [captcha] [!] Modo SEMIAUTOMÁTICO activado")
             return "MANUAL"
+        self._ensure_balance()
         params = {
             "key": self.api_key, "method": "userrecaptcha", "version": "v3",
             "googlekey": site_key, "pageurl": page_url, "action": action,

@@ -1,12 +1,17 @@
 """
 modules/control_confianza.py
 Automatiza el llenado del Control de Confianza (SESNSP).
-Portal: https://certificado.sesnsp.gob.mx/
+Portal: https://certificado.sesnsp.gob.mx/  **MUERTO (DNS dead desde 2025)**
 
-Nota: Este trámite requiere intervención manual significativa
-(login institucional, historial laboral, referencias, bienes).
+NOTA: El portal original ya no existe. El trámite de Certificado Único Policial
+ahora se maneja a través de los Centros de Evaluación y Control de Confianza (CECC)
+de cada estado. No hay portal federal unificado de reemplazo.
 
 Migrado de: tramites-auto/tramites-bot/tramites/control_confianza.js
+Updated: 2026-07-23 — Portal declarado MUERTO. Módulo mantenido para referencia.
+
+TODO: Revisar si CDMX u otros estados tienen portal online para CUP.
+Alternativa: https://www.gob.mx/proteccionfederal/acciones-y-programas/evaluacion-y-control-de-confianza
 """
 
 import time
@@ -14,7 +19,7 @@ import time
 from src.exceptions import ControlConfianzaError
 from src.tramites.base import OUTPUT_DIR, BaseModule
 
-PORTAL_URL = "https://certificado.sesnsp.gob.mx/"
+PORTAL_URL = "https://certificado.sesnsp.gob.mx/"  # MUERTO — no usar
 
 
 class ControlConfianzaModule(BaseModule):
@@ -54,28 +59,12 @@ class ControlConfianzaModule(BaseModule):
         if not curp:
             raise ControlConfianzaError("Se requiere CURP")
 
-        self.log("Iniciando Control de Confianza...")
-        start = time.time()
-
-        async with self.browser_context() as br:
-            page = br.page
-            try:
-                result = await self._run(page, curp=curp, rfc=rfc, nombre=nombre,
-                                         fecha_nacimiento=fecha_nacimiento,
-                                         estado_nacimiento=estado_nacimiento,
-                                         domicilio=domicilio, telefono=telefono, email=email,
-                                         estado_civil=estado_civil, escolaridad=escolaridad,
-                                         ingreso_mensual=ingreso_mensual,
-                                         egreso_mensual=egreso_mensual)
-                elapsed = time.time() - start
-                self.log(f"Control de Confianza completado en {elapsed:.1f}s")
-                return result
-            except ControlConfianzaError:
-                raise
-            except Exception as e:
-                elapsed = time.time() - start
-                self.error(f"Error en {elapsed:.1f}s: {e}")
-                raise ControlConfianzaError(f"Error en Control de Confianza: {e}") from e
+        # Portal muerto — DNS dead desde 2025, sin reemplazo federal
+        raise ControlConfianzaError(
+            "El portal de Control de Confianza (certificado.sesnsp.gob.mx) ya no existe. "
+            "Este trámite ahora se gestiona a través de los Centros de Evaluación y Control "
+            "de Confianza (CECC) de cada estado. No hay portal federal unificado disponible."
+        )
 
     async def _run(self, page, curp: str, rfc: str = "", nombre: str = "",
                    fecha_nacimiento: str = "", estado_nacimiento: str = "",

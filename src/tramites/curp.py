@@ -337,7 +337,7 @@ class CURPModule(BaseModule):
             except Exception as e:
                 self.warn(f"Error al extraer datos: {e}")
 
-        curp_val = curp_val or "DESCONOCIDA"
+        curp_val = curp_val or None
         result = {
             "curp": curp_val,
             "nombre": nombre or "",

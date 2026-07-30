@@ -6,6 +6,7 @@ Portal: https://www.gob.mx/actas
 Migrado de: tramites-auto/tramites-bot/tramites/acta_nacimiento.js
 """
 
+import asyncio
 import time
 
 from src.exceptions import ActaNacimientoError
@@ -117,7 +118,7 @@ class ActaNacimientoModule(BaseModule):
 
                         import requests
                         pdf_url = urljoin(page.url, href)
-                        resp = requests.get(pdf_url, timeout=30)
+                        resp = await asyncio.to_thread(requests.get, pdf_url, timeout=30)
                         if resp.status_code == 200:
                             path = OUTPUT_DIR / f"ActaNacimiento_{curp[:8]}.pdf"
                             path.write_bytes(resp.content)

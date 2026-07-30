@@ -25,6 +25,7 @@ from playwright.async_api import TimeoutError as PwTimeout
 
 from src.exceptions import NSSError
 from src.tramites.base import TIMEOUT, BaseModule
+from src.utils.pii import sanitize_nss
 
 
 PORTAL_URL = (
@@ -460,11 +461,15 @@ class NSSModule(BaseModule):
                 self.warn(f"Revisá manualmente el correo {correo}")
                 return "ENVIADO_AL_CORREO"
 
-        # Quinto: buscar cualquier número de 11 dígitos
+        # Quinto: buscar número de 11 dígitos con formato NSS válido
         all_nums = re.findall(r"\d{11}", content)
-        if all_nums:
-            self.log(f"Posible NSS encontrado: {all_nums[0]}")
-            return all_nums[0]
+        nss_candidates = []
+        for m in all_nums:
+            if m[0] in '123456789' and int(m[7:9]) <= 32:
+                nss_candidates.append(m)
+        if nss_candidates:
+            self.log(f"NSS encontrado (formato válido): {sanitize_nss(nss_candidates[0])}")
+            return nss_candidates[0]
 
         raise NSSError(
             "No se pudo obtener el NSS. "

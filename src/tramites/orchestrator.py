@@ -10,6 +10,7 @@ Funcionalidades:
 """
 
 import asyncio
+import concurrent.futures
 import importlib
 from typing import Any, Literal
 
@@ -38,7 +39,7 @@ TRAMITES_REGISTRADOS = {
     "acta_nacimiento":   {"modulo": "ActaNacimientoModule",   "estado": "⚙️ Migrado",       "tiempo": "~30-60s"},
     "pasaporte":         {"modulo": "PasaporteModule",        "estado": "⚙️ Migrado",       "tiempo": "~2-5min"},
     "semanas":           {"modulo": "SemanasModule",          "estado": "⚙️ Migrado",       "tiempo": "~30s"},
-    "control_confianza": {"modulo": "ControlConfianzaModule", "estado": "⚙️ Migrado",       "tiempo": "~10-30min"},
+    "control_confianza": {"modulo": "ControlConfianzaModule", "estado": "❌ Portal muerto (DNS dead desde 2025)", "tiempo": "N/A"},
     "buro":              {"modulo": "BuroModule",             "estado": "⚙️ Migrado",       "tiempo": "~5-10min"},
     "circulo":           {"modulo": "CirculoModule",          "estado": "⚙️ Migrado",       "tiempo": "~5-10min"},
     "cita_ine":          {"modulo": "CitaINEModule",          "estado": "⚙️ Migrado",       "tiempo": "~5min"},
@@ -180,6 +181,18 @@ _TRAMITE_SCHEMAS: dict[str, list[InputField]] = {
 _SCHEMA_BASED = set(_TRAMITE_SCHEMAS.keys()) - {"antecedentes", "tenencia", "ambos"}
 
 
+def _safe_input(msg):
+    """Non-blocking input wrapper — runs input() in a thread when an event loop is active."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                return pool.submit(input, msg).result()
+    except RuntimeError:
+        pass
+    return input(msg)
+
+
 class TramitesOrchestrator:
     """Orquestador de trámites gubernamentales con entrada multimodal."""
 
@@ -291,11 +304,11 @@ class TramitesOrchestrator:
                     return value
 
         # Text input
-        raw = input(f"  {prompt}: ").strip()
+        raw = _safe_input(f"  {prompt}: ").strip()
         if not raw:
             if required and not default:
                 # Re-prompt for required fields
-                raw = input(f"  ⚠️  {prompt} (requerido): ").strip()
+                raw = _safe_input(f"  ⚠️  {prompt} (requerido): ").strip()
             else:
                 return default
 
@@ -344,15 +357,15 @@ class TramitesOrchestrator:
             curp = self.multimodal.get_curp(mode=modo)
             correo = self.multimodal.get_email(mode=modo)
         else:
-            curp = input("  CURP: ").strip().upper()
-            correo = input("  Correo electrónico: ").strip()
+            curp = _safe_input("  CURP: ").strip().upper()
+            correo = _safe_input("  Correo electrónico: ").strip()
 
         # Preguntar si tiene cuenta
-        tiene_cuenta = input("  ¿Ya tienes cuenta en el portal? (s/n): ").strip().lower()
+        tiene_cuenta = _safe_input("  ¿Ya tienes cuenta en el portal? (s/n): ").strip().lower()
         password = None
 
         if tiene_cuenta == "s":
-            password = input("  Contraseña: ").strip()
+            password = _safe_input("  Contraseña: ").strip()
 
         return await self._get_module("antecedentes").consultar(
             curp=curp,
@@ -365,14 +378,14 @@ class TramitesOrchestrator:
         if self.multimodal:
             placa = self.multimodal.get_placa(mode=modo)
         else:
-            placa = input("  Placa vehicular: ").strip().upper()
+            placa = _safe_input("  Placa vehicular: ").strip().upper()
 
         # Número de serie opcional
-        tiene_serie = input("  ¿Tienes el número de serie/VIN? (s/n): ").strip().lower()
+        tiene_serie = _safe_input("  ¿Tienes el número de serie/VIN? (s/n): ").strip().lower()
         numero_serie = None
 
         if tiene_serie == "s":
-            numero_serie = input("  Número de serie: ").strip()
+            numero_serie = _safe_input("  Número de serie: ").strip()
 
         return await self._get_module("tenencia").consultar(
             placa=placa,
@@ -431,7 +444,7 @@ class TramitesOrchestrator:
             print("  ──")
             print("  0)  Salir")
 
-            opcion = input("\n  Selecciona opción: ").strip()
+            opcion = _safe_input("\n  Selecciona opción: ").strip()
 
             if opcion in ("0", "salir", "exit"):
                 print("  Hasta luego.")
@@ -446,7 +459,7 @@ class TramitesOrchestrator:
                 if self.multimodal.ocr:
                     print("  3) Imagen (foto/archivo)")
 
-                modo_opcion = input("  Modo: ").strip()
+                modo_opcion = _safe_input("  Modo: ").strip()
 
                 if modo_opcion == "2" and self.multimodal.voice:
                     modo = "voice"

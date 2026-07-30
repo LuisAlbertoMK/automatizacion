@@ -13,8 +13,11 @@ Autenticación:
 """
 
 import asyncio
+import concurrent.futures
+import hmac
 import os
 import secrets
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -28,6 +31,7 @@ init_secrets()
 from src.tramites.curp import CURPModule  # noqa: E402
 from src.tramites.nss import NSSModule  # noqa: E402
 from src.tramites.orchestrator import listar_tramites  # noqa: E402
+from src.exceptions import CURPError, NSSError  # noqa: E402
 from src.utils.captcha import CaptchaError, CaptchaSolver  # noqa: E402
 from src.utils.storage import (  # noqa: E402
     delete_profile,
@@ -42,7 +46,7 @@ st.set_page_config(
     page_title="Trámites GOB.MX",
     page_icon="🤖",
     layout="centered",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # ── SEO: Meta tags + Structured Data ─────────────────────────
@@ -98,7 +102,7 @@ def _login_form():
         submitted = st.form_submit_button("Ingresar", use_container_width=True)
 
         if submitted:
-            if password == WEB_PASSWORD:
+            if hmac.compare_digest(password, WEB_PASSWORD):
                 st.session_state["authenticated"] = True
                 st.rerun()
             else:
@@ -126,6 +130,26 @@ def _get_solver():
         return FreeCaptchaSolver()
     except Exception:
         return None
+
+
+# ── Async helper para Streamlit ──────────────────────────────
+# Streamlit bloquea el thread principal con cada rerun.
+# Ejecutar asyncio.run() directamente congela el server.
+# Solución: correr el event loop en un thread separado.
+_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2)
+
+
+def run_async(coro):
+    """Ejecuta una corrutina en un thread separado, seguro para Streamlit.
+
+    Returns el resultado o lanza la excepción.
+    """
+    loop = asyncio.new_event_loop()
+    try:
+        future = _executor.submit(loop.run_until_complete, coro)
+        return future.result(timeout=120)
+    finally:
+        loop.close()
 
 
 # ── Sidebar ─────────────────────────────────────────────────
@@ -165,12 +189,7 @@ if menu == "📊 Dashboard":
         st.markdown(f"- {emoji} **{nombre.upper()}**: {info['estado']} ({info['tiempo']})")
 
     st.markdown("### Acceso rápido")
-    col_a, col_b = st.columns(2)
-    if col_a.button("🔍 Consultar CURP", use_container_width=True):
-        st.switch_page("app.py")
-        st.session_state["page"] = "curp"
-    if col_b.button("🔍 Consultar NSS", use_container_width=True):
-        st.session_state["page"] = "nss"
+    st.info("💡 Usá el menú lateral para navegar entre secciones.")
 
 
 # ── CURP ────────────────────────────────────────────────────
@@ -179,7 +198,17 @@ elif menu == "📋 CURP":
     st.markdown("Consultá y descargá tu CURP oficial de RENAPO.")
 
     curp = st.text_input("CURP (18 caracteres)", max_chars=18,
-                         help="Ej: GALJ800101HDFXXXX00").strip().upper()
+                         help="Ej: GALJ800101HDFXXXX00",
+                         key="curp_input").strip().upper()
+
+    if curp and len(curp) == 18:
+        try:
+            validar_curp(curp)
+            st.success("✅ Formato CURP válido")
+        except ValueError as e:
+            st.error(f"❌ {e}")
+    elif curp and len(curp) > 0:
+        st.info(f"📝 {len(curp)}/18 caracteres")
 
     if st.button("🔍 Consultar CURP", type="primary", use_container_width=True):
         try:
@@ -187,13 +216,15 @@ elif menu == "📋 CURP":
         except ValueError as e:
             st.error(str(e))
         else:
-            with st.spinner("Consultando CURP... (~16s)"):
+            with st.status("Consultando CURP...", expanded=True) as status:
                 try:
+                    st.write("🔍 Abriendo navegador...")
                     solver = _get_solver()
                     modulo = CURPModule(captcha_solver=solver)
-                    resultado = asyncio.run(modulo.consultar(curp=curp))
+                    st.write("📋 Consultando portal RENAPO...")
+                    resultado = run_async(modulo.consultar(curp=curp))
+                    status.update(label="✅ CURP encontrada", state="complete", expanded=False)
 
-                    st.success("✅ CURP encontrada")
                     for k, v in resultado.items():
                         if v:
                             st.text_input(k.upper(), str(v), disabled=True)
@@ -205,8 +236,15 @@ elif menu == "📋 CURP":
                                 f,
                                 file_name=f"curp_{curp}.pdf",
                             )
+                except CaptchaError as e:
+                    status.update(label="❌ Error de captcha", state="error")
+                    st.error(f"Error de captcha: {e}")
+                except CURPError as e:
+                    status.update(label="❌ Error CURP", state="error")
+                    st.error(f"Error en consulta CURP: {e}")
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    status.update(label="❌ Error inesperado", state="error")
+                    st.error(f"Error inesperado: {type(e).__name__}")
 
 
 # ── NSS ─────────────────────────────────────────────────────
@@ -229,13 +267,16 @@ elif menu == "🔢 NSS IMSS":
             except ValueError as e:
                 st.error(str(e))
             else:
-                with st.spinner("Consultando NSS... (~30-60s)"):
+                with st.status("Consultando NSS...", expanded=True) as status:
                     try:
+                        st.write("🔍 Abriendo navegador...")
                         solver = _get_solver()
                         modulo = NSSModule(captcha_solver=solver)
-                        resultado = asyncio.run(
+                        st.write("📋 Consultando portal IMSS...")
+                        resultado = run_async(
                             modulo.consultar(curp=curp_nss, correo=correo)
                         )
+                        status.update(label="✅ NSS consultado", state="complete", expanded=False)
 
                         if resultado.get("nss") == "ENVIADO_AL_CORREO":
                             st.info("📧 Solicitud enviada. Revisá tu correo.")
@@ -246,8 +287,15 @@ elif menu == "🔢 NSS IMSS":
                                     st.text_input(k.upper(), str(v), disabled=True)
                         else:
                             st.warning("No se pudo obtener el NSS")
+                    except CaptchaError as e:
+                        status.update(label="❌ Error de captcha", state="error")
+                        st.error(f"Error de captcha: {e}")
+                    except NSSError as e:
+                        status.update(label="❌ Error NSS", state="error")
+                        st.error(f"Error en consulta NSS: {e}")
                     except Exception as e:
-                        st.error(f"Error: {e}")
+                        status.update(label="❌ Error inesperado", state="error")
+                        st.error(f"Error inesperado: {type(e).__name__}")
 
 
 # ── Perfiles ────────────────────────────────────────────────

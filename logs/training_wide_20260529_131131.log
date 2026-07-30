@@ -1,0 +1,82 @@
+
+============================================================
+  Model: WIDE | Seed: 42
+  Device: cpu
+  Classes: 62
+============================================================
+
+  === Loading data ===
+  [CNN] Captchas totales: 149
+  [CNN] Train captchas: 149, Val captchas: 0
+  [CNN] train: 1043 chars, 52/62 clases, min=1, max=33
+  [CNN] val: 0 chars, 0/62 clases, min=0, max=0
+  Params: 5,107,454
+
+  === PHASE 1: Clean (1043 train, 0 val) ===
+  P1 E  1 | train=0.0230 | captcha=0.0% | best_train=0.0% | lr=0.00300 | 36s
+  P1 E 10 | train=0.0336 | captcha=0.0% | best_train=0.0% | lr=0.00300 | 197s
+  P1 E 20 | train=0.0451 | captcha=0.0% | best_train=0.0% | lr=0.00300 | 379s
+  P1 E 30 | train=0.0786 | captcha=0.0% | best_train=0.0% | lr=0.00300 | 562s
+  P1 E 40 | train=0.0920 | captcha=0.0% | best_train=0.0% | lr=0.00300 | 740s
+  P1 E 50 | train=0.1016 | captcha=0.0% | best_train=0.0% | lr=0.00150 | 910s
+  P1 E 60 | train=0.1275 | captcha=0.0% | best_train=0.0% | lr=0.00150 | 1064s
+  P1 E 70 | train=0.2013 | captcha=0.0% | best_train=0.0% | lr=0.00150 | 1218s
+  P1 E 80 | train=0.2368 | captcha=0.0% | best_train=0.0% | lr=0.00150 | 1371s
+  P1 E 90 | train=0.3193 | captcha=0.0% | best_train=0.0% | lr=0.00150 | 1527s
+  P1 E100 | train=0.3653 | captcha=0.0% | best_train=0.0% | lr=0.00075 | 1680s
+  P1 E110 | train=0.4976 | captcha=0.7% | best_train=0.7% | lr=0.00075 | 1835s
+  P1 E120 | train=0.5590 | captcha=6.0% | best_train=6.0% | lr=0.00075 | 1990s
+  P1 E130 | train=0.6251 | captcha=9.4% | best_train=9.4% | lr=0.00075 | 2144s
+  P1 E140 | train=0.6529 | captcha=13.4% | best_train=13.4% | lr=0.00075 | 2297s
+  P1 E150 | train=0.6903 | captcha=18.1% | best_train=18.1% | lr=0.00038 | 2451s
+  P1 E160 | train=0.7536 | captcha=22.1% | best_train=22.1% | lr=0.00038 | 2604s
+  P1 E170 | train=0.7498 | captcha=30.2% | best_train=30.2% | lr=0.00038 | 2759s
+  P1 E180 | train=0.7910 | captcha=31.5% | best_train=31.5% | lr=0.00038 | 2913s
+  P1 E190 | train=0.8044 | captcha=34.9% | best_train=34.9% | lr=0.00038 | 3074s
+  P1 E200 | train=0.8178 | captcha=43.0% | best_train=43.0% | lr=0.00019 | 3228s
+  P1 E210 | train=0.8380 | captcha=43.6% | best_train=43.6% | lr=0.00019 | 3380s
+  P1 E220 | train=0.8303 | captcha=48.3% | best_train=48.3% | lr=0.00019 | 3532s
+  P1 E230 | train=0.8485 | captcha=45.0% | best_train=48.3% | lr=0.00019 | 3683s
+  P1 E240 | train=0.8370 | captcha=53.7% | best_train=53.7% | lr=0.00019 | 3834s
+  P1 E250 | train=0.8523 | captcha=61.1% | best_train=61.1% | lr=0.00009 | 3987s
+  P1 E260 | train=0.8773 | captcha=58.4% | best_train=61.1% | lr=0.00009 | 4138s
+  P1 E270 | train=0.8706 | captcha=62.4% | best_train=62.4% | lr=0.00009 | 4288s
+  P1 E280 | train=0.8821 | captcha=65.8% | best_train=65.8% | lr=0.00009 | 4443s
+  P1 E290 | train=0.8849 | captcha=64.4% | best_train=65.8% | lr=0.00009 | 4594s
+  P1 E300 | train=0.8782 | captcha=66.4% | best_train=66.4% | lr=0.00005 | 4745s
+
+  === PHASE 1 DONE: 4745s, Best val=0.0% ===
+
+  === FINAL EVAL ===
+  Best checkpoint: epoch=300, val_acc=0.0%
+  [CNN] Captcha: 99/149 = 66.4%
+  [CNN] Char-level: 986/1043 = 94.5%
+  [CNN] Errors (50):
+    4B2mUn4.PNG: exp=4B2mUn4 got=4B2mUr4
+                ^ 
+    5CpSSsY.jpg: exp=5CpSSsY got=5CRSSsM
+             ^   ^
+    5RKLtfV.jpg: exp=5RKLtfV got=5RKytfV
+              ^   
+    5YYJLCV.jpg: exp=5YYJLCV got=5YYJLuV
+                ^ 
+    6VGWQ8X.jpg: exp=6VGWQ8X got=6wGWQ8X
+            ^     
+    6VRXreM.jpg: exp=6VRXreM got=6VWXreM
+             ^    
+    77mpBhw.jpg: exp=77mpBhw got=H7mpBhw
+           ^      
+    7cUertu.jpg: exp=7cUertu got=7cUe2tu
+               ^  
+    7drrydH.jpg: exp=7drrydH got=7drny6H
+              ^ ^ 
+    8XKTcyq.jpg: exp=8XKTcyq got=8XPTcyq
+             ^    
+
+  === SUMMARY ===
+  Arch: wide | Seed: 42
+  Captcha acc: 66.4%
+  Char acc: 94.5%
+  Best val: 0.0%
+  Total time: 4745s
+  Saved: D:\automatizacion\captcha_solver_imss\cnn_solver\models\wide_s42_v3_full.pt

@@ -21,59 +21,51 @@ import numpy as np
 UPSCALE_FACTOR = 4  # 220×40 → 880×160
 
 
-def preprocess_pipeline(img_array: np.ndarray) -> dict:
-    """
-    Variantes para EasyOCR (BGR, 3 canales, sin binarizar).
+def _upscale(img: np.ndarray) -> np.ndarray:
+    """Upscale 4x con LANCZOS."""
+    h, w = img.shape[:2]
+    return cv2.resize(img, (w * UPSCALE_FACTOR, h * UPSCALE_FACTOR),
+                      interpolation=cv2.INTER_LANCZOS4)
 
-    Retorna dict con:
-      - "raw":           solo upscale + sharpening
-      - "clahe":         CLAHE + upscale (mejor contraste local)
-      - "grayscale_bgr": grayscale → 3ch + upscale
-      - "denoised":      denoise suave + upscale
-    """
-    variants = {}
 
-    # 1. RAW — solo upscale (mínimo procesamiento)
-    h, w = img_array.shape[:2]
-    raw = cv2.resize(
-        img_array,
-        (w * UPSCALE_FACTOR, h * UPSCALE_FACTOR),
-        interpolation=cv2.INTER_LANCZOS4,
-    )
-    # Sharpening suave
+def generate_variants(image: np.ndarray):
+    """
+    Yield preprocessing variants lazily — stop when caller breaks early.
+
+    Yields (name, variant_image) pairs ordered by expected usefulness.
+    """
+    raw = _upscale(image)
     raw = _sharpen(raw)
-    variants["raw"] = raw
+    yield "raw", raw
 
-    # 2. CLAHE — mejora contraste local (ideal para texto con fondo ruidoso)
+    gray_raw = cv2.cvtColor(raw, cv2.COLOR_BGR2GRAY)
+    gray_3ch = cv2.cvtColor(gray_raw, cv2.COLOR_GRAY2BGR)
+    yield "gray", gray_3ch
+
+    denoised = cv2.bilateralFilter(raw, 7, 50, 50)
+    yield "denoised", denoised
+
+    grad_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    grad = cv2.morphologyEx(gray_raw, cv2.MORPH_GRADIENT, grad_kernel)
+    grad_bgr = cv2.cvtColor(grad, cv2.COLOR_GRAY2BGR)
+    yield "gradient", grad_bgr
+
     lab = cv2.cvtColor(raw, cv2.COLOR_BGR2LAB)
     l, a, b = cv2.split(lab)
     clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(4, 4))
     l_enhanced = clahe.apply(l)
     lab_enhanced = cv2.merge([l_enhanced, a, b])
     clahe_bgr = cv2.cvtColor(lab_enhanced, cv2.COLOR_LAB2BGR)
-    variants["clahe"] = clahe_bgr
+    yield "clahe", clahe_bgr
 
-    # 3. GRAYSCALE — a grises y de vuelta a BGR (elimina ruido de color)
-    gray = cv2.cvtColor(raw, cv2.COLOR_BGR2GRAY)
-    gray_3ch = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-    variants["gray"] = gray_3ch
-
-    # 4. DENOISED — denoise suave bilateral (preserva bordes)
-    denoised = cv2.bilateralFilter(raw, 7, 50, 50)
-    variants["denoised"] = denoised
-
-    # 5. GRAY + CLAHE — grises + mejora de contraste
-    gray_clahe = clahe.apply(gray)
+    gray_clahe = clahe.apply(gray_raw)
     gray_clahe_bgr = cv2.cvtColor(gray_clahe, cv2.COLOR_GRAY2BGR)
-    variants["gray_clahe"] = gray_clahe_bgr
+    yield "gray_clahe", gray_clahe_bgr
 
-    # 6. MORPH GRADIENT — enfatiza bordes (ayuda con 'r', 'l', 'i' angostos)
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    grad = cv2.morphologyEx(gray, cv2.MORPH_GRADIENT, kernel)
-    grad_bgr = cv2.cvtColor(grad, cv2.COLOR_GRAY2BGR)
-    variants["gradient"] = grad_bgr
 
-    return variants
+def preprocess_pipeline(img_array: np.ndarray) -> dict:
+    """Eager wrapper: returns full dict for callers that need it."""
+    return {name: img for name, img in generate_variants(img_array)}
 
 
 def _sharpen(img: np.ndarray, strength: float = 0.3) -> np.ndarray:

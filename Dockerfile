@@ -2,12 +2,14 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
-# ── Python deps ────────────────────────────────────────────
-COPY requirements.txt pyproject.toml ./
-RUN pip install --no-cache-dir -r requirements.txt
+# ── Python deps (lock file para builds reproducibles) ─────
+COPY requirements.lock ./
+RUN pip install --no-cache-dir -r requirements.lock
 
-# ── App install (no-deps since requirements.txt has it all) ──
-COPY . .
+# ── App install (no-deps since requirements.lock has it all) ──
+COPY pyproject.toml ./
+COPY src/ src/
+COPY app.py main.py health_check.py benchmark_browser_pool.py ./
 RUN pip install -e . --no-deps
 
 
@@ -20,6 +22,7 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
     tesseract-ocr \
     tesseract-ocr-spa \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Copy installed packages from builder ──────────────────
@@ -27,19 +30,19 @@ COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 COPY --from=builder /build /app
 
-# ── Playwright browsers ────────────────────────────────────
-RUN playwright install firefox
-
 # ── Non-root user ──────────────────────────────────────────
 RUN useradd --create-home --uid 1000 appuser && \
     chown -R appuser:appuser /app
 USER appuser
 
+# ── Playwright browsers ────────────────────────────────────
+ENV PLAYWRIGHT_BROWSERS_PATH=/app/.cache
+RUN playwright install firefox
+
 # ── Health check ───────────────────────────────────────────
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s \
   CMD python health_check.py --quick || exit 1
 
 # ── Run ────────────────────────────────────────────────────
-# Usa entry point de pyproject.toml, no shim legacy (DevOps-1 del análisis)
 ENTRYPOINT ["tramites"]
 CMD ["--help"]
