@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.exceptions import BuroError, CirculoError, ModuleError
+from src.exceptions import BuroError, ModuleError
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ class TestRun:
         page = _mock_page()
 
         with _mock_browser_context(m, page):
-            result = await m._run(
+            await m._run(
                 page, rfc="RFC01", curp="CURP123456HDF",
                 nombre="JUAN", apellido_paterno="PEREZ",
                 apellido_materno="GARCIA", fecha_nacimiento="01/01/1990",
@@ -148,7 +148,7 @@ class TestRun:
         page = _mock_page()
 
         with _mock_browser_context(m, page):
-            result = await m._run(page, rfc="RFC01", curp="CURP123456HDF")
+            await m._run(page, rfc="RFC01", curp="CURP123456HDF")
 
         assert m.fill_field.call_count == 2  # solo rfc + curp
 

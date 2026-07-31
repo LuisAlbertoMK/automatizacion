@@ -15,7 +15,6 @@ from PIL import Image
 from src.exceptions import FreeCaptchaError
 from src.utils.free_captcha import FreeCaptchaSolver, _whisper_model
 
-
 # Imagen real mínima de 1x1 px para mockear Image.open global
 _TINY_IMG = Image.new("RGB", (1, 1))
 
@@ -133,7 +132,7 @@ class TestSolveImage:
         mock_img.point.return_value = mock_img
 
         with patch("PIL.Image.open", return_value=mock_img):
-            with patch("src.utils.free_captcha.pytesseract.image_to_string", return_value="7521") as mock_its:
+            with patch("src.utils.free_captcha.pytesseract.image_to_string", return_value="7521"):
                 result = solver.solve_image(b"fake_image_bytes")
 
         assert result == "7521"

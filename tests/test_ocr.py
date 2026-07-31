@@ -1,9 +1,8 @@
 """Tests unitarios para utils/ocr.py con pytesseract mockeado."""
 
-from unittest.mock import MagicMock, patch
 import io
-import sys
 import types
+from unittest.mock import MagicMock, patch
 
 import pytest
 from PIL import Image

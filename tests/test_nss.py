@@ -1,6 +1,5 @@
 """Tests para src/tramites/nss.py — NSS IMSS."""
 
-import re
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -8,7 +7,8 @@ import pytest
 from playwright.async_api import TimeoutError as PwTimeout
 
 from src.exceptions import NSSError
-from src.tramites.nss import NSSModule, RECAPTCHA_SITE_KEY_FALLBACK
+from src.tramites.nss import RECAPTCHA_SITE_KEY_FALLBACK, NSSModule
+
 
 # IMSCaptchaSolver se importa lazy dentro del módulo; pre-seed para que
 # los parches `@patch("captcha_solver_imss.IMSCaptchaSolver")` funguen.
@@ -120,7 +120,7 @@ class TestIngresarCurp:
         mock_base['find_visible_inputs'].side_effect = [[inp], [inp_correo]]
 
         mod = NSSModule()
-        r = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
+        await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
         inp["element"].fill.assert_called_once_with("GALJ800101HDFXXXX0")
 
     async def test_todo_falla(self, mock_base):
@@ -154,7 +154,7 @@ class TestIngresarCorreo:
         ]
 
         mod = NSSModule()
-        r = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
+        await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
         inp_correo["element"].fill.assert_called_once_with("a@b.com")
 
     async def test_fill_falla_keyword_email(self, mock_base):

@@ -1,6 +1,6 @@
 """Tests para src/tramites/cita_ine.py — Cita INE."""
 
-from unittest.mock import AsyncMock, MagicMock, PropertyMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -35,7 +35,7 @@ class TestConsultar:
         mod = CitaINEModule()
         mod.interaction = MagicMock()
         mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(curp="ABCD123456HDFRRN08")
+        await mod.consultar(curp="ABCD123456HDFRRN08")
         mock_base['wait_for_recaptcha'].assert_not_called()
 
     async def test_con_recaptcha(self, mock_base):
@@ -43,7 +43,7 @@ class TestConsultar:
         mod = CitaINEModule()
         mod.interaction = MagicMock()
         mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(curp="ABCD123456HDFRRN08")
+        await mod.consultar(curp="ABCD123456HDFRRN08")
         mock_base['wait_for_recaptcha'].assert_called_once()
 
     async def test_fecha_clickeada(self, mock_base):
@@ -53,7 +53,7 @@ class TestConsultar:
         mod = CitaINEModule()
         mod.interaction = MagicMock()
         mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(curp="ABCD123456HDFRRN08")
+        await mod.consultar(curp="ABCD123456HDFRRN08")
         el.click.assert_called()
 
     async def test_sin_fecha(self, mock_base):

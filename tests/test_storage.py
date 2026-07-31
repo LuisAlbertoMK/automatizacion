@@ -45,7 +45,6 @@ def test_get_cipher_no_key():
     # Para evitar recargar el módulo, simplemente parcheamos os.getenv
     import os as os_mod
 
-    from src.utils.storage import _get_cipher
 
     original_getenv = os_mod.getenv
 

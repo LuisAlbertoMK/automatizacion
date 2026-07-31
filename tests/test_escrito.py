@@ -1,15 +1,15 @@
 """Tests para src/tramites/documentos/escrito.py — Generador de documentos."""
 
-import json
-import os
-from datetime import datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from src.tramites.documentos.escrito import (
-    OUTPUT_DIR, TIPOS, DESCRIPCIONES, _parrafo, EscritoGenerator,
+    DESCRIPCIONES,
+    TIPOS,
+    EscritoGenerator,
+    _parrafo,
 )
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,7 +70,6 @@ class TestConstantes:
 class TestParrafo:
     def test_parrafo_basico(self):
         from docx import Document
-        from docx.shared import RGBColor
 
         doc = Document()
         p = _parrafo(doc, "Texto de prueba")

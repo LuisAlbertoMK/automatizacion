@@ -15,12 +15,14 @@ Modo de uso:
 from __future__ import annotations
 
 import asyncio
-import logging
 import io
+import logging
 import os
 import re
 import tempfile
 from pathlib import Path
+
+from PIL import Image
 
 logger = logging.getLogger(__name__)
 
@@ -150,10 +152,9 @@ class FreeCaptchaSolver:
         print(f"  [FreeCaptcha] CAPTCHA resuelto: {text}")
         return text
 
-    def _ocr_with_preprocess(self, img: "Image.Image", numeric: bool) -> str:
+    def _ocr_with_preprocess(self, img: Image.Image, numeric: bool) -> str:
         """Preprocesa la imagen y aplica OCR."""
         import pytesseract
-        from PIL import Image
 
         # Escala de grises
         if img.mode != "L":

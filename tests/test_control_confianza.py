@@ -55,7 +55,7 @@ class TestConsultar:
         mod = ControlConfianzaModule()
         mod.interaction = MagicMock()
         mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(curp="ABCD123456HDFRRN08")
+        await mod.consultar(curp="ABCD123456HDFRRN08")
         mock_base['page'].select_option.assert_called()
 
     async def test_select_loop_exception(self, mock_base):

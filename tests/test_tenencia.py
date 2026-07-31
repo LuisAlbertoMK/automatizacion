@@ -1,6 +1,5 @@
 """Tests para src/tramites/tenencia.py — Tenencia Vehicular Edomex."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -96,7 +95,7 @@ class TestResolverCaptcha:
         _setup_happy(mock_base, skip_locator=True)
         mock_base['resolve_image_captcha'].return_value = False
         mock_base['page'].locator = MagicMock(side_effect=_smart_locator(captcha_count=1))
-        r = await mod.consultar(placa="ABC1234")
+        await mod.consultar(placa="ABC1234")
         mod.interaction.prompt.assert_called_once()
 
 

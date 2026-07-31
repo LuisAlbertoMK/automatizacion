@@ -1,12 +1,11 @@
 """Tests para src/tramites/curp.py — Consulta CURP en gob.mx/curp"""
 
-import re
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from src.exceptions import CURPError
-from src.tramites.curp import CURPModule, ESTADOS
+from src.tramites.curp import ESTADOS, CURPModule
 
 
 def _setup_happy(mock_base, prefill_content=True):
@@ -100,7 +99,7 @@ class TestConsultaPorCurp:
         mock_base['find_visible_inputs'].return_value = [inp]
 
         mod = CURPModule()
-        r = await mod.consultar(curp="GALJ800101HDFXXXX0")
+        await mod.consultar(curp="GALJ800101HDFXXXX0")
         inp["element"].fill.assert_called_once()
 
     async def test_todo_falla(self, mock_base):

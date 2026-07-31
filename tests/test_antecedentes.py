@@ -160,7 +160,7 @@ class TestGuardarCredenciales:
     async def test_ok(self, mock_base, mod):
         _setup_happy(mock_base)
         with patch("src.utils.storage.save_profile") as mock_save:
-            r = await mod.consultar(
+            await mod.consultar(
                 curp="ABCD123456HDFRRN08",
                 correo="test@test.com",
                 datos_personales={"nombre": "Juan"},

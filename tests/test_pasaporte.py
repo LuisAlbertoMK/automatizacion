@@ -1,6 +1,6 @@
 """Tests para src/tramites/pasaporte.py — Cita pasaporte SRE."""
 
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -141,7 +141,7 @@ class TestConsultar:
         mock_base['detect_site_key'].return_value = None
         _setup_happy(mock_base)
         mod = PasaporteModule()
-        r = await mod.consultar(curp="ABCD123456HDFRRN08")
+        await mod.consultar(curp="ABCD123456HDFRRN08")
         mock_base['wait_for_recaptcha'].assert_not_called()
 
     async def test_pdf_no_descargado(self, mock_base):

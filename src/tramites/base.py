@@ -15,12 +15,11 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 import requests
 from playwright.async_api import Browser, Page, async_playwright
 from playwright.async_api import TimeoutError as PwTimeout
-
-from urllib.parse import urlparse
 
 from src.exceptions import ModuleError
 from src.utils.browser_pool import BrowserPool

@@ -36,7 +36,7 @@ class TestConsultar:
         mod = CitaSATModule()
         mod.interaction = MagicMock()
         mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(rfc="BAAC800101XXX")
+        await mod.consultar(rfc="BAAC800101XXX")
         mock_base['wait_for_recaptcha'].assert_not_called()
 
     async def test_con_recaptcha(self, mock_base):
@@ -44,7 +44,7 @@ class TestConsultar:
         mod = CitaSATModule()
         mod.interaction = MagicMock()
         mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(rfc="BAAC800101XXX")
+        await mod.consultar(rfc="BAAC800101XXX")
         mock_base['wait_for_recaptcha'].assert_called_once()
 
     async def test_fecha_clickeada(self, mock_base):
@@ -54,7 +54,7 @@ class TestConsultar:
         mod = CitaSATModule()
         mod.interaction = MagicMock()
         mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(rfc="BAAC800101XXX")
+        await mod.consultar(rfc="BAAC800101XXX")
         el.click.assert_called()
 
     async def test_sin_fecha(self, mock_base):

@@ -1,5 +1,4 @@
 """Tests unitarios para RateLimiter — rate limiter por dominio."""
-import asyncio
 import time
 from unittest.mock import AsyncMock, patch
 
@@ -73,7 +72,6 @@ class TestRateLimiterWait:
             await rl.wait("example.com")
             t1 = time.monotonic()
             await rl.wait("example.com")
-            t2 = time.monotonic()
         # El segundo wait debería dormir (delay 10s, elapsed ~0)
         assert mock_sleep.call_count >= 1
         # elapsed total entre waits es pequeño (<< delay)
@@ -124,7 +122,6 @@ class TestRateLimiterIntegration:
     @pytest.mark.asyncio
     async def test_actual_sleep_time(self):
         rl = RateLimiter(default_delay=0.05)
-        t0 = time.monotonic()
         await rl.wait("test.com")
         t1 = time.monotonic()
         await rl.wait("test.com")

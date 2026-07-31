@@ -6,11 +6,10 @@ import os
 os.environ["BCRYPT_KDF_ROUNDS"] = "4"
 os.environ["BCRYPT_HASH_ROUNDS"] = "4"
 
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
-
-import asyncio
 
 import pytest
 

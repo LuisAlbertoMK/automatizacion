@@ -4,8 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.utils.interaction import (CLIPromptHandler, InteractionHandler,
-                                   TimedPromptHandler)
+from src.utils.interaction import CLIPromptHandler, InteractionHandler, TimedPromptHandler
 
 
 class TestInteractionHandler:
