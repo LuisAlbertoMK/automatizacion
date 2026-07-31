@@ -1,6 +1,6 @@
 """Tests para src/tramites/pasaporte.py — Cita pasaporte SRE."""
 
-from unittest.mock import AsyncMock, MagicMock, call
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 

@@ -13,7 +13,6 @@ from PIL import Image
 from src.exceptions import FreeCaptchaError
 from src.utils.free_captcha import FreeCaptchaSolver
 
-
 # Imagen real mínima de 1x1 px para mockear Image.open global
 _TINY_IMG = Image.new("RGB", (1, 1))
 

@@ -14,7 +14,6 @@ TODO: Revisar si CDMX u otros estados tienen portal online para CUP.
 Alternativa: https://www.gob.mx/proteccionfederal/acciones-y-programas/evaluacion-y-control-de-confianza
 """
 
-import time
 
 from src.exceptions import ControlConfianzaError
 from src.tramites.base import OUTPUT_DIR, BaseModule

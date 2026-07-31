@@ -1,6 +1,5 @@
 """Tests para src/tramites/tenencia.py — Tenencia Vehicular Edomex."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest

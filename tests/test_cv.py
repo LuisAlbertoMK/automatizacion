@@ -1,14 +1,17 @@
 """Tests para src/tramites/documentos/cv.py — Generador de CV profesional."""
 
 import json
-import os
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
 from src.tramites.documentos.cv import (
-    OUTPUT_DIR, _add_line, _bullet, _parrafo, _seccion, CVGenerator,
+    CVGenerator,
+    _add_line,
+    _bullet,
+    _parrafo,
+    _seccion,
 )
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -93,7 +96,6 @@ class TestHelpers:
 
     def test_parrafo(self):
         from docx import Document
-        from docx.enum.text import WD_ALIGN_PARAGRAPH
         from docx.shared import RGBColor
 
         doc = Document()
@@ -393,7 +395,6 @@ class TestGenerarInteractivo:
 
     def test_error_en_construir_docx(self, cv_generator, tmp_output):
         """Si _construir_docx crashea, se propaga."""
-        from docx import Document
 
         def fail_docx(cv):
             raise ValueError("Document error")

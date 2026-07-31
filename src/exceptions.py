@@ -106,7 +106,7 @@ class CirculoError(ModuleError):
     pass
 
 
-class CitaINEerror(ModuleError):
+class CitaINEError(ModuleError):
     """Error en módulo Cita INE."""
     pass
 

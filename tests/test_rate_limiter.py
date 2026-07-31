@@ -1,5 +1,4 @@
 """Tests unitarios para RateLimiter — rate limiter por dominio."""
-import asyncio
 import time
 from unittest.mock import AsyncMock, patch
 

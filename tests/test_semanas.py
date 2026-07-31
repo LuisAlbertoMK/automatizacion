@@ -1,7 +1,5 @@
 """Tests para src/tramites/semanas.py — Consulta de semanas cotizadas IMSS."""
 
-from pathlib import Path
-from unittest.mock import AsyncMock
 
 import pytest
 

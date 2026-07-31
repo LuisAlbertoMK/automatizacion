@@ -467,7 +467,7 @@ class Agente:
             return False
 
     def _mostrar_resultado(self, tipo: str, resultado: dict):
-        from src.utils.pii import sanitize_curp, sanitize_nss, sanitize_email
+        from src.utils.pii import sanitize_curp, sanitize_email, sanitize_nss
 
         _SANITIZERS = {
             "curp": sanitize_curp,

@@ -1,7 +1,7 @@
 """Tests unitarios para utils/ocr.py con pytesseract mockeado."""
 
-from unittest.mock import patch
 import io
+from unittest.mock import patch
 
 import pytest
 from PIL import Image

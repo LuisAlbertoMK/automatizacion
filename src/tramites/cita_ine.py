@@ -9,7 +9,7 @@ Updated: 2026-07-23 — URL actualizada (portal anterior devolvía 404)
 
 import time
 
-from src.exceptions import CitaINEerror
+from src.exceptions import CitaINEError
 from src.tramites.base import OUTPUT_DIR, BaseModule
 
 PORTAL_URL = "https://inetel-citas.ine.mx/ReservaCitas/"
@@ -36,7 +36,7 @@ class CitaINEModule(BaseModule):
             dict con: status, curp, pdf_path
         """
         if not curp:
-            raise CitaINEerror("Se requiere CURP para cita INE")
+            raise CitaINEError("Se requiere CURP para cita INE")
 
         self.log("Iniciando cita INE...")
         start = time.time()
@@ -48,12 +48,12 @@ class CitaINEModule(BaseModule):
                 elapsed = time.time() - start
                 self.log(f"Cita INE completada en {elapsed:.1f}s")
                 return result
-            except CitaINEerror:
+            except CitaINEError:
                 raise
             except Exception as e:
                 elapsed = time.time() - start
                 self.error(f"Error en {elapsed:.1f}s: {e}")
-                raise CitaINEerror(f"Error en cita INE: {e}") from e
+                raise CitaINEError(f"Error en cita INE: {e}") from e
 
     async def _run(self, page, curp: str, nombre: str = "") -> dict:
         """Flujo principal de cita INE."""

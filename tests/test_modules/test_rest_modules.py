@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.exceptions import AntecedentesError, CitaINEerror, CitaSATError, ControlConfianzaError
+from src.exceptions import AntecedentesError, CitaINEError, CitaSATError, ControlConfianzaError
 
 
 class TestAntecedentesModule:
@@ -67,7 +67,7 @@ class TestCitaINEModule:
     async def test_missing_curp(self):
         from src.tramites.cita_ine import CitaINEModule
         mod = CitaINEModule()
-        with pytest.raises(CitaINEerror, match="Se requiere CURP para cita INE"):
+        with pytest.raises(CitaINEError, match="Se requiere CURP para cita INE"):
             await mod.consultar(curp="")
 
 

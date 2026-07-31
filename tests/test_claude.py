@@ -1,6 +1,5 @@
 """Tests para src/utils/claude.py — mockeando httpx.Client."""
 
-import json
 import os
 from unittest.mock import MagicMock, patch
 

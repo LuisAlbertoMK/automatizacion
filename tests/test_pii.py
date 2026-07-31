@@ -2,7 +2,7 @@
 
 import pytest
 
-from src.utils.pii import sanitize_curp, sanitize_nss, sanitize_email, sanitize_pii
+from src.utils.pii import sanitize_curp, sanitize_email, sanitize_nss, sanitize_pii
 
 
 class TestSanitizeCURP:

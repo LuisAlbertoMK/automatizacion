@@ -1,12 +1,11 @@
 """Tests para src/tramites/curp.py — Consulta CURP en gob.mx/curp"""
 
-import re
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from src.exceptions import CURPError
-from src.tramites.curp import CURPModule, ESTADOS
+from src.tramites.curp import ESTADOS, CURPModule
 
 
 def _setup_happy(mock_base, prefill_content=True):

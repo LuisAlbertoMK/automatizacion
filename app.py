@@ -172,7 +172,11 @@ if menu == "📊 Dashboard":
     st.title("📊 Dashboard")
     st.markdown("---")
 
-    tramites = listar_tramites()
+    @st.cache_data(ttl=300, show_spinner=False)
+    def _get_tramites_cached():
+        return listar_tramites()
+
+    tramites = _get_tramites_cached()
 
     col1, col2, col3 = st.columns(3)
     activos = sum(1 for t in tramites.values() if "Producción" in t["estado"])

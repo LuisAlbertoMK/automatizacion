@@ -27,7 +27,6 @@ from src.exceptions import NSSError
 from src.tramites.base import TIMEOUT, BaseModule
 from src.utils.pii import sanitize_nss
 
-
 PORTAL_URL = (
     "https://serviciosdigitales.imss.gob.mx/"
     "gestionAsegurados-web-externo/asignacionNSS"

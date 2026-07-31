@@ -15,12 +15,11 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+from urllib.parse import urlparse
 
 import requests
 from playwright.async_api import Browser, Page, async_playwright
 from playwright.async_api import TimeoutError as PwTimeout
-
-from urllib.parse import urlparse
 
 from src.exceptions import ModuleError
 from src.utils.browser_pool import BrowserPool
@@ -81,20 +80,6 @@ HEADLESS = os.getenv("HEADLESS", "true").lower() == "true"
 REQUEST_DELAY = float(os.getenv("REQUEST_DELAY", "2.0"))
 """Segundos mínimos entre requests a portales (rate limiting)."""
 
-_last_request_time = 0.0
-
-
-# DEPRECATED: Use _domain_limiter.wait(domain) instead — global rate limiting
-# delays ALL requests even when hitting different domains. The per-domain
-# RateLimiter only throttles repeated hits to the same host.
-async def _rate_limit():
-    """DEPRECATED: global rate limiter. Use _domain_limiter.wait(domain)."""
-    global _last_request_time
-    now = time.time()
-    elapsed = now - _last_request_time
-    if elapsed < REQUEST_DELAY:
-        await asyncio.sleep(REQUEST_DELAY - elapsed)
-    _last_request_time = time.time()
 
 
 class BaseModule:

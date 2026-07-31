@@ -159,41 +159,6 @@ class TestLogging:
         logger.error.assert_called_once_with("error via logger")
 
 
-# ── Rate Limiting ─────────────────────────────────────────────────────────────
-
-class TestRateLimit:
-    @pytest.mark.asyncio
-    async def test_first_call_no_delay(self):
-        """Primera llamada no espera."""
-        import src.tramites.base as base_mod
-        base_mod._last_request_time = 0.0
-        t0 = asyncio.get_event_loop().time()
-        await base_mod._rate_limit()
-        elapsed = asyncio.get_event_loop().time() - t0
-        assert elapsed < 0.2
-
-    @pytest.mark.asyncio
-    async def test_sets_last_request_time(self):
-        """Después de llamar, _last_request_time se actualiza."""
-        import src.tramites.base as base_mod
-        base_mod._last_request_time = 0.0
-        await base_mod._rate_limit()
-        assert base_mod._last_request_time > 0
-
-    @pytest.mark.asyncio
-    async def test_second_call_within_window_waits(self):
-        """Line 33: if elapsed < REQUEST_DELAY, sleeps."""
-        import src.tramites.base as base_mod
-        base_mod._last_request_time = 100.0
-        old_delay = base_mod.REQUEST_DELAY
-        base_mod.REQUEST_DELAY = 10.0
-        with patch("src.tramites.base.time.time", return_value=105.0):
-            with patch("src.tramites.base.asyncio.sleep", AsyncMock()) as mock_sleep:
-                await base_mod._rate_limit()
-                mock_sleep.assert_awaited_once_with(5.0)
-        base_mod.REQUEST_DELAY = old_delay
-
-
 # ── Extractores HTML ──────────────────────────────────────────────────────────
 
 class TestExtractFromHTML:
@@ -659,8 +624,7 @@ class TestGoto:
     async def test_goto_normal(self, module, mock_page):
         mock_page.goto = AsyncMock()
         mock_page.wait_for_timeout = AsyncMock()
-        with patch("src.tramites.base._rate_limit", AsyncMock()):
-            await module.goto(mock_page, "https://example.com")
+        await module.goto(mock_page, "https://example.com")
         mock_page.goto.assert_called_once()
         mock_page.wait_for_timeout.assert_called_once()
 
@@ -668,8 +632,7 @@ class TestGoto:
     async def test_goto_fallback(self, module, mock_page):
         mock_page.goto = AsyncMock(side_effect=[Exception("fail"), None])
         mock_page.wait_for_timeout = AsyncMock()
-        with patch("src.tramites.base._rate_limit", AsyncMock()):
-            await module.goto(mock_page, "https://primary.com", fallback_url="https://fallback.com")
+        await module.goto(mock_page, "https://primary.com", fallback_url="https://fallback.com")
         assert mock_page.goto.call_count == 2
         mock_page.wait_for_timeout.assert_called_once()
 
@@ -847,9 +810,8 @@ class TestGotoFallbackFails:
     async def test_both_urls_fail(self, module, mock_page):
         from src.exceptions import ModuleError
         mock_page.goto = AsyncMock(side_effect=Exception("fail"))
-        with patch("src.tramites.base._rate_limit", AsyncMock()):
-            with pytest.raises(ModuleError, match="No se pudo navegar"):
-                await module.goto(mock_page, "https://pri.com", fallback_url="https://fall.com")
+        with pytest.raises(ModuleError, match="No se pudo navegar"):
+            await module.goto(mock_page, "https://pri.com", fallback_url="https://fall.com")
         assert mock_page.goto.call_count == 2
 
 

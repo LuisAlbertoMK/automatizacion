@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.exceptions import BuroError, CirculoError, ModuleError
+from src.exceptions import BuroError, ModuleError
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 

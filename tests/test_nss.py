@@ -1,6 +1,5 @@
 """Tests para src/tramites/nss.py — NSS IMSS."""
 
-import re
 import sys
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -8,7 +7,8 @@ import pytest
 from playwright.async_api import TimeoutError as PwTimeout
 
 from src.exceptions import NSSError
-from src.tramites.nss import NSSModule, RECAPTCHA_SITE_KEY_FALLBACK
+from src.tramites.nss import RECAPTCHA_SITE_KEY_FALLBACK, NSSModule
+
 
 # IMSCaptchaSolver se importa lazy dentro del módulo; pre-seed para que
 # los parches `@patch("captcha_solver_imss.IMSCaptchaSolver")` funguen.
