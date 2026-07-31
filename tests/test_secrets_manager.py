@@ -289,5 +289,4 @@ class TestMainCli:
 
 def teardown_module(module=None):
     """Detiene los patches para no contaminar otros tests."""
-    for p in reversed(_patches):
-        p.stop()
+    patcher.stop()
