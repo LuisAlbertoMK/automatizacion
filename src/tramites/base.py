@@ -18,7 +18,7 @@ from typing import Optional
 from urllib.parse import urlparse
 
 import requests
-from playwright.async_api import Browser, Page, async_playwright
+from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 from playwright.async_api import TimeoutError as PwTimeout
 
 from src.exceptions import ModuleError
@@ -42,8 +42,8 @@ class BrowserResources:
     browser: Browser
     page: Page
     _pool: Optional[BrowserPool] = None
-    _playwright: Optional = None
-    _context: Optional = None
+    _playwright: Optional[Playwright] = None
+    _context: Optional[BrowserContext] = None
     _from_pool: bool = field(default=False, init=False)
 
     def __post_init__(self):

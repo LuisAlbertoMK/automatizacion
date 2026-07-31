@@ -33,9 +33,9 @@ class BrowserPool:
         self.idle_timeout = idle_timeout
         self._pool: Optional[asyncio.Queue] = None
         self._playwright: Optional[Playwright] = None
-        self._initialized = False
+        self._initialized: bool = False
         self._last_used: dict[Browser, float] = {}
-        self._lock = asyncio.Lock()
+        self._lock: asyncio.Lock = asyncio.Lock()
         
     async def initialize(self):
         """Inicializa el pool lanzando browsers."""
@@ -85,11 +85,13 @@ class BrowserPool:
 
         # Fase 1: sacar browser del queue bajo lock
         async with self._lock:
+            assert self._pool is not None, "pool no inicializado"
             browser = await self._pool.get()
             needs_relaunch = await self._close_idle_browser(browser)
 
         # Fase 2: relaunch FUERA del lock (puede tomar 3-5s)
         if needs_relaunch:
+            assert self._playwright is not None, "playwright no inicializado"
             browser = await self._playwright.firefox.launch(headless=True)
 
         # Fase 3: actualizar timestamp
@@ -101,6 +103,7 @@ class BrowserPool:
     async def release(self, browser: Browser):
         """Libera un browser de vuelta al pool."""
         async with self._lock:
+            assert self._pool is not None, "pool no inicializado"
             self._last_used[browser] = time.time()
             await self._pool.put(browser)
             

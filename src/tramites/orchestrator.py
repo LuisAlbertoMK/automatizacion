@@ -12,7 +12,7 @@ Funcionalidades:
 import asyncio
 import concurrent.futures
 import importlib
-from typing import Any, Literal
+from typing import Any, Literal, Protocol
 
 try:
     from src.utils.multimodal_input import MultimodalInput
@@ -27,6 +27,12 @@ TramiteType = Literal[
     "control_confianza", "buro", "circulo", "cita_ine", "cita_sat",
 ]
 InputMode = Literal["text", "voice", "image", "auto"]
+
+
+class TramiteModule(Protocol):
+    """Protocolo estructural de los módulos de trámites (dispatch por registry)."""
+
+    async def consultar(self, **kwargs: Any) -> dict: ...
 
 
 TRAMITES_REGISTRADOS = {
@@ -223,7 +229,7 @@ class TramitesOrchestrator:
         """
         self._captcha_solver = captcha_solver
         self._mail_reader = mail_reader
-        self._modules: dict[str, object] = {}  # cache lazy
+        self._modules: dict[str, TramiteModule] = {}  # cache lazy
 
         # Entrada multimodal
         if MULTIMODAL_AVAILABLE:
@@ -232,7 +238,7 @@ class TramitesOrchestrator:
             self.multimodal = None
             print("  [ORCHESTRATOR] [!] Entrada multimodal no disponible")
 
-    def _get_module(self, tramite: str) -> object:
+    def _get_module(self, tramite: str) -> TramiteModule:
         """Importa y cachea módulos bajo demanda."""
         if tramite in self._modules:
             return self._modules[tramite]

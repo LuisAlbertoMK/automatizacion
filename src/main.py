@@ -481,7 +481,7 @@ class Agente:
         print(f"{'━'*50}{Style.RESET_ALL}")
         for k, v in resultado.items():
             if v:
-                safe = _SANITIZERS.get(k)(str(v)) if k in _SANITIZERS else v
+                safe = _SANITIZERS[k](str(v)) if k in _SANITIZERS else v
                 print(f"  {k.upper()}: {safe}")
         print(f"{Fore.GREEN}{'━'*50}{Style.RESET_ALL}\n")
 

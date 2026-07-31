@@ -45,6 +45,7 @@ class TenenciaModule(BaseModule):
             raise TenenciaError("Se requiere placa vehicular")
 
         placa = placa.upper().strip()
+        numero_serie = (numero_serie or "").upper().strip()
         self.log(f"Consultando tenencia para placa {placa}")
         start = time.time()
 

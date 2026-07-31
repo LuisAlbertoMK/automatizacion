@@ -11,14 +11,14 @@ Updated: 2026-07-23 — URL Buró actualizada (portal anterior devolvía 404)
 """
 
 import time
-from typing import Literal
+from typing import Any, Literal
 
 from src.exceptions import BuroError, CirculoError, ModuleError
 from src.tramites.base import OUTPUT_DIR, BaseModule
 
 TipoCredito = Literal["buro", "circulo"]
 
-_CONFIGS = {
+_CONFIGS: dict[str, dict[str, Any]] = {
     "buro": {
         "name": "Buro",
         "label": "Buró",

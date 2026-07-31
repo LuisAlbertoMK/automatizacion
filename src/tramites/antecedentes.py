@@ -58,7 +58,7 @@ class AntecedentesModule(BaseModule):
             return result
 
     async def _run(self, page: Page, curp: str, correo: str,
-                   password: str, datos_personales: dict) -> dict:
+                   password: str = None, datos_personales: dict = None) -> dict:
         """Flujo principal."""
 
         # 1. Abrir portal
@@ -74,12 +74,10 @@ class AntecedentesModule(BaseModule):
             self.debug("No se pudo cerrar sesion previa")
 
         # 2. Verificar si necesita login o registro
-        tiene_cuenta = password is not None
-
-        if tiene_cuenta:
+        if password is not None:
             await self._login(page, correo, password)
         else:
-            await self._registrar_cuenta(page, curp, correo, datos_personales)
+            await self._registrar_cuenta(page, curp, correo, datos_personales or {})
 
         # 3. Llenar solicitud
         await self._llenar_solicitud(page, curp)

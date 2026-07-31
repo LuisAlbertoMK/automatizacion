@@ -287,7 +287,7 @@ class MultimodalInput:
         else:
             raise FileNotFoundError(f"Archivo no encontrado: {ruta}")
 
-    def _select_mode(self) -> str:
+    def _select_mode(self) -> InputMode:
         """Permite al usuario seleccionar el modo de entrada."""
         print("\n  Selecciona modo de entrada:")
         print("  1) Texto (teclado)")

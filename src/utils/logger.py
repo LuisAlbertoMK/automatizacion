@@ -19,7 +19,7 @@ from colorama import Fore, Style
 logger = logging.getLogger(__name__)
 
 
-class JsonFormatter:
+class JsonFormatter(logging.Formatter):
     def format(self, record):
         log_entry = {
             "timestamp": self.formatTime(record),
@@ -187,7 +187,7 @@ class TramiteMetrics:
         ok = sum(1 for r in records if r.get("success"))
         avg_time = sum(r.get("elapsed_s", 0) for r in records) / total
 
-        by_type = {}
+        by_type: dict[str, dict[str, int]] = {}
         for r in records:
             t = r.get("tramite", "?")
             by_type.setdefault(t, {"total": 0, "ok": 0})

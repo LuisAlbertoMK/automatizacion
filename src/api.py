@@ -128,8 +128,10 @@ def _tramite_exception_to_http(exc: TramiteError) -> HTTPException:
 API_KEY = os.getenv("API_KEY", "")
 PROD = os.getenv("PRODUCTION", "").lower() in ("1", "true", "yes")
 
+_API_KEY_WARNED = False
+
 if PROD and not API_KEY:
-    logger.critical("API_KEY no configurada en producción — Abortando")
+    logger.error("API_KEY no configurada en producción — Abortando")
     sys.exit(1)
 
 # Endpoints que NO requieren auth (health check, docs)
@@ -143,12 +145,13 @@ async def _verify_api_key(request: Request, call_next):
 
     if not API_KEY:
         # Development: permitir pero registrar warning (1 vez)
-        if not hasattr(_verify_api_key, "_warned"):
+        global _API_KEY_WARNED
+        if not _API_KEY_WARNED:
             logger.warning(
                 "API_KEY no configurada — auth desactivado (solo desarrollo). "
                 "Configurá API_KEY en config.env o Windows Credential Manager."
             )
-            _verify_api_key._warned = True
+            _API_KEY_WARNED = True
         return await call_next(request)
 
     key = request.headers.get("X-API-Key", "")
@@ -331,7 +334,7 @@ async def consultar_curp(request: Request, req: CurpRequest):
         resultado = await modulo.consultar(curp=req.curp.upper())
         return {"success": True, "data": resultado}
     except TramiteError as e:
-        logger.warning("Error CURP: %s", e)
+        logger.warning(f"Error CURP: {e}")
         raise _tramite_exception_to_http(e) from e
     except Exception:
         logger.error("Error inesperado en consulta CURP", exc_info=True)
@@ -350,7 +353,7 @@ async def consultar_nss(request: Request, req: NssRequest):
         )
         return {"success": True, "data": resultado}
     except TramiteError as e:
-        logger.warning("Error NSS: %s", e)
+        logger.warning(f"Error NSS: {e}")
         raise _tramite_exception_to_http(e) from e
     except Exception:
         logger.error("Error inesperado en consulta NSS", exc_info=True)

@@ -98,6 +98,8 @@ class CURPModule(BaseModule):
         if curp:
             await self._consulta_por_curp(page, curp)
         else:
+            if datos is None:
+                raise CURPError("Se requieren datos personales para consulta por datos")
             await self._consulta_por_datos(page, datos)
 
         # ── 3. Resolver CAPTCHA ────────────────────────────────────
