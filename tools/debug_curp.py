@@ -23,9 +23,6 @@ async def inspect_portal():
         
         print("\n=== INSPECCIONANDO ESTRUCTURA DEL PORTAL ===\n")
         
-        # Obtener todo el HTML
-        content = await page.content()
-        
         # Buscar inputs
         print("--- INPUTS ENCONTRADOS ---")
         inputs = await page.query_selector_all("input")

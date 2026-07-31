@@ -670,6 +670,14 @@ def _type_correo(val: str) -> str:
 def main():
     signal.signal(signal.SIGINT, _handle_shutdown)
 
+    # Windows: la consola por defecto (cp1252) no puede emitir emojis/acentos.
+    # Forzar UTF-8 evita UnicodeEncodeError al imprimir la salida del CLI.
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError):
+            pass  # stream ya reconfigurado o no reconfigurable (tests, pipes)
+
     parser = argparse.ArgumentParser(description="Agente de Trámites GOB.MX")
     parser.add_argument("--tramite", choices=[
         "curp", "nss", "ambos", "rfc", "acta_nacimiento",

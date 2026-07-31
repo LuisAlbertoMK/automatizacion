@@ -4,6 +4,7 @@ Cubre el contrato del binario publicado (`tramites = src.main:main`):
 arranque, catálogo, validación de args y cierre del modo interactivo.
 No mockea nada: es el flujo real de importación + argparse + main().
 """
+import os
 import subprocess
 import sys
 import time
@@ -15,10 +16,15 @@ _IMPORT_GRACE = 20
 
 def _run_cli(args, stdin=None, timeout=30):
     t0 = time.monotonic()
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"  # el CLI emite emojis; no depender del locale de la consola
     proc = subprocess.run(
         [sys.executable, "-m", "src.main", *args],
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
+        env=env,
         input=stdin,
         timeout=timeout,
         cwd=str(Path(__file__).resolve().parents[1]),

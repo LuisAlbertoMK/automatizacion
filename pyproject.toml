@@ -114,5 +114,12 @@ target-version = "py310"
 select = ["E", "F", "W", "I"]
 ignore = ["E501", "W293"]
 
+[tool.ruff.lint.per-file-ignores]
+# Imports diferidos a mitad de archivo: estos scripts miden tiempos de
+# carga de cada backend (torch/onnxruntime) por seccion.
+"tools/_benchmark.py" = ["E402"]
+"tools/_optimize.py" = ["E402"]
+"tools/_profile_timing.py" = ["E402"]
+
 [project.urls]
 Repository = "https://github.com/LuisAlbertoMK/automatizacion"
