@@ -25,3 +25,8 @@ Thumbs.db
 
 # Atlassian
 .atl/
+
+# Datos runtime — PII (CURPs/NSS reales), salt y logs NO van al repo
+data/
+logs/
+output/

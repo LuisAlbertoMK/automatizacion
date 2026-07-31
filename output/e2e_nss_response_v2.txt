@@ -1,5 +1,0 @@
-CURP: GARC850101HDFRRN09
-Correo: test@example.com
-URL final: https://serviciosdigitales.imss.gob.mx/gestionAsegurados-web-externo/asignacionNSS/valida
-Timestamp: 2026-07-23 12:22:15
-============================================================

@@ -1,8 +1,0 @@
-usage: python.exe -m captcha_solver_imss.cnn_solver.train_v3
-       [-h] [--arch {wide,residual,attention}] [--ensemble ENSEMBLE]
-       [--epochs-p1 EPOCHS_P1] [--epochs-p2 EPOCHS_P2]
-       [--aug-intensity AUG_INTENSITY] [--aug-mult AUG_MULT] [--lr LR]
-       [--label-smoothing LABEL_SMOOTHING] [--val-ratio VAL_RATIO]
-       [--seed SEED] [--seeds [SEEDS ...]] [--raw-dir RAW_DIR]
-       [--eval-ensemble [EVAL_ENSEMBLE ...]] [--suffix SUFFIX]
-python.exe -m captcha_solver_imss.cnn_solver.train_v3: error: argument --arch: invalid choice: 'original' (choose from 'wide', 'residual', 'attention')
