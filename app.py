@@ -219,9 +219,9 @@ elif menu == "📋 CURP":
                 try:
                     st.write("🔍 Abriendo navegador...")
                     solver = _get_solver()
-                    modulo = CURPModule(captcha_solver=solver)
+                    modulo_curp = CURPModule(captcha_solver=solver)
                     st.write("📋 Consultando portal RENAPO...")
-                    resultado = run_async(modulo.consultar(curp=curp))
+                    resultado = run_async(modulo_curp.consultar(curp=curp))
                     status.update(label="✅ CURP encontrada", state="complete", expanded=False)
 
                     for k, v in resultado.items():
@@ -270,10 +270,10 @@ elif menu == "🔢 NSS IMSS":
                     try:
                         st.write("🔍 Abriendo navegador...")
                         solver = _get_solver()
-                        modulo = NSSModule(captcha_solver=solver)
+                        modulo_nss = NSSModule(captcha_solver=solver)
                         st.write("📋 Consultando portal IMSS...")
                         resultado = run_async(
-                            modulo.consultar(curp=curp_nss, correo=correo)
+                            modulo_nss.consultar(curp=curp_nss, correo=correo)
                         )
                         status.update(label="✅ NSS consultado", state="complete", expanded=False)
 
