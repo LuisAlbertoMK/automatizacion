@@ -79,7 +79,7 @@ class TestListarTramites:
 
     def test_estructura_tramite(self):
         tramites = listar_tramites()
-        for nombre, info in tramites.items():
+        for info in tramites.values():
             assert "modulo" in info
             assert "estado" in info
             assert "tiempo" in info

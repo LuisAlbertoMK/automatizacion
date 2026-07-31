@@ -46,7 +46,7 @@ for img_path, expected in captchas:
         continue
 
     start = time.time()
-    for ci, exp_char in zip(chars, expected):
+    for ci, exp_char in zip(chars, expected, strict=True):
         norm = normalize_char(ci)
         t = torch.from_numpy(norm).float().unsqueeze(0).unsqueeze(0).to(device)
         o = model(t)

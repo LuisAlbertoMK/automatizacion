@@ -267,7 +267,7 @@ class CaptchaSolver:
             except requests.RequestException as e:
                 retries += 1
                 if retries > max_retries:
-                    raise CaptchaError(f"Error de red tras {max_retries} reintentos: {e}")
+                    raise CaptchaError(f"Error de red tras {max_retries} reintentos: {e}") from e
                 delay = base_delay ** retries
                 print(f"  [captcha] [!] Error de red, reintento {retries}/{max_retries} en {delay}s...")
                 await asyncio.sleep(delay)
@@ -308,7 +308,7 @@ class CaptchaSolver:
             except requests.RequestException as e:
                 retries += 1
                 if retries > max_retries:
-                    raise CaptchaError(f"Error de red tras {max_retries} reintentos: {e}")
+                    raise CaptchaError(f"Error de red tras {max_retries} reintentos: {e}") from e
                 delay = base_delay ** retries
                 print(f"  [captcha] [!] Error de red, reintento {retries}/{max_retries} en {delay}s...")
                 time.sleep(delay)

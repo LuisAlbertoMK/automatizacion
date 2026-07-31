@@ -79,7 +79,7 @@ def run_benchmark(name, solve_fn, data, warmup=3):
         times.append(elapsed)
         
         if predicted and len(predicted) == 7:
-            for a, b in zip(predicted, expected):
+            for a, b in zip(predicted, expected, strict=True):
                 if a == b:
                     char_correct += 1
                 char_total += 1
@@ -173,6 +173,6 @@ print("=" * 60)
 print("SUMMARY — Speedup vs PyTorch loop (baseline)")
 print("=" * 60)
 baseline = results[1][1]  # PyTorch loop time
-for name, avg, char_acc, captcha_acc in results:
+for name, avg, char_acc, _ in results:
     speedup = baseline / avg
     print(f"  {name:15s}  {avg:6.1f}ms  {speedup:5.1f}x  char={char_acc:.1f}%")

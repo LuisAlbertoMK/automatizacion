@@ -104,7 +104,7 @@ def benchmark(engine_name, solve_fn, n_warmup=5):
     total_chars = 0
     correct_captchas = 0
     
-    for img_path, expected in zip(test_imgs, test_labels):
+    for img_path, expected in zip(test_imgs, test_labels, strict=True):
         img = cv2.imread(img_path)
         if img is None:
             continue
@@ -114,7 +114,7 @@ def benchmark(engine_name, solve_fn, n_warmup=5):
         times.append(elapsed)
         
         if predicted and len(predicted) == 7:
-            for a, b in zip(predicted, expected):
+            for a, b in zip(predicted, expected, strict=True):
                 if a == b:
                     correct_chars += 1
                 total_chars += 1

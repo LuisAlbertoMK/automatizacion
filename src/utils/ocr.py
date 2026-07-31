@@ -109,7 +109,7 @@ class OCRExtractor:
                 text = pytesseract.image_to_string(img, lang=lang)
                 return self._cache_result(cache_key, text.strip())
         except Exception as e:
-            raise OCRError(f"Error extrayendo texto de bytes: {e}")
+            raise OCRError(f"Error extrayendo texto de bytes: {e}") from e
 
     def extract_from_pdf(self, pdf_path: str, lang: str = "spa") -> str:
         """
@@ -151,9 +151,9 @@ class OCRExtractor:
             raise OCRError(
                 "pdf2image no está instalado. Instálalo con: pip install pdf2image\n"
                 "También necesitas poppler: https://github.com/oschwartz10612/poppler-windows/releases/"
-            )
+            ) from None
         except Exception as e:
-            raise OCRError(f"Error extrayendo texto de PDF: {e}")
+            raise OCRError(f"Error extrayendo texto de PDF: {e}") from e
 
     def _preprocess_image(self, img: Image.Image) -> Image.Image:
         """

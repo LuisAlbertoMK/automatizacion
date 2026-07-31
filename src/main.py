@@ -648,7 +648,7 @@ def _type_curp(val: str) -> str:
     try:
         return validar_curp(val)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"CURP inválida: '{val}'")
+        raise argparse.ArgumentTypeError(f"CURP inválida: '{val}'") from None
 
 
 def _type_rfc(val: str) -> str:
@@ -656,7 +656,7 @@ def _type_rfc(val: str) -> str:
     try:
         return validar_rfc(val)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"RFC inválido: '{val}'")
+        raise argparse.ArgumentTypeError(f"RFC inválido: '{val}'") from None
 
 
 def _type_correo(val: str) -> str:
@@ -664,7 +664,7 @@ def _type_correo(val: str) -> str:
     try:
         return validar_email(val)
     except ValueError:
-        raise argparse.ArgumentTypeError(f"Email inválido: '{val}'")
+        raise argparse.ArgumentTypeError(f"Email inválido: '{val}'") from None
 
 
 def main():

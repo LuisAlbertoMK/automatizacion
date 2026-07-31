@@ -79,7 +79,7 @@ class VoiceInput:
                     self._model = whisper.load_model(self.model_size)
                     print("  [VOZ] Modelo cargado [OK]")
                 except Exception as e:
-                    raise VoiceInputError(f"Error cargando modelo Whisper: {e}")
+                    raise VoiceInputError(f"Error cargando modelo Whisper: {e}") from e
         return self._model
 
     def record_audio(self, duration=5, countdown=True):
@@ -124,7 +124,7 @@ class VoiceInput:
             return temp_path
 
         except Exception as e:
-            raise VoiceInputError(f"Error grabando audio: {e}")
+            raise VoiceInputError(f"Error grabando audio: {e}") from e
 
     def transcribe(self, audio_path, language="es"):
         """
@@ -158,7 +158,7 @@ class VoiceInput:
             return texto
 
         except Exception as e:
-            raise VoiceInputError(f"Error transcribiendo audio: {e}")
+            raise VoiceInputError(f"Error transcribiendo audio: {e}") from e
 
     def listen_and_transcribe(self, duration=5, language="es"):
         """

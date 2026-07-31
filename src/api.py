@@ -338,7 +338,7 @@ async def consultar_curp(request: Request, req: CurpRequest):
         raise _tramite_exception_to_http(e) from e
     except Exception:
         logger.error("Error inesperado en consulta CURP", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail="Error interno del servidor") from None
 
 
 @tramites_router.post("/nss", summary="Obtener NSS del IMSS")
@@ -357,7 +357,7 @@ async def consultar_nss(request: Request, req: NssRequest):
         raise _tramite_exception_to_http(e) from e
     except Exception:
         logger.error("Error inesperado en consulta NSS", exc_info=True)
-        raise HTTPException(status_code=500, detail="Error interno del servidor")
+        raise HTTPException(status_code=500, detail="Error interno del servidor") from None
 
 
 @perfiles_router.get("/perfiles", summary="Listar perfiles guardados")
@@ -368,7 +368,7 @@ def listar_perfiles(request: Request):
         perfiles = list_profiles()
         return {"perfiles": perfiles}
     except StorageError as e:
-        raise HTTPException(status_code=500, detail=f"Error listando perfiles: {e}")
+        raise HTTPException(status_code=500, detail=f"Error listando perfiles: {e}") from e
 
 
 @perfiles_router.post("/perfiles", summary="Guardar un perfil")
@@ -380,7 +380,7 @@ def guardar_perfil(request: Request, data: ProfileData):
         save_profile(data.alias, profile)
         return {"success": True, "alias": data.alias}
     except StorageError as e:
-        raise HTTPException(status_code=500, detail=f"Error guardando perfil: {e}")
+        raise HTTPException(status_code=500, detail=f"Error guardando perfil: {e}") from e
 
 
 # ── Registrar routers (después de definir todas las rutas) ───

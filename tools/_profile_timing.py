@@ -55,7 +55,7 @@ model.eval()
 # Single char inference
 start = time.time()
 n_chars = 0
-for fname, (chars, norms) in list(chars_data.items())[:20]:  # First 20 captchas
+for _, (_, norms) in list(chars_data.items())[:20]:  # First 20 captchas
     for norm in norms:
         t = torch.from_numpy(norm).float().unsqueeze(0).unsqueeze(0).to(device)
         with torch.no_grad():
@@ -68,7 +68,7 @@ print(f"  Single char: {elapsed_ms:.2f}ms/char = {elapsed_ms*7:.1f}ms/captcha")
 # Batch inference (7 chars as batch)
 start = time.time()
 n_captchas = 0
-for fname, (chars, norms) in list(chars_data.items())[:20]:
+for _, (_, norms) in list(chars_data.items())[:20]:
     batch = np.array(norms)
     batch_t = torch.FloatTensor(np.expand_dims(batch, 1)).to(device)
     with torch.no_grad():

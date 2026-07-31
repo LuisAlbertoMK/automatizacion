@@ -75,9 +75,9 @@ def call_claude(
         client = _get_httpx_client(timeout)
         resp = client.post(url, json=payload, headers=headers)
     except httpx.TimeoutException:
-        raise ClaudeError(f"Timeout tras {timeout}s llamando a Claude API")
+        raise ClaudeError(f"Timeout tras {timeout}s llamando a Claude API") from None
     except httpx.RequestError as e:
-        raise ClaudeError(f"Error de conexión con Claude API: {e}")
+        raise ClaudeError(f"Error de conexión con Claude API: {e}") from e
 
     if resp.status_code != 200:
         body = resp.text[:500] if resp.text else resp.reason_phrase
@@ -93,7 +93,7 @@ def call_claude(
 
     try:
         return json.loads(texto_limpio)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as err:
         raise ClaudeError(
             f"Claude no devolvió JSON válido:\n{texto_limpio[:300]}"
-        )
+        ) from err

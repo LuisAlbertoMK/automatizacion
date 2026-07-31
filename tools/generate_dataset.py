@@ -85,7 +85,7 @@ def augment_image(img: np.ndarray, copies: int = 5) -> list:
         aug = img.copy()
         # Aplicar 2-3 augmentations aleatorias
         selected = random.sample(AUGMENTATIONS, random.randint(2, 3))
-        for name, func in selected:
+        for _, func in selected:
             aug = func(aug)
         results.append(aug)
     return results
