@@ -14,8 +14,6 @@ TODO: Revisar si CDMX u otros estados tienen portal online para CUP.
 Alternativa: https://www.gob.mx/proteccionfederal/acciones-y-programas/evaluacion-y-control-de-confianza
 """
 
-import time
-
 from src.exceptions import ControlConfianzaError
 from src.tramites.base import OUTPUT_DIR, BaseModule
 
@@ -59,12 +57,23 @@ class ControlConfianzaModule(BaseModule):
         if not curp:
             raise ControlConfianzaError("Se requiere CURP")
 
-        # Portal muerto — DNS dead desde 2025, sin reemplazo federal
-        raise ControlConfianzaError(
-            "El portal de Control de Confianza (certificado.sesnsp.gob.mx) ya no existe. "
-            "Este trámite ahora se gestiona a través de los Centros de Evaluación y Control "
-            "de Confianza (CECC) de cada estado. No hay portal federal unificado disponible."
-        )
+        async with self.browser_context() as br:
+            page = br.page
+            try:
+                result = await self._run(
+                    page, curp=curp, rfc=rfc, nombre=nombre,
+                    fecha_nacimiento=fecha_nacimiento,
+                    estado_nacimiento=estado_nacimiento,
+                    domicilio=domicilio, telefono=telefono, email=email,
+                    estado_civil=estado_civil, escolaridad=escolaridad,
+                    ingreso_mensual=ingreso_mensual,
+                    egreso_mensual=egreso_mensual,
+                )
+                return result
+            except ControlConfianzaError:
+                raise
+            except Exception as e:
+                raise ControlConfianzaError(f"Error en Control de Confianza: {e}") from e
 
     async def _run(self, page, curp: str, rfc: str = "", nombre: str = "",
                    fecha_nacimiento: str = "", estado_nacimiento: str = "",

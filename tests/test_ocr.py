@@ -1,12 +1,23 @@
 """Tests unitarios para utils/ocr.py con pytesseract mockeado."""
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 import io
+import sys
+import types
 
 import pytest
 from PIL import Image
 
 from src.utils.ocr import OCRError, OCRExtractor  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def mock_pdf2image():
+    """pdf2image no está instalado en CI — se mockea el módulo en sys.modules."""
+    fake = types.ModuleType("pdf2image")
+    fake.convert_from_path = MagicMock()
+    with patch.dict("sys.modules", {"pdf2image": fake}):
+        yield
 
 
 @pytest.fixture

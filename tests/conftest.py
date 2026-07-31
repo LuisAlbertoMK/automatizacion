@@ -1,16 +1,39 @@
 """Configuración global de tests — baja rondas bcrypt + mocks Playwright."""
 import os
+
+# IMPORTANTE: debe ir ANTES de importar src.* — secrets_manager lee
+# las env vars en tiempo de importación (bcrypt.kdf 600k rounds = ~1s c/u).
+os.environ["BCRYPT_KDF_ROUNDS"] = "4"
+os.environ["BCRYPT_HASH_ROUNDS"] = "4"
+
 from contextlib import asynccontextmanager
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
+
+import asyncio
 
 import pytest
 
 from src.tramites.base import BaseModule, BrowserResources
 
-# Reducir rondas bcrypt.kdf para tests (evita timeouts)
-os.environ.setdefault("BCRYPT_KDF_ROUNDS", "16")
-os.environ.setdefault("BCRYPT_HASH_ROUNDS", "8")
+
+@pytest.fixture(autouse=True)
+def _sin_delays(monkeypatch, request):
+    """Elimina asyncio.sleep reales en toda la suite (test_nss.py: 134s → ~5s).
+
+    Los sleeps existen para rate-limiting contra servidores reales; en tests
+    todo está mockeado, así que solo gastan tiempo de CI. Parches locales con
+    ``patch("...asyncio.sleep")`` siguen funcionando (sobrescriben y restauran).
+
+    Tests que miden tiempo REAL deben marcarse con ``@pytest.mark.real_sleep``.
+    """
+    if request.node.get_closest_marker("real_sleep"):
+        return  # este test quiere delays reales (rate limiter)
+
+    async def _noop(delay, result=None):
+        return result
+
+    monkeypatch.setattr(asyncio, "sleep", _noop)
 
 
 @pytest.fixture

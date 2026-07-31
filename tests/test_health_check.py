@@ -72,6 +72,8 @@ class TestMain:
     def test_main_quick(self, mock_env, mock_check):
         """main() con --quick no crashea."""
         with patch.object(sys, "argv", ["health_check.py", "--quick"]):
+            import health_check as _hc
+            _hc.failed_count = 0
             from health_check import main
             main()
             assert mock_check.called or mock_env.called or True  # al menos corrió
@@ -81,5 +83,7 @@ class TestMain:
     def test_main_json(self, mock_env, mock_check):
         """main() con --json no crashea."""
         with patch.object(sys, "argv", ["health_check.py", "--json"]):
+            import health_check as _hc
+            _hc.failed_count = 0
             from health_check import main
             main()

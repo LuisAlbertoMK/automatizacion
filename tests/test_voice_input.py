@@ -272,17 +272,18 @@ class TestInit:
 
     def test_modelo_valido(self):
         """Modelo se carga bajo demanda (lazy load)."""
-        deps_patch, model_mock, mock_whisper = _mock_deps()
+        deps_patch, model_mock, _ = _mock_deps()
         with deps_patch:
-            v = VoiceInput(model_size="tiny")
-            assert v.model_size == "tiny"
-            assert v.sample_rate == 16000
-            # Modelo NO se carga en __init__
-            mock_whisper.load_model.assert_not_called()
-            # Se carga al primer _get_model()
-            m = v._get_model()
-            mock_whisper.load_model.assert_called_once_with("tiny")
-            assert m is model_mock
+            with patch("src.utils.free_captcha._get_whisper_model", return_value=model_mock) as mock_get:
+                v = VoiceInput(model_size="tiny")
+                assert v.model_size == "tiny"
+                assert v.sample_rate == 16000
+                # Modelo NO se carga en __init__
+                mock_get.assert_not_called()
+                # Se carga al primer _get_model()
+                m = v._get_model()
+                mock_get.assert_called_once_with()
+                assert m is model_mock
 
     def test_modelo_error_carga(self):
         """Error al cargar modelo → VoiceInputError (lazy)."""

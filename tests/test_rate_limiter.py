@@ -120,6 +120,7 @@ class TestRateLimiterReset:
 class TestRateLimiterIntegration:
     """RateLimiter — verificación básica de comportamiento real."""
 
+    @pytest.mark.real_sleep  # mide tiempo real: excluido del fixture _sin_delays
     @pytest.mark.asyncio
     async def test_actual_sleep_time(self):
         rl = RateLimiter(default_delay=0.05)

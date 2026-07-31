@@ -1,8 +1,10 @@
 """Tests unitarios para utils/free_captcha.py con Tesseract y Whisper mockeados.
 
 NOTA: PIL.Image, requests y whisper se importan LAZY dentro de las funciones
-(vía import local), por eso los patches van a los módulos globales
-(PIL.Image.open, requests.get, whisper.load_model) y NO al namespace del módulo.
+(vía import local). El modelo Whisper se obtiene vía _get_whisper_model()
+(singleton), por eso los patches van a los módulos globales
+(PIL.Image.open, requests.get, src.utils.free_captcha._get_whisper_model)
+y NO al namespace de la instancia.
 """
 
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -11,7 +13,7 @@ import pytest
 from PIL import Image
 
 from src.exceptions import FreeCaptchaError
-from src.utils.free_captcha import FreeCaptchaSolver
+from src.utils.free_captcha import FreeCaptchaSolver, _whisper_model
 
 
 # Imagen real mínima de 1x1 px para mockear Image.open global
@@ -67,7 +69,7 @@ class TestInit:
             s = FreeCaptchaSolver()
         assert s.use_ocr is True
         assert s.use_whisper is True
-        assert s._whisper_model is None
+        assert _whisper_model is None
 
     @patch.dict("src.utils.free_captcha.__dict__", {"TESSERACT_AVAILABLE": True, "WHISPER_AVAILABLE": True})
     def test_init_respects_use_ocr_false(self):
@@ -279,10 +281,10 @@ class TestRecaptchaAudio:
 
         with patch("requests.get") as mock_req:
             mock_req.return_value.content = b"fake_audio_bytes"
-            with patch("whisper.load_model") as mock_load:
+            with patch("src.utils.free_captcha._get_whisper_model") as mock_get:
                 model = MagicMock()
                 model.transcribe.return_value = {"text": "1 2 3 4"}
-                mock_load.return_value = model
+                mock_get.return_value = model
                 with patch("pathlib.Path.unlink"):
                     result = await solver.solve_recaptcha_v2_audio(page, "sk", "https://ex.com")
 
@@ -300,10 +302,10 @@ class TestRecaptchaAudio:
             mock_temp.return_value.__enter__.return_value.name = "/tmp/fake.mp3"
             with patch("requests.get") as mock_req:
                 mock_req.return_value.content = b"fake_audio_bytes"
-                with patch("whisper.load_model") as mock_load:
+                with patch("src.utils.free_captcha._get_whisper_model") as mock_get:
                     model = MagicMock()
                     model.transcribe.return_value = {"text": "5 6 7 8"}
-                    mock_load.return_value = model
+                    mock_get.return_value = model
                     with patch("pathlib.Path.unlink"):
                         result = await solver.solve_recaptcha_v2_audio(page, "sk", "https://ex.com")
 
@@ -318,10 +320,10 @@ class TestRecaptchaAudio:
             mock_temp.return_value.__enter__.return_value.name = "/tmp/fake.mp3"
             with patch("requests.get") as mock_req:
                 mock_req.return_value.content = b"fake_audio_bytes"
-                with patch("whisper.load_model") as mock_load:
+                with patch("src.utils.free_captcha._get_whisper_model") as mock_get:
                     model = MagicMock()
                     model.transcribe.return_value = {"text": "hello world"}
-                    mock_load.return_value = model
+                    mock_get.return_value = model
                     with patch("pathlib.Path.unlink"):
                         result = await solver.solve_recaptcha_v2_audio(page, "sk", "https://ex.com")
 

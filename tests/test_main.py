@@ -101,7 +101,7 @@ class TestMain:
     def test_direct_mode(self, mock_asyncio_run):
         """--tramite curp llama a asyncio.run."""
         import src.main as main_mod
-        with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX0"]):
+        with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX7"]):
             with patch("src.main._validar_config"):
                 main_mod.main()
         mock_asyncio_run.assert_called_once()
@@ -112,7 +112,7 @@ class TestMain:
     def test_keyboard_interrupt_handling(self, mock_asyncio_run):
         """KeyboardInterrupt se captura graceful."""
         import src.main as main_mod
-        with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX0"]):
+        with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX7"]):
             with patch("src.main._validar_config"):
                 main_mod.main()
 
@@ -120,7 +120,7 @@ class TestMain:
     def test_cancelled_error_handling(self, mock_asyncio_run):
         """CancelledError se captura graceful."""
         import src.main as main_mod
-        with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX0"]):
+        with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX7"]):
             with patch("src.main._validar_config"):
                 main_mod.main()
 
@@ -153,7 +153,7 @@ class TestArgparse:
             ["main.py", "--tramite", "curp"],
             ["main.py", "--tramite", "nss"],
             ["main.py", "--tramite", "ambos"],
-            ["main.py", "--curp", "GODE561231HDFLRN03"],
+            ["main.py", "--curp", "GODE561231HDFLRN0F"],
             ["main.py", "--correo", "a@b.com"],
             ["main.py", "--perfil", "juan"],
         ]
@@ -357,9 +357,9 @@ class TestValidarCurp:
 
     # Casos válidos
     @pytest.mark.parametrize("curp", [
-        "GALJ800101HDFXXXX0",
-        "OOLL940914HMCRGS08",
-        "HECA561220MDFLRN09",
+        "GALJ800101HDFXXXX7",
+        "OOLL940914HMCRGS03",
+        "HECA561220MDFLRN0A",
     ])
     def test_valid_curp(self, curp):
         agente = self._get_agente()
@@ -370,9 +370,9 @@ class TestValidarCurp:
         "",                     # vacío
         "123",                  # muy corto
         "GALJ800101HDFXXXX",    # 17 chars
-        "GALJ800101HDFXXXX01",  # 19 chars
+        "GALJ800101HDFXXXX71",  # 19 chars
         "galj800101hdfxxxx01",  # minúsculas (internamente se pasa a upper)
-        "GALJ800101HDFXXXX0!",  # carácter inválido
+        "GALJ800101HDFXXXX7!",  # carácter inválido
     ])
     def test_invalid_curp(self, curp):
         agente = self._get_agente()
@@ -394,15 +394,15 @@ class TestPedirDato:
 
     def test_simple_input(self):
         agente = self._get_agente()
-        with patch("builtins.input", return_value="GALJ800101HDFXXXX0"):
+        with patch("builtins.input", return_value="GALJ800101HDFXXXX7"):
             result = agente._pedir_dato("CURP")
-        assert result == "GALJ800101HDFXXXX0"
+        assert result == "GALJ800101HDFXXXX7"
 
     def test_with_default(self):
         agente = self._get_agente()
         with patch("builtins.input", return_value=""):
-            result = agente._pedir_dato("CURP", default="GALJ800101HDFXXXX0")
-        assert result == "GALJ800101HDFXXXX0"
+            result = agente._pedir_dato("CURP", default="GALJ800101HDFXXXX7")
+        assert result == "GALJ800101HDFXXXX7"
 
     def test_with_validation_passes(self):
         agente = self._get_agente()
@@ -440,12 +440,19 @@ class TestMostrarResultado:
 
     def test_with_values(self, capsys):
         agente = self._get_agente()
-        agente._mostrar_resultado("CURP", {"curp": "GALJ800101...", "pdf_path": "/tmp/c.pdf"})
+        agente._mostrar_resultado("CURP", {"curp": "GALJ800101HDFXXXX7", "pdf_path": "/tmp/c.pdf"})
         out, _ = capsys.readouterr()
         assert "RESULTADO" in out
         assert "CURP" in out  # both the tipo and the key name contain "CURP"
-        assert "GALJ800101" in out
         assert "PDF_PATH" in out  # k.upper()
+
+    def test_pii_is_masked(self, capsys):
+        """Seguridad: la CURP NUNCA se imprime cruda, siempre enmascarada."""
+        agente = self._get_agente()
+        agente._mostrar_resultado("CURP", {"curp": "GALJ800101HDFXXXX7"})
+        out, _ = capsys.readouterr()
+        assert "GALJ800101HDFXXXX7" not in out  # PII cruda NO debe aparecer
+        assert "GALJ****" in out  # máscara sí
 
     def test_empty_values_omitted(self, capsys):
         agente = self._get_agente()
@@ -476,7 +483,7 @@ class TestTramiteCurp:
              patch("src.tramites.curp.CURPModule") as mock_curp:
             mock_curp.return_value = mock_mod
             agente = m.Agente()
-            perfil = {"curp": "GALJ800101HDFXXXX0"}
+            perfil = {"curp": "GALJ800101HDFXXXX7"}
             result = await agente.tramite_curp(perfil=perfil)
         assert result["curp"] == "GALJ800101..."
 
@@ -491,7 +498,7 @@ class TestTramiteCurp:
              patch.object(m, "MAIL_AVAILABLE", False), \
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
              patch("src.tramites.curp.CURPModule") as mock_curp, \
-             patch("builtins.input", return_value="GALJ800101HDFXXXX0"):
+             patch("builtins.input", return_value="GALJ800101HDFXXXX7"):
             mock_curp.return_value = mock_mod
             agente = m.Agente()
             result = await agente.tramite_curp(perfil=None)
@@ -515,12 +522,12 @@ class TestGestionarPerfil:
         with patch.object(m, "save_profile") as mock_save, \
              patch.object(m, "list_profiles", return_value=[]), \
              patch("builtins.input", side_effect=iter([
-                 "1", "juan_garcia", "GALJ800101HDFXXXX0",
+                 "1", "juan_garcia", "GALJ800101HDFXXXX7",
                  "juan@mail.com", "ABC123", "Juan García",
              ])):
             result = agente.gestionar_perfil()
         assert result is not None
-        assert result["curp"] == "GALJ800101HDFXXXX0"
+        assert result["curp"] == "GALJ800101HDFXXXX7"
         assert result["correo"] == "juan@mail.com"
         mock_save.assert_called_once()
 
@@ -528,12 +535,12 @@ class TestGestionarPerfil:
         agente, m = self._make_agente()
         with patch.object(m, "list_profiles", return_value=["juan", "maria"]), \
              patch.object(m, "load_profile", return_value={
-                 "curp": "GALJ800101HDFXXXX0", "correo": "juan@mail.com",
+                 "curp": "GALJ800101HDFXXXX7", "correo": "juan@mail.com",
              }), \
              patch("builtins.input", side_effect=iter(["2", "1"])):
             result = agente.gestionar_perfil()
         assert result is not None
-        assert result["curp"] == "GALJ800101HDFXXXX0"
+        assert result["curp"] == "GALJ800101HDFXXXX7"
 
     def test_load_no_profiles(self):
         agente, m = self._make_agente()
@@ -599,7 +606,7 @@ class TestTramiteNss:
              patch("builtins.input", return_value=""):
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
-            result = await agente.tramite_nss(perfil={"curp": "GALJ800101HDFXXXX0", "correo": "a@b.com"})
+            result = await agente.tramite_nss(perfil={"curp": "GALJ800101HDFXXXX7", "correo": "a@b.com"})
         assert result["nss"] == "ENVIADO_AL_CORREO"
         out, _ = capsys.readouterr()
         assert "SOLICITUD ENVIADA" in out
@@ -620,11 +627,12 @@ class TestTramiteNss:
              patch("builtins.input", return_value=""):
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
-            result = await agente.tramite_nss(perfil={"curp": "GALJ800101HDFXXXX0", "correo": "a@b.com"})
+            result = await agente.tramite_nss(perfil={"curp": "GALJ800101HDFXXXX7", "correo": "a@b.com"})
         assert result["nss"] == "12345678901"
         out, _ = capsys.readouterr()
         assert "NSS" in out
-        assert "12345678901" in out
+        assert "12345******" in out  # NSS enmascarado (seguridad)
+        assert "12345678901" not in out  # PII cruda NO debe imprimirse
 
     async def test_without_perfil_prompts_curp_and_correo(self):
         """Sin perfil → pide CURP y correo via _pedir_dato."""
@@ -639,7 +647,7 @@ class TestTramiteNss:
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
              patch("src.tramites.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", side_effect=[
-                 "GALJ800101HDFXXXX0",  # CURP prompt
+                 "GALJ800101HDFXXXX7",  # CURP prompt
                  "a@b.com",              # Correo prompt
              ]):
             mock_nss_cls.return_value = mock_mod
@@ -647,7 +655,7 @@ class TestTramiteNss:
             result = await agente.tramite_nss(perfil=None)
         assert result["nss"] == "12345678901"
         mock_mod.consultar.assert_awaited_once_with(
-            curp="GALJ800101HDFXXXX0",
+            curp="GALJ800101HDFXXXX7",
             correo="a@b.com",
         )
 
@@ -667,7 +675,7 @@ class TestTramiteNss:
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
             result = await agente.tramite_nss(
-                perfil={"curp": "GALJ800101HDFXXXX0", "correo": "default@mail.com"}
+                perfil={"curp": "GALJ800101HDFXXXX7", "correo": "default@mail.com"}
             )
         # Empty input with default → usa default del perfil
         assert result["nss"] == "12345678901"
@@ -688,7 +696,7 @@ class TestTramiteNss:
             mock_nss_cls.return_value = mock_mod
             agente = m.Agente()
             assert agente.mail_reader is None
-            await agente.tramite_nss(perfil={"curp": "GALJ800101HDFXXXX0", "correo": "a@b.com"})
+            await agente.tramite_nss(perfil={"curp": "GALJ800101HDFXXXX7", "correo": "a@b.com"})
         out, _ = capsys.readouterr()
         assert "Sin lector de correo" in out
 
@@ -717,7 +725,7 @@ class TestTramiteAmbos:
             mock_nss_cls.return_value  = mock_nss
             agente = m.Agente()
             result = await agente.tramite_ambos(
-                perfil={"curp": "GALJ800101HDFXXXX0", "correo": "a@b.com"}
+                perfil={"curp": "GALJ800101HDFXXXX7", "correo": "a@b.com"}
             )
         assert result["curp"]["curp"] == "GALJ800101..."
         assert result["nss"]["nss"]  == "12345678901"
@@ -740,7 +748,7 @@ class TestTramiteAmbos:
              patch("src.tramites.curp.CURPModule") as mock_curp_cls, \
              patch("src.tramites.nss.NSSModule") as mock_nss_cls, \
              patch("builtins.input", side_effect=[
-                 "GALJ800101HDFXXXX0",  # CURP prompt
+                 "GALJ800101HDFXXXX7",  # CURP prompt
                  "a@b.com",              # Correo prompt
              ]):
             mock_curp_cls.return_value = mock_curp
@@ -934,7 +942,7 @@ class TestModoInteractivo:
 
         import src.main as m
         m = importlib.reload(m)
-        perfil_data = {"curp": "GALJ800101HDFXXXX0", "correo": "a@b.com"}
+        perfil_data = {"curp": "GALJ800101HDFXXXX7", "correo": "a@b.com"}
         mock_agente = MagicMock()
         mock_agente.gestionar_perfil = MagicMock(return_value=perfil_data)
         mock_agente.tramite_curp = AsyncMock()
@@ -992,7 +1000,7 @@ class TestModoDirecto:
 
         import src.main as m
         m = importlib.reload(m)
-        with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX0"]):
+        with patch.object(sys, "argv", ["main.py", "--tramite", "curp", "--curp", "GALJ800101HDFXXXX7"]):
             with patch.object(m, "_validar_config"):
                 m.main()
         # asyncio.run was called with modo_directo
@@ -1008,7 +1016,7 @@ class TestModoDirecto:
         m = importlib.reload(m)
         with patch.object(sys, "argv", [
             "main.py", "--tramite", "nss",
-            "--curp", "GALJ800101HDFXXXX0", "--correo", "a@b.com",
+            "--curp", "GALJ800101HDFXXXX7", "--correo", "a@b.com",
         ]):
             with patch.object(m, "_validar_config"):
                 m.main()
@@ -1046,10 +1054,10 @@ class TestModoDirectoExecution:
              patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
              patch("src.tramites.curp.CURPModule") as mock_curp_cls:
             mock_curp_cls.return_value = mock_mod
-            args = MagicMock(tramite="curp", curp="GALJ800101HDFXXXX0", correo=None, perfil=None)
+            args = MagicMock(tramite="curp", curp="GALJ800101HDFXXXX7", correo=None, perfil=None)
             await m.modo_directo(args)
         mock_curp_cls.assert_called_once()
-        mock_mod.consultar.assert_awaited_once_with(curp="GALJ800101HDFXXXX0")
+        mock_mod.consultar.assert_awaited_once_with(curp="GALJ800101HDFXXXX7")
 
     async def test_nss_execution(self):
         """--tramite nss → crea NSSModule y llama consultar."""
@@ -1065,13 +1073,13 @@ class TestModoDirectoExecution:
              patch("src.tramites.nss.NSSModule") as mock_nss_cls:
             mock_nss_cls.return_value = mock_mod
             args = MagicMock(
-                tramite="nss", curp="GALJ800101HDFXXXX0",
+                tramite="nss", curp="GALJ800101HDFXXXX7",
                 correo="a@b.com", perfil=None,
             )
             await m.modo_directo(args)
         mock_nss_cls.assert_called_once()
         mock_mod.consultar.assert_awaited_once_with(
-            curp="GALJ800101HDFXXXX0", correo="a@b.com",
+            curp="GALJ800101HDFXXXX7", correo="a@b.com",
         )
 
     async def test_curp_from_perfil(self):

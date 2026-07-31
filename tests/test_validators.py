@@ -10,10 +10,10 @@ class TestValidarCurp:
 
     # ── Válidos ────────────────────────────────────────────────────
     @pytest.mark.parametrize("input_curp,expected", [
-        ("GODE561231HDFLRN03", "GODE561231HDFLRN03"),
-        ("  xema920217hnlslr07  ", "XEMA920217HNLSLR07"),       # strip
-        ("MARS950101MDFLRN09", "MARS950101MDFLRN09"),
-        ("gode561231hdflrn03", "GODE561231HDFLRN03"),           # lower→upper
+        ("GODE561231HDFLRN0F", "GODE561231HDFLRN0F"),
+        ("  xema920217hnlslr0h  ", "XEMA920217HNLSLR0H"),       # strip
+        ("MARS950101MDFLRN04", "MARS950101MDFLRN04"),
+        ("gode561231hdflrn0f", "GODE561231HDFLRN0F"),           # lower→upper
     ])
     def test_curp_valida(self, input_curp, expected):
         assert validar_curp(input_curp) == expected

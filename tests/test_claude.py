@@ -18,13 +18,16 @@ def setup_key():
     os.environ.pop("ANTHROPIC_API_KEY", None)
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def mock_client():
-    """Mock de httpx.Client que devuelve un contexto manejable."""
+    """Mock de httpx.Client — el código usa client.post() DIRECTAMENTE (sin context manager)."""
     with patch("src.utils.claude.httpx.Client") as mc:
         instance = MagicMock()
-        mc.return_value.__enter__.return_value = instance
+        mc.return_value = instance
         yield instance
+        # Limpia el caché global para que el próximo test use el nuevo mock
+        import src.utils.claude as _m
+        _m._httpx_client = None
 
 
 def _ok_response(text: str) -> dict:
