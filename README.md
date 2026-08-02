@@ -16,8 +16,8 @@ Todo corre local en tu PC. Sin modelos de pago externos (aunque 2captcha es opci
 | Antecedentes No Penales | — | ~45-90s | 🔶 Escrito |
 | Tenencia Vehicular | — | ~20-40s | 🔶 Escrito |
 | Control de Confianza | SESNSP | — | ❌ Portal muerto (DNS dead 2025) |
-| Buró de Crédito | buro de crédito | ~5-10min | ⚙️ Migrado |
-| Círculo de Crédito | círculo de crédito | ~5-10min | ⚙️ Migrado |
+| Buró de Crédito | buro de crédito | ~5-10min | 🔶 Semimanual (Akamai + captcha manual) |
+| Círculo de Crédito | círculo de crédito | ~5-10min | 🔶 Semimanual (Cloudflare + login, /mi-rce) |
 | Cita INE | INE | ~5min | ⚙️ Migrado |
 | Cita SAT | SAT | ~5min | ⚙️ Migrado |
 

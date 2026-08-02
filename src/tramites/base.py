@@ -114,6 +114,8 @@ class BaseModule:
       - Screenshot de debug (debug_screenshot)
     """
 
+    RETRY_BACKOFF = 1.0  # segundos base para backoff exponencial en goto
+
     def __init__(self, captcha_solver=None, use_ocr=True, name="Base",
                  interaction=None):
         self.solver = captcha_solver
@@ -227,32 +229,50 @@ class BaseModule:
         finally:
             await self.close_browser(br)
 
-    async def goto(self, page: Page, url: str, fallback_url: str = None):
-        """Navega a URL con fallback y rate limiting.
+    RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
+
+    async def goto(self, page: Page, url: str, fallback_url: str = None, retries: int = 2):
+        """Navega a URL con fallback, rate limiting y reintentos ante 5xx/conn-reset.
 
         Estrategia de carga:
         1. domcontentloaded (rápido, no espera assets)
         2. networkidle con timeout 5s (espera si la página termina pronto)
         3. 500ms de gracia post-carga (mínimo seguro)
+        Reintenta hasta `retries` veces ante status 5xx/408/429, timeout o conn-reset.
         """
         domain = urlparse(url).netloc
         await _domain_limiter.wait(domain)
         last_error = None
-        try:
-            self.debug(f"Navegando a {url}")
-            await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT)
-            await self._wait_page_ready(page)
-            return
-        except Exception as e:
-            last_error = e
-            if fallback_url:
-                try:
-                    self.debug(f"Fallback: navegando a {fallback_url}")
-                    await page.goto(fallback_url, wait_until="domcontentloaded", timeout=TIMEOUT)
-                    await self._wait_page_ready(page)
-                    return
-                except Exception as e2:
-                    last_error = e2
+        for attempt in range(retries + 1):
+            try:
+                self.debug(f"Navegando a {url} (intento {attempt + 1}/{retries + 1})")
+                response = await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT)
+                await self._wait_page_ready(page)
+                status = getattr(response, "status", None)
+                if isinstance(status, int) and status >= 400:
+                    last_error = ModuleError(f"HTTP {status} al navegar a {url}")
+                    if status in self.RETRYABLE_STATUS and attempt < retries:
+                        await asyncio.sleep(self.RETRY_BACKOFF * (2 ** attempt))
+                        continue
+                    break
+                return
+            except (PwTimeout, TimeoutError, ConnectionError) as e:
+                last_error = e
+                if attempt < retries:
+                    await asyncio.sleep(self.RETRY_BACKOFF * (2 ** attempt))
+                    continue
+                break
+            except Exception as e:
+                last_error = e
+                break
+        if fallback_url:
+            try:
+                self.debug(f"Fallback: navegando a {fallback_url}")
+                await page.goto(fallback_url, wait_until="domcontentloaded", timeout=TIMEOUT)
+                await self._wait_page_ready(page)
+                return
+            except Exception as e2:
+                last_error = e2
         raise ModuleError(
             f"No se pudo navegar a {url} (fallback: {fallback_url}): {last_error}"
         ) from last_error

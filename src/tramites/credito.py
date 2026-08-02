@@ -5,9 +5,11 @@ Reemplaza buro.py y circulo.py (~95% idénticos).
 
 Portales:
   - Buró:     https://www.burodecredito.com.mx/personas-físicas/productos/reporte-de-crédito-especial/
-  - Círculo:  https://www.circulodecredito.com.mx/reporte-credito-especial
+  - Círculo:  https://www.circulodecredito.com.mx/mi-rce  (Mi RCE — requiere login "Mi Círculo")
 
-Updated: 2026-07-23 — URL Buró actualizada (portal anterior devolvía 404)
+Updated: 2026-08-02 — URL Círculo actualizada a /mi-rce (flujo renombrado a "Mi RCE").
+Buró detrás de Akamai bot-protection; Círculo detrás de Cloudflare. Ambos requieren
+intervención manual (captcha + preguntas de seguridad) — ver README.
 """
 
 import time
@@ -49,7 +51,7 @@ _CONFIGS: dict[str, dict[str, Any]] = {
     "circulo": {
         "name": "Circulo",
         "label": "Círculo",
-        "portal_url": "https://www.circulodecredito.com.mx/reporte-credito-especial",
+        "portal_url": "https://www.circulodecredito.com.mx/mi-rce",
         "error_cls": CirculoError,
         "selectors": {
             "rfc":             ["input[name='rfc']", "#rfc"],
@@ -170,15 +172,8 @@ class CreditoModule(BaseModule):
             name=f"{cfg['label']} PDF",
         )
 
-        # Fallback: guardar pantalla como PDF
-        if not pdf_path:
-            try:
-                pdf_path = OUTPUT_DIR / pdf_name
-                await page.pdf(path=str(pdf_path))
-                self.log(cfg["msgs"]["pdf_saved"].format(path=pdf_path))
-            except Exception as e:
-                self.debug(f"Error guardando pantalla: {e}")
-                pdf_path = None  # no reportar como descargado si falló
+        # Nota: page.pdf() solo funciona en Chromium; base.py usa Firefox,
+        # así que si download_pdf no encontró botón, no hay PDF posible.
 
         return {
             "status": "descargado" if pdf_path else "pendiente",

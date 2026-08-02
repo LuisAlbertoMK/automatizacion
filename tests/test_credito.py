@@ -166,8 +166,9 @@ class TestRun:
         assert result["pdf_path"] is not None
 
     @pytest.mark.asyncio
-    async def test_fallback_pdf(self):
-        """Lines 172-176: download falla → page.pdf() como fallback."""
+    async def test_descarga_falla_status_pendiente(self):
+        """download_pdf falla → status 'pendiente', sin fallback page.pdf
+        (base.py usa Firefox; page.pdf() solo funciona en Chromium)."""
         m = _make_credito("buro")
         m.download_pdf = AsyncMock(return_value=None)
         page = _mock_page()
@@ -176,23 +177,9 @@ class TestRun:
         with _mock_browser_context(m, page):
             result = await m._run(page, rfc="RFC01", curp="CURP123456HDF")
 
-        page.pdf.assert_awaited_once()
-        assert result["status"] == "descargado"
-
-    @pytest.mark.asyncio
-    async def test_fallback_pdf_error(self):
-        """Lines 177-178: fallback también falla → status 'pendiente' (bugfix: pdf_path se resetea)."""
-        m = _make_credito("buro")
-        m.download_pdf = AsyncMock(return_value=None)
-        page = _mock_page()
-        page.pdf = AsyncMock(side_effect=Exception("PDF error"))
-
-        with _mock_browser_context(m, page):
-            result = await m._run(page, rfc="RFC01", curp="CURP123456HDF")
-
+        page.pdf.assert_not_awaited()
         assert result["status"] == "pendiente"
         assert result["pdf_path"] is None
-        m.debug.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_circulo_config(self):
