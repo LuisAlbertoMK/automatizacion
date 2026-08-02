@@ -522,6 +522,175 @@ class TestTramiteCurp:
         assert result["curp"] == "GALJ800101..."
 
 
+# ── tramite_* — métodos que delegan a módulos ya cubiertos ────────────────
+
+class TestTramitesSimples:
+    """Agente.tramite_*() — orquestación de módulos (cobertura línea 267-377).
+
+    Cada método: pide CURP (perfil o _pedir_dato) → instancia módulo →
+    consultar() → _mostrar_resultado(). Los módulos tienen cobertura propia.
+    """
+
+    def _agente_env(self):
+        """Módulo main con reload limpio (evita estado de tests previos)."""
+        import importlib
+
+        import src.main as m
+        return importlib.reload(m)
+
+    async def _tramite(self, m, metodo, perfil, patch_mod, input_side=None,
+                       consultar_kwargs=None):
+        mock_mod = MagicMock()
+        mock_mod.consultar = AsyncMock(return_value={"status": "ok"})
+        patch_input = patch("builtins.input", side_effect=input_side) if input_side else patch("builtins.input")
+        with patch.object(m, "CaptchaSolver"), \
+             patch.object(m, "MAIL_AVAILABLE", False), \
+             patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
+             patch(patch_mod) as mock_cls, \
+             patch_input:
+            mock_cls.return_value = mock_mod
+            agente = m.Agente()
+            return await getattr(agente, metodo)(perfil=perfil), mock_mod
+
+    # ── con perfil (no pide CURP) ──────────────────────────────────────────
+    async def test_rfc_with_perfil(self):
+        m = self._agente_env()
+        result, mock_mod = await self._tramite(
+            m, "tramite_rfc", {"curp": "GALJ800101HDFXXXX7", "nombre": "Ana"},
+            "src.tramites.rfc.RFCModule", input_side=[""])
+        assert result == {"status": "ok"}
+        mock_mod.consultar.assert_awaited_once()
+
+    async def test_acta_with_perfil(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_acta", {"curp": "GALJ800101HDFXXXX7"},
+            "src.tramites.acta_nacimiento.ActaNacimientoModule")
+        assert result == {"status": "ok"}
+
+    async def test_pasaporte_with_perfil(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_pasaporte", {"curp": "GALJ800101HDFXXXX7", "nombre": "Ana"},
+            "src.tramites.pasaporte.PasaporteModule")
+        assert result == {"status": "ok"}
+
+    async def test_semanas_with_perfil(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_semanas", {"curp": "GALJ800101HDFXXXX7"},
+            "src.tramites.semanas.SemanasModule")
+        assert result == {"status": "ok"}
+
+    # ── sin perfil (usa _pedir_dato) ───────────────────────────────────────
+    async def test_rfc_without_perfil(self):
+        m = self._agente_env()
+        result, mock_mod = await self._tramite(
+            m, "tramite_rfc", None, "src.tramites.rfc.RFCModule",
+            input_side=["GALJ800101HDFXXXX7", "Ana"])
+        assert result == {"status": "ok"}
+        mock_mod.consultar.assert_awaited_once_with(curp="GALJ800101HDFXXXX7", nombre="Ana")
+
+    async def test_acta_without_perfil(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_acta", None,
+            "src.tramites.acta_nacimiento.ActaNacimientoModule",
+            input_side=["GALJ800101HDFXXXX7"])
+        assert result == {"status": "ok"}
+
+    async def test_pasaporte_without_perfil(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_pasaporte", None, "src.tramites.pasaporte.PasaporteModule",
+            input_side=["GALJ800101HDFXXXX7"])
+        assert result == {"status": "ok"}
+
+    async def test_semanas_without_perfil(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_semanas", None, "src.tramites.semanas.SemanasModule",
+            input_side=["GALJ800101HDFXXXX7"])
+        assert result == {"status": "ok"}
+
+    # ── sin rama perfil (siempre piden datos) ──────────────────────────────
+    async def test_control_confianza(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_control_confianza", None,
+            "src.tramites.control_confianza.ControlConfianzaModule",
+            input_side=["GALJ800101HDFXXXX7"])
+        assert result == {"status": "ok"}
+
+    async def test_buro(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_buro", None, "src.tramites.buro.BuroModule",
+            input_side=["XAXX010101000", "GALJ800101HDFXXXX7"])
+        assert result == {"status": "ok"}
+
+    async def test_circulo(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_circulo", None, "src.tramites.circulo.CirculoModule",
+            input_side=["XAXX010101000", "GALJ800101HDFXXXX7"])
+        assert result == {"status": "ok"}
+
+    async def test_cita_ine(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_cita_ine", None, "src.tramites.cita_ine.CitaINEModule",
+            input_side=["GALJ800101HDFXXXX7"])
+        assert result == {"status": "ok"}
+
+    async def test_cita_sat(self):
+        m = self._agente_env()
+        result, _ = await self._tramite(
+            m, "tramite_cita_sat", None, "src.tramites.cita_sat.CitaSATModule",
+            input_side=["XAXX010101000", "GALJ800101HDFXXXX7"])
+        assert result == {"status": "ok"}
+
+    async def test_cita_sat_curp_invalida(self):
+        """CURP inválida en input directo → se limpia a '' (rama 371-372)."""
+        m = self._agente_env()
+        mock_mod = MagicMock()
+        mock_mod.consultar = AsyncMock(return_value={"status": "ok"})
+        with patch.object(m, "CaptchaSolver"), \
+             patch.object(m, "MAIL_AVAILABLE", False), \
+             patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
+             patch("src.tramites.cita_sat.CitaSATModule") as mock_cls, \
+             patch("builtins.input", side_effect=["XAXX010101000", "curp-invalida"]):
+            mock_cls.return_value = mock_mod
+            agente = m.Agente()
+            result = await agente.tramite_cita_sat(perfil=None)
+        assert result == {"status": "ok"}
+        mock_mod.consultar.assert_awaited_once_with(rfc="XAXX010101000", curp="")
+
+
+# ── _validar_rfc / _validar_email ─────────────────────────────────────────
+
+class TestValidarRfcEmail:
+    """_validar_rfc() / _validar_email() — estáticos que delegan a validators."""
+
+    def _mod(self):
+        import importlib
+
+        import src.main as m
+        return importlib.reload(m)
+
+    def test_rfc_ok(self):
+        assert self._mod().Agente._validar_rfc("XAXX010101000")
+
+    def test_rfc_invalid(self):
+        assert not self._mod().Agente._validar_rfc("no-es-rfc")
+
+    def test_email_ok(self):
+        assert self._mod().Agente._validar_email("ana@example.com")
+
+    def test_email_invalid(self):
+        assert not self._mod().Agente._validar_email("no-es-email")
+
+
 # ── gestionar_perfil ─────────────────────────────────────────────────────
 
 class TestGestionarPerfil:
@@ -837,6 +1006,45 @@ class TestModoInteractivo:
              patch("builtins.input", side_effect=["ambos", "salir"]):
             await m.modo_interactivo()
         mock_agente.tramite_ambos.assert_awaited_once()
+
+    @pytest.mark.parametrize("cmd,metodo", [
+        ("rfc", "tramite_rfc"),
+        ("acta", "tramite_acta"),
+        ("pasaporte", "tramite_pasaporte"),
+        ("semanas", "tramite_semanas"),
+        ("control", "tramite_control_confianza"),
+        ("confianza", "tramite_control_confianza"),
+        ("control_confianza", "tramite_control_confianza"),
+        ("buro", "tramite_buro"),
+        ("buro_credito", "tramite_buro"),
+        ("circulo", "tramite_circulo"),
+        ("circulo_credito", "tramite_circulo"),
+        ("ine", "tramite_cita_ine"),
+        ("cita_ine", "tramite_cita_ine"),
+        ("sat", "tramite_cita_sat"),
+        ("cita_sat", "tramite_cita_sat"),
+    ])
+    async def test_comando_dispatch(self, cmd, metodo):
+        """Comando <cmd> en REPL → agente.<metodo> (cobertura dispatch 517-533)."""
+        import importlib
+
+        import src.main as m
+        m = importlib.reload(m)
+        mock_agente = MagicMock()
+        for nombre in ("tramite_curp", "tramite_nss", "tramite_ambos",
+                       "tramite_rfc", "tramite_acta", "tramite_pasaporte",
+                       "tramite_semanas", "tramite_control_confianza",
+                       "tramite_buro", "tramite_circulo", "tramite_cita_ine",
+                       "tramite_cita_sat"):
+            setattr(mock_agente, nombre, AsyncMock())
+        mock_agente.gestionar_perfil = MagicMock()
+        with patch.object(m, "Agente", return_value=mock_agente), \
+             patch.object(m, "list_profiles", return_value=[]), \
+             patch.object(m, "BANNER", ""), \
+             patch.object(m, "AYUDA", ""), \
+             patch("builtins.input", side_effect=[cmd, "salir"]):
+            await m.modo_interactivo()
+        getattr(mock_agente, metodo).assert_awaited_once()
 
     async def test_ayuda_command(self, capsys):
         """Comando 'ayuda' → imprime AYUDA."""

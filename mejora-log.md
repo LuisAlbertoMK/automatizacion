@@ -99,6 +99,46 @@ Baseline registrado: **1019 passed, 0 failed, 46.78s, 23 warnings, ruff limpio**
 
 ---
 
-_(siguientes ciclos aquí)_
+## Ciclo 4 — cobertura main.py 72%→92%: tests de orquestación y dispatch
+
+**Fecha**: 2026-08-02
+**Gap**: `src/main.py` al 72% (131 líneas sin cubrir) — el más bajo de la tabla tras eliminar el dead code del ciclo 3. Los métodos `tramite_rfc/acta/pasaporte/semanas/control_confianza/buro/circulo/cita_ine/cita_sat` (267-377) y el dispatch REPL (517-533) no tenían tests directos.
+
+**Hallazgo (verificado con coverage --term-missing)**:
+- Los 9 métodos `tramite_*` orquestan módulos YA cubiertos al 100% — la falta de cobertura era de los TESTS, no del código.
+- `_validar_rfc`/`_validar_email` (estáticos) también sin cubrir.
+- El dispatch REPL solo testaba 3 comandos (curp/nss/ambos) — 9 comandos más (rfc, acta, pasaporte, semanas, control/confianza, buro, circulo, ine, sat) sin cobertura.
+
+**Enfoques aplicados (3)**:
+- E1: `TestTramitesSimples` — 14 tests de los 9 métodos `tramite_*` (con perfil, sin perfil, y los que siempre piden datos) vía helper `_tramite()` que mockea el módulo destino + `builtins.input`. Cubre 267-377. ✔
+- E2: `TestValidarRfcEmail` — 4 tests de los validadores estáticos (ok + inválido). Cubre 453-467. ✔
+- E3: `test_comando_dispatch` parametrizado (15 casos: 9 comandos + 6 aliases) en `TestModoInteractivo` + `test_cita_sat_curp_invalida` (rama de CURP inválida 371-372). Cubre 517-533. ✔
+
+**Resultado breaker (3 enfoques de ataque)**:
+1. Regresión → 1056 passed, 0 failed (suite completa).
+2. Warnings → 0 (los 33 tests nuevos no introducen coroutines ni warnings).
+3. Falsos positivos → los tests no tocaron código de producción (solo tests/test_main.py) — riesgo de regresión mínimo, confirmado con suite completa.
+
+**Resultado E2E**: 1056 passed, 0 failed, **0 warnings**, 45.01s.
+
+**Benchmark**: tests 1023→1056 (+33) | warnings 0→0 | cobertura 93.25→**95.53%** (+2.28) | main.py 72→**92%** | tiempo 43.28→45.01s (+1.7s, varianza).
+
+**Archivos**: `tests/test_main.py` (TestTramitesSimples +14, TestValidarRfcEmail +4, test_comando_dispatch +15, test_cita_sat_curp_invalida +1 = +34 tests, −1 del helper).
+
+**Aprendizaje**: La cobertura de un CLI no se mide por los módulos (ya cubiertos), sino por los MÉTODOS de orquestación y su dispatch. Un test parametrizado por comando del REPL es la forma más barata de cubrir el enrutamiento completo. Los métodos `tramite_*` son "glue code" de 2 patrones (con perfil / _pedir_dato) — un helper único los cubre todos.
+
+---
+
+## Resumen del protocolo (4 ciclos)
+
+| Ciclo | Enfoques | Resultado | Benchmark |
+|---|---|---|---|
+| 1 | 3 (bcrypt) | Guardrail rounds 100 + fix config | 1019→1022 tests, warnings 23→9 |
+| 2 | 6 (warnings) | 0 warnings + **BUG REAL fix** main_multimodal | 1023 tests, warnings 9→0 |
+| 3 | 3 (dead code) | template.py eliminado, control_confianza 100% | cobertura 91.88→93.25% |
+| 4 | 3 (cobertura CLI) | main.py 92%, dispatch REPL cubierto | 1023→1056 tests, cobertura 95.53% |
+| **Total** | **15 enfoques** (≥10 requeridos) | Breaker sobrevive en todos los ciclos | 1056 passed, 0 warnings, 95.53% |
+
+**Criterios de parada**: sin gaps detectables (cobertura ≥ 88% en todo módulo activo, salvo main.py 92% por cv/escrito DOCUMENTOS_AVAILABLE + menú interactivo), breaker superado ×4, 100% tests pasan, benchmark ≥ previo en cada ciclo. **Protocolo completo.**
 
 _(siguientes ciclos aquí)_
