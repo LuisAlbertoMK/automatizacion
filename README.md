@@ -118,7 +118,6 @@ src/
 │   ├── cita_ine.py       # Cita INE ⚙️ Migrado
 │   ├── cita_sat.py       # Cita SAT ⚙️ Migrado
 │   ├── orchestrator.py   # Orquestador multimodal
-│   └── template.py       # Template para nuevos trámites
 └── utils/
     ├── captcha.py        # 2captcha client
     ├── free_captcha.py   # OCR + Whisper gratuito
@@ -144,7 +143,7 @@ Resumen de lo implementado:
 | F1: Seguridad y secretos | ✅ Completado |
 | F2: Rendimiento | ✅ Completado |
 | F3: Tests y robustez | ✅ Health check |
-| F4: Nuevos trámites | 🔶 Template listo |
+| F4: Nuevos tramites | OK Modulos cedula_profesional + predial_cdmx (nuevos modulos se clonan de uno existente) |
 | F5: DevOps | ✅ Docker + CI + API |
 | F6: Captcha CNN 99% | 🔶 Pipeline dataset |
 

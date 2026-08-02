@@ -70,4 +70,35 @@ Baseline registrado: **1019 passed, 0 failed, 46.78s, 23 warnings, ruff limpio**
 
 ---
 
+## Ciclo 3 — dead code + cobertura: template.py eliminado, control_confianza 26%→100%
+
+**Fecha**: 2026-08-02
+**Gap**: coverage mostró 2 módulos con cobertura artificialmente baja: `control_confianza.py` 26% y `template.py` 0%.
+
+**Hallazgo (verificado con coverage + grep)**:
+- `src/tramites/template.py` era **código muerto**: solo se auto-referencia (docstring "TEMPLATE para crear nuevos módulos"). Ningún import en src/, 0% cobertura. README lo listaba en 2 lugares (tree de archivos + feature F4).
+- `control_confianza.py`: los 4 tests del fail-fast YA existían y cubrían el flujo real — el 26% era **110 líneas inalcanzables** (todo el flujo navegable `_run` + 30 líneas post-`raise` de línea 68). El portal está muerto desde 2025 (DNS dead) → ese código nunca podrá ejecutarse. Dead code real, no falta de tests.
+
+**Enfoques aplicados (3)**:
+- E1: `git rm src/tramites/template.py` — eliminación de módulo plantilla muerto. ✔
+- E2: `src/tramites/control_confianza.py` — eliminación del flujo inalcanzable tras el fail-fast (`_run` completo + try/except + lógica de llenado) → módulo queda fail-fast puro (68 líneas vs 180). El registro en orchestrator (TRAMITES_REGISTRADOS + ejecutar_tramite) sigue intacto: `consultar()` mantiene validación de CURP + raise con mensaje CECC. ✔
+- E3: README.md — actualización de las 2 referencias a template.py (línea 121 tree + fila F4 de features). ✔
+
+**Resultado breaker (3 enfoques de ataque)**:
+1. Regresión → 1023 passed, 0 failed.
+2. Warnings → 0 (sin reintroducción).
+3. Integridad del registro → orchestrator importa y registra ControlConfianzaModule sin problema (suite test_orchestrator + test_control_confianza pasan).
+
+**Resultado E2E**: 1023 passed, 0 failed, **0 warnings**, 43.28s.
+
+**Benchmark**: tests 1023→1023 (0) | warnings 0→0 | cobertura 91.88→**93.25%** (+1.37) | control_confianza 26→100% | template 0% (eliminado).
+
+**Archivos**: `src/tramites/template.py` (eliminado), `src/tramites/control_confianza.py` (−112 líneas dead code), `README.md` (2 refs).
+
+**Aprendizaje**: Un módulo cuyo servicio externo murió no debería conservar el flujo navegable como dead code tras un fail-fast — confunde a cobertura y a futuros mantenedores. La cobertura baja NO siempre significa "faltan tests": a veces significa "sobra código". Verificar inalcanzabilidad antes de escribir tests.
+
+---
+
+_(siguientes ciclos aquí)_
+
 _(siguientes ciclos aquí)_
