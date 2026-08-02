@@ -170,3 +170,30 @@ _(siguientes ciclos aquí)_
 
 --- 
 _(fin ronda 2 ciclo 1 — siguiente ciclo: gaps restantes pii.py 96%, validators.py 97%, y main.py cv/escrito DOCUMENTOS_AVAILABLE + menu interactivo 612-679)_
+
+## RONDA 2 - Ciclo 2 (cobertura main.py CLI)
+
+**Branch**: experimento/mejora-autonoma-2026-08-02-b2 | **Commit**: e3f4fbf
+
+**Analisis** (ciclo 2): gap = src/main.py 92% — missing 537-541, 543-547 (dispatch REPL cv/escrito DOCUMENTOS_AVAILABLE), 612-629 (mapeo args modo_directo: rfc/buro/circulo/cita_sat), 650-651/655-659/666-667 (ArgumentTypeError de _type_*), 678-679 (reconfigure falla).
+
+**Enfoques aplicados (4)**:
+- **E1**: TestDispatchDocumentos (4 casos param cv/escrito x DOCUMENTOS_AVAILABLE True/False) — ramas 537-547.
+- **E2**: TestModoDirectoArgparse (4 tests: rfc sin curp SystemExit, rfc con curp, buro/circulo input interactivo parametrizado, cita_sat input RFC) — 612-629.
+- **E3**: TestTypeHelpers (6 tests: _type_curp/_type_rfc/_type_correo validos + ArgumentTypeError) — 650-667.
+- **E4**: TestMainStreamReconfigure — stdout/stderr no reconfigurables, main() cubre except pass (678-679).
+
+**Gotchas tecnicos (2 ciclos de ida y vuelta)**:
+1. `TramitesOrchestrator` se importa LOCALMENTE dentro de modo_directo (`from src.tramites.orchestrator import TramitesOrchestrator`) — patch.object(m, "TramitesOrchestrator") NO funciona, hay que parchear "src.tramites.orchestrator.TramitesOrchestrator".
+2. main() llama parser.parse_args() con sys.argv REAL — si no se parchea sys.argv, pytest rompe argparse (SystemExit 2).
+
+**Resultado breaker (3 ataques)**: (1) suite completa 1082 passed EXIT=0, (2) 0 warnings, (3) ruff clean (isort: argparse antes de asyncio).
+
+**Benchmark**: tests 1066->1082 (+16) | warnings 0->0 | cobertura global 96.44->**97.28%** (+0.84) | main.py 92->**100%** | tiempo 57.8s (con --cov).
+
+**Archivos**: `tests/test_main.py` (+163 lineas, 4 clases nuevas, ~16 tests).
+
+**Aprendizaje**: la cobertura de main.py se completaba con tests de las RAMAS de dispatch y mapeo de args — no de la logica de negocio (ya cubierta en modulos). Un import local dentro de la funcion (lazy loading del orquestador) cambia el target del patch: patch.object(m, X) falla si X no es atributo de modulo, usar la ruta completa del modulo origen.
+
+---
+_(fin ronda 2 ciclo 2 — siguientes: pii.py 96%, validators.py 97%, resto de main.py 100%. Despues: parada del protocolo y merge a main/master)_
