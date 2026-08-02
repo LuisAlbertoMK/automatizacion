@@ -250,3 +250,33 @@ class TestStorageMigrateSalt:
         data = _load_all()
         assert "test_mig_profile" in data
         assert data["test_mig_profile"]["curp"] == "OLD"
+
+
+class TestGuardRounds:
+    """Guardrail de seguridad — rounds bcrypt nunca por debajo del mínimo."""
+
+    def test_defaults_no_inseguros(self):
+        """Los rounds por defecto (sin env) deben ser >= 100 (sin UserWarning)."""
+        import src.utils.storage as st
+
+        assert st._KDF_ROUNDS >= st._MIN_BCRYPT_ROUNDS
+        assert st._HASH_ROUNDS >= st._MIN_BCRYPT_ROUNDS
+
+    def test_guard_rechaza_rounds_bajos(self):
+        """Rounds < 100 deben levantar StorageError."""
+        import src.utils.storage as st
+
+        original_kdf, original_hash = st._KDF_ROUNDS, st._HASH_ROUNDS
+        try:
+            st._KDF_ROUNDS = 4
+            st._HASH_ROUNDS = 4
+            with pytest.raises(StorageError, match="mínimo seguro"):
+                st._guard_rounds()
+        finally:
+            st._KDF_ROUNDS, st._HASH_ROUNDS = original_kdf, original_hash
+
+    def test_guard_acepta_rounds_seguros(self):
+        """Rounds >= 100 no levantan error."""
+        import src.utils.storage as st
+
+        st._guard_rounds()  # conftest los setea a 100 — no debe fallar

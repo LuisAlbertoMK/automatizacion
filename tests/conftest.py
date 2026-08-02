@@ -2,9 +2,11 @@
 import os
 
 # IMPORTANTE: debe ir ANTES de importar src.* — secrets_manager lee
-# las env vars en tiempo de importación (bcrypt.kdf 600k rounds = ~1s c/u).
-os.environ["BCRYPT_KDF_ROUNDS"] = "4"
-os.environ["BCRYPT_HASH_ROUNDS"] = "4"
+# las env vars en tiempo de importación.
+# 100 rounds = mínimo sin UserWarning de bcrypt y razonable en velocidad
+# (~0.66s/llamada). Los rounds <100 son rechazados por storage._guard_rounds().
+os.environ["BCRYPT_KDF_ROUNDS"] = "100"
+os.environ["BCRYPT_HASH_ROUNDS"] = "100"
 
 import asyncio
 from contextlib import asynccontextmanager

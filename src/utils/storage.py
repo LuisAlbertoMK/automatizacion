@@ -29,9 +29,29 @@ from src.exceptions import StorageError
 DATA_FILE = Path(os.getenv("OUTPUT_DIR", "./data")) / "perfiles.json"
 SALT_FILE = DATA_FILE.parent / ".fernet-salt"
 
-# Rondas para bcrypt.kdf — default 600k, reducible via env para tests/desarrollo
-_KDF_ROUNDS = int(os.getenv("BCRYPT_KDF_ROUNDS", "600000"))
-_HASH_ROUNDS = int(os.getenv("BCRYPT_HASH_ROUNDS", "100000"))
+# Rondas para bcrypt.kdf — reducibles via env para tests/desarrollo.
+# bcrypt.kdf es un KDF LINEAL (como PBKDF2): el costo crece 1:1 con rounds.
+#   - <100 rounds: bcrypt emite UserWarning ("This few is not secure").
+#   - 100 rounds:  ~0.66s por llamada, sin warning. Valor por defecto seguro
+#     y viable en runtime.
+#   - 100k rounds: ~2min por llamada; 600k: ~54min — INVIABLE (medido
+#     localmente 2026-08-02). Los defaults anteriores (600k/100k) nunca se
+#     probaron con valores reales; solo corrían porque tests los sobrescriben.
+_KDF_ROUNDS = int(os.getenv("BCRYPT_KDF_ROUNDS", "100"))
+_HASH_ROUNDS = int(os.getenv("BCRYPT_HASH_ROUNDS", "100"))
+
+# Guardrail de seguridad: rounds por debajo del umbral de bcrypt
+# (que emite UserWarning) son inseguros — fallar antes que aceptarlos.
+_MIN_BCRYPT_ROUNDS = 100
+
+
+def _guard_rounds():
+    if _KDF_ROUNDS < _MIN_BCRYPT_ROUNDS or _HASH_ROUNDS < _MIN_BCRYPT_ROUNDS:
+        raise StorageError(
+            f"BCRYPT rounds por debajo del mínimo seguro ({_MIN_BCRYPT_ROUNDS}): "
+            f"KDF={_KDF_ROUNDS}, HASH={_HASH_ROUNDS}. "
+            "Configurá BCRYPT_KDF_ROUNDS/BCRYPT_HASH_ROUNDS >= 100."
+        )
 
 
 def _get_salt() -> bytes:
@@ -62,6 +82,7 @@ def _get_cipher() -> Fernet:
             "Configurala en config.env o Windows Credential Manager. "
             "Generá una con: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\""
         )
+    _guard_rounds()
     salt = _get_salt()
     cache_key = (raw_key, salt.hex())
     if cache_key in _fernet_cache:
@@ -114,6 +135,7 @@ def _hash_sensitive(profile: dict, alias: str = "") -> dict:
     Usa salt derivado del alias como antes, PERO el alias es
     suficientemente único por perfil para evitar hashes idénticos.
     """
+    _guard_rounds()
     safe = {}
     for k, v in profile.items():
         if isinstance(v, str) and any(s in k.lower() for s in SENSITIVE_FIELDS):
@@ -146,6 +168,7 @@ def load_profile(alias: str) -> dict | None:
 
 def verify_sensitive(alias: str, field: str, value: str) -> bool:
     """Verifica un campo sensible contra el hash guardado."""
+    _guard_rounds()
     all_profiles = _load_all()
     profile = all_profiles.get(alias)
     if not profile:
