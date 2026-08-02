@@ -8,6 +8,11 @@ __pycache__/
 .coverage
 coverage_html/
 
+# Empaquetado — artefactos de build generados por pip install -e .
+*.egg-info/
+build/
+dist/
+
 # Env files
 config.env
 .env

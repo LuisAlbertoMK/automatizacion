@@ -15,11 +15,30 @@ Todo corre local en tu PC. Sin modelos de pago externos (aunque 2captcha es opci
 | **Semanas Cotizadas IMSS** | IMSS | ~30s | ⚙️ Migrado |
 | Antecedentes No Penales | — | ~45-90s | 🔶 Escrito |
 | Tenencia Vehicular | — | ~20-40s | 🔶 Escrito |
-| Control de Confianza | SESNSP | ~10-30min | ⚙️ Migrado |
-| Buró de Crédito | burondecredito.com.mx | ~5-10min | ⚙️ Migrado |
-| Círculo de Crédito | circulondecredito.com.mx | ~5-10min | ⚙️ Migrado |
+| Control de Confianza | SESNSP | — | ❌ Portal muerto (DNS dead 2025) |
+| Buró de Crédito | buro de crédito | ~5-10min | ⚙️ Migrado |
+| Círculo de Crédito | círculo de crédito | ~5-10min | ⚙️ Migrado |
 | Cita INE | INE | ~5min | ⚙️ Migrado |
 | Cita SAT | SAT | ~5min | ⚙️ Migrado |
+
+---
+
+## 🔐 Variables de Entorno
+
+| Variable | Requerida | Descripción |
+|---|---|---|
+| `STORAGE_KEY` | ✅ | Clave Fernet para cifrar perfiles guardados |
+| `IMAP_EMAIL` / `IMAP_PASSWORD` | ⚠️ | Cuenta IMAP para recibir PDFs (módulos que envían por correo) |
+| `HEADLESS` | no | Browser en modo headless (`true`/`false`) |
+| `REQUEST_DELAY` | no | Delay entre requests (default `2.0`) |
+| `CAPTCHA_API_KEY` | no | API key de 2captcha para reCAPTCHA (opcional; sin ella el captcha es manual) |
+| `ANTHROPIC_API_KEY` | no | Clave de Claude para módulos con IA (cv, escrito) |
+| `API_KEY` | ✅ en PROD | Auth de la API REST (en producción el arranque aborta si falta) |
+| `LOG_DIR` / `OUTPUT_DIR` | no | Directorios de logs y salida (default `logs/`, `output/`) |
+| `KDF_ROUNDS` | no | Rondas bcrypt.kdf (default 600k; bajo para tests/desarrollo) |
+
+Los secrets se guardan con prioridad: **Windows Credential Manager** → `config.env` → variables de entorno.
+Ver `src/utils/secrets_manager.py` y `config.example.env` para más detalle.
 
 ---
 
@@ -31,16 +50,19 @@ git clone https://github.com/LuisAlbertoMK/automatizacion.git
 cd automatizacion
 
 # 2. Dependencias
-pip install -r requirements.txt
+pip install -r requirements.lock
 
 # 3. Navegador
 playwright install firefox
 
-# 4. Configurar
+# 4. Instalar el paquete (entry point `tramites`)
+pip install -e . --no-deps
+
+# 5. Configurar
 cp config.example.env config.env
 # Editá config.env con tus datos
 
-# 5. Probar
+# 6. Probar
 python health_check.py
 ```
 
@@ -76,10 +98,10 @@ docker compose --profile api up
 
 ```
 src/
-├── main.py              # Entry point CLI
+├── main.py              # Entry point CLI (tramites)
 ├── api.py               # API REST (FastAPI)
 ├── exceptions.py         # Jerarquía de excepciones
-├── modules/
+├── tramites/
 │   ├── base.py           # BaseModule (browser lifecycle, logging, rate limiting)
 │   ├── curp.py           # Módulo CURP
 │   ├── nss.py            # Módulo NSS IMSS
@@ -89,9 +111,8 @@ src/
 │   ├── acta_nacimiento.py # Acta de Nacimiento RENAPO ⚙️ Migrado
 │   ├── pasaporte.py      # Cita Pasaporte SRE ⚙️ Migrado
 │   ├── semanas.py        # Semanas Cotizadas IMSS ⚙️ Migrado
-│   ├── control_confianza.py # Control de Confianza SESNSP ⚙️ Migrado
-│   ├── buro.py           # Buró de Crédito ⚙️ Migrado
-│   ├── circulo.py        # Círculo de Crédito ⚙️ Migrado
+│   ├── control_confianza.py # Control de Confianza SESNSP ❌ Portal muerto
+│   ├── credito.py        # Buró + Círculo de Crédito ⚙️ Migrado
 │   ├── cita_ine.py       # Cita INE ⚙️ Migrado
 │   ├── cita_sat.py       # Cita SAT ⚙️ Migrado
 │   ├── orchestrator.py   # Orquestador multimodal
@@ -111,7 +132,7 @@ src/
 
 ## 🗺️ Roadmap
 
-Ver `ROADMAP_COMPLETO.md` para el plan detallado con 7 fases y 3 gap analyses (rendimiento, seguridad, escalabilidad).
+Ver `docs/ROADMAP_COMPLETO.md` para el plan detallado con 7 fases y 3 gap analyses (rendimiento, seguridad, escalabilidad).
 
 Resumen de lo implementado:
 

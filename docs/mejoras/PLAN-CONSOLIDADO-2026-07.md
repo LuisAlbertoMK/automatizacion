@@ -1,8 +1,8 @@
 # Plan de Mejoras — Estado Actual 📍
 
-**Última actualización:** 8 de julio, 2026  
-**Score estimado:** ~8.5/10  
-**Completados:** ~19/26 items | **Pendientes:** 7 items
+**Última actualización:** 1 de agosto, 2026  
+**Score estimado:** ~9.0/10  
+**Completados:** ~32/32 items | **Pendientes:** 0 accionables
 
 ---
 
@@ -98,6 +98,27 @@ Config en `pyproject.toml` + step en CI (`mypy src/ || true`, continue-on-error)
 
 ---
 
+## ✅ RONDA 2026-08-01 — Lo restante (análisis 2026-07-30 #1950)
+
+| Item | Cambio |
+|------|--------|
+| **R1** CitaSAT URL | `www.citas.sat.gob.mx/citasat/AgregarCita.aspx` (conn reset) → `https://citas.sat.gob.mx/` — verificado vivo |
+| **R2** CitaINE verificación | 403 = bot-protection (dominio VIVO, no 404). Docstring corregido |
+| **R3** ControlConfianza | Hard-fail con error claro (portal DNS dead). 4 tests de "éxito fantasma" → tests de hard-fail |
+| **R4** Docs reorg | 6 .md de raíz → `docs/` (BITACORA, CHANGELOG, GUIA_*, NUEVAS_*, ROADMAP). README + SECURITY quedan en raíz |
+| **R5** pip install -e . | Paquete ahora instalado (entry point `tramites` en PATH). egg-info destrackeado + .gitignore |
+| **R6** README | Tabla de env vars, estructura real `src/tramites/`, instalación con requirements.lock, ControlConfianza marcado muerto |
+
+**Verificación:** 1002 tests, exit 0, 0 fallos.
+
+### 🔴 Pendientes NO accionables (requieren usuario/infra)
+
+- **CAPTCHA_API_KEY** — placeholder; requiere key real de 2captcha del usuario
+- **Docker imagen 3-4GB** — torch+easyocr+whisper en un solo lock; requiere split de Dockerfiles (comandos docker denegados por permisos)
+- **Streamlit architecture mismatch** — mismatch fundamental CLI-vs-Web; `_safe_input` ya mitiga deadlocks
+
+---
+
 ## 📊 Resumen
 
 | Fase | Total | Hecho | Pendiente |
@@ -108,6 +129,7 @@ Config en `pyproject.toml` + step en CI (`mypy src/ || true`, continue-on-error)
 | F4: Arquitectura | 4 | 4 | 0 |
 | F5: Testing | 6 | 6 | **0** ✅ |
 | F6: Playwright | 1 | 1 | 0 |
-| **TOTAL** | **30** | **30** | **0** 🎉 |
+| R: Ronda 2026-08-01 | 6 | 6 | **0** ✅ |
+| **TOTAL** | **36** | **36** | **0** 🎉 |
 
-### Estado — 🎯 30/30 COMPLETADO
+### Estado — 🎯 36/36 COMPLETADO (excepto 3 no-accionables)
