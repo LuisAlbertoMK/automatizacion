@@ -106,6 +106,16 @@ class CirculoError(ModuleError):
     pass
 
 
+class CedulaProfesionalError(ModuleError):
+    """Error en módulo Cédula Profesional SEP."""
+    pass
+
+
+class PredialError(ModuleError):
+    """Error en módulo Predial CDMX."""
+    pass
+
+
 class CitaINEerror(ModuleError):
     """Error en módulo Cita INE."""
     pass

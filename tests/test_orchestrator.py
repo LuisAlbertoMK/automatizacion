@@ -11,6 +11,7 @@ TRAMITES_ESPERADOS = [
     "curp", "nss", "antecedentes", "tenencia",
     "rfc", "acta_nacimiento", "pasaporte", "semanas",
     "control_confianza", "buro", "circulo", "cita_ine", "cita_sat",
+    "cedula_profesional", "predial_cdmx",
 ]
 
 # ── Mock Module Helper ────────────────────────────────────────────────────────
@@ -487,10 +488,10 @@ class TestEjecutarMigrados:
         assert result == {"status": "ok"}
 
 
-# ── Menu interactivo — opciones 6-16 ────────────────────────────────────────
+# ── Menu interactivo — opciones 6-18 ────────────────────────────────────────
 
 class TestMenuMigrados:
-    """Options 6-16 en modo_interactivo."""
+    """Options 6-18 en modo_interactivo."""
 
     @pytest.mark.parametrize("opcion, tramite", [
         ("6", "rfc"),
@@ -502,6 +503,8 @@ class TestMenuMigrados:
         ("12", "circulo"),
         ("13", "cita_ine"),
         ("14", "cita_sat"),
+        ("15", "cedula_profesional"),
+        ("16", "predial_cdmx"),
     ])
     def test_menu_migrados(self, orchestrator, opcion, tramite):
         mock_et = AsyncMock(return_value={"status": "ok"})
@@ -511,16 +514,16 @@ class TestMenuMigrados:
         mock_et.assert_any_call(tramite, "text")
 
     def test_menu_cv(self, orchestrator):
-        """Option 15 → generar_cv_interactivo."""
+        """Option 17 → generar_cv_interactivo."""
         with patch.object(orchestrator, "generar_cv_interactivo", AsyncMock()) as mock_cv:
-            with patch("builtins.input", side_effect=["15", "0"]):
+            with patch("builtins.input", side_effect=["17", "0"]):
                 orchestrator.modo_interactivo_sync()
         mock_cv.assert_called_once()
 
     def test_menu_escrito(self, orchestrator):
-        """Option 16 → generar_escrito_interactivo."""
+        """Option 18 → generar_escrito_interactivo."""
         with patch.object(orchestrator, "generar_escrito_interactivo", AsyncMock()) as mock_esc:
-            with patch("builtins.input", side_effect=["16", "0"]):
+            with patch("builtins.input", side_effect=["18", "0"]):
                 orchestrator.modo_interactivo_sync()
         mock_esc.assert_called_once()
 

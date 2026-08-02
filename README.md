@@ -20,6 +20,8 @@ Todo corre local en tu PC. Sin modelos de pago externos (aunque 2captcha es opci
 | Círculo de Crédito | círculo de crédito | ~5-10min | 🔶 Semimanual (Cloudflare + login, /mi-rce) |
 | Cita INE | INE | ~5min | ⚙️ Migrado |
 | Cita SAT | SAT | ~5min | ⚙️ Migrado |
+| **Cédula Profesional SEP** | SEP | ~15-30s | 🔶 Escrito |
+| **Predial CDMX** (consulta de adeudo) | Finanzas CDMX | ~20-40s | 🔶 Escrito |
 
 ---
 

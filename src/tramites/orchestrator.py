@@ -25,6 +25,7 @@ TramiteType = Literal[
     "curp", "nss", "antecedentes", "tenencia", "ambos",
     "rfc", "acta_nacimiento", "pasaporte", "semanas",
     "control_confianza", "buro", "circulo", "cita_ine", "cita_sat",
+    "cedula_profesional", "predial_cdmx",
 ]
 InputMode = Literal["text", "voice", "image", "auto"]
 
@@ -50,6 +51,9 @@ TRAMITES_REGISTRADOS = {
     "circulo":           {"modulo": "CirculoModule",          "estado": "⚙️ Migrado",       "tiempo": "~5-10min"},
     "cita_ine":          {"modulo": "CitaINEModule",          "estado": "⚙️ Migrado",       "tiempo": "~5min"},
     "cita_sat":          {"modulo": "CitaSATModule",          "estado": "⚙️ Migrado",       "tiempo": "~5min"},
+    # ── Nuevos (2026-08-02) ──
+    "cedula_profesional": {"modulo": "CedulaProfesionalModule", "estado": "🔶 Escrito",    "tiempo": "~15-30s"},
+    "predial_cdmx":      {"modulo": "PredialCDMXModule",      "estado": "🔶 Escrito",       "tiempo": "~20-40s"},
 }
 
 
@@ -180,6 +184,22 @@ _TRAMITE_SCHEMAS: dict[str, list[InputField]] = {
         {"name": "email", "prompt": "Email (opcional)", "type": "email",
          "required": False, "default": ""},
     ],
+    "cedula_profesional": [
+        {"name": "curp", "prompt": "CURP (18 caracteres)", "type": "curp",
+         "required": True, "multimodal": "get_curp"},
+        {"name": "nombre", "prompt": "Nombre (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "apellido_paterno", "prompt": "Apellido paterno (opcional)", "type": "text",
+         "required": False, "default": ""},
+        {"name": "apellido_materno", "prompt": "Apellido materno (opcional)", "type": "text",
+         "required": False, "default": ""},
+    ],
+    "predial_cdmx": [
+        {"name": "cuenta", "prompt": "Cuenta predial (12 dígitos)", "type": "text",
+         "required": True},
+        {"name": "clu", "prompt": "CLÚ (opcional)", "type": "text",
+         "required": False, "default": ""},
+    ],
 }
 
 # Trámites with special input logic (conditional prompts, extra steps).
@@ -216,6 +236,8 @@ class TramitesOrchestrator:
         "circulo":           ("src.tramites.circulo", "CirculoModule"),
         "cita_ine":          ("src.tramites.cita_ine", "CitaINEModule"),
         "cita_sat":          ("src.tramites.cita_sat", "CitaSATModule"),
+        "cedula_profesional": ("src.tramites.cedula_profesional", "CedulaProfesionalModule"),
+        "predial_cdmx":     ("src.tramites.predial_cdmx", "PredialCDMXModule"),
     }
 
     def __init__(self, captcha_solver=None, mail_reader=None, voice_model="base"):
@@ -444,9 +466,11 @@ class TramitesOrchestrator:
             print("  12) Círculo de Crédito")
             print("  13) Cita INE")
             print("  14) Cita SAT")
+            print("  15) Cédula Profesional SEP")
+            print("  16) Predial CDMX (consulta de adeudo)")
             print("  ── Documentos ──")
-            print("  15) CV - Generar CV profesional con IA")
-            print("  16) Escrito - Carta / Contrato / Documento legal con IA")
+            print("  17) CV - Generar CV profesional con IA")
+            print("  18) Escrito - Carta / Contrato / Documento legal con IA")
             print("  ──")
             print("  0)  Salir")
 
@@ -507,8 +531,12 @@ class TramitesOrchestrator:
                 elif opcion == "14":
                     await self.ejecutar_tramite("cita_sat", modo)
                 elif opcion == "15":
-                    await self.generar_cv_interactivo()
+                    await self.ejecutar_tramite("cedula_profesional", modo)
                 elif opcion == "16":
+                    await self.ejecutar_tramite("predial_cdmx", modo)
+                elif opcion == "17":
+                    await self.generar_cv_interactivo()
+                elif opcion == "18":
                     await self.generar_escrito_interactivo()
                 else:
                     print("  Opción inválida")
