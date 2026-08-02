@@ -102,7 +102,7 @@ class OCRExtractor:
         cache_key = hashlib.sha256(image_bytes).hexdigest()[:16] + "|" + lang
         cached = self._cache.get(cache_key)
         if cached is not None:
-            return cached
+            return self._cache_result(cache_key, cached)  # mueve al final (LRU real)
         try:
             with Image.open(io.BytesIO(image_bytes)) as img:
                 img = self._preprocess_image(img)
@@ -128,7 +128,7 @@ class OCRExtractor:
                 cache_key = f"pdf:{pdf_path}:{lang}:{os.path.getmtime(pdf_path)}"
                 cached = self._cache.get(cache_key)
                 if cached is not None:
-                    return cached
+                    return self._cache_result(cache_key, cached)  # mueve al final (LRU real)
             except OSError:
                 cache_key = ""  # archivo no existe aún → sin cache
             from pdf2image import convert_from_path

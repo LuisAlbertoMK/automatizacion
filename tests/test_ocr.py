@@ -227,3 +227,73 @@ class TestOCRExtractor:
         mock_open.side_effect = Exception("Corrupt image")
         with pytest.raises(OCRError):
             ocr.extract_from_bytes(b"corrupt-bytes")
+
+
+class TestCacheLRU:
+    """Líneas 48-57 + 103-105: caché LRU de resultados OCR."""
+
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="texto")
+    @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
+    def test_cache_hit_no_segunda_llamada_ocr(self, mock_open, mock_its, ocr):
+        """2ª llamada con la misma imagen sirve del caché (línea 105)."""
+        ocr.extract_from_bytes(b"misma-imagen")
+        ocr.extract_from_bytes(b"misma-imagen")
+        assert mock_its.call_count == 1
+
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="texto")
+    @patch("src.utils.ocr.Image.open", return_value=_TINY_IMG)
+    def test_cache_lru_evicts_cuando_llena(self, mock_open, mock_its):
+        """LRU: hit mueve al final (54) y evicta el más viejo (55-57)."""
+        with patch.object(OCRExtractor, "_verify_tesseract"):
+            ocr = OCRExtractor(cache_size=2)
+        ocr.extract_from_bytes(b"img-a")  # miss → add
+        ocr.extract_from_bytes(b"img-b")  # miss → add
+        ocr.extract_from_bytes(b"img-a")  # HIT → move_to_end (54)
+        ocr.extract_from_bytes(b"img-c")  # miss + lleno → evict img-b (55-57)
+        ocr.extract_from_bytes(b"img-b")  # miss (evictada) → evict img-a (55-57)
+        assert mock_its.call_count == 4
+
+    @patch("builtins.open")
+    def test_extract_from_image_permission_error(self, mock_open, ocr):
+        """PermissionError → OCRError 'Permiso denegado' (línea 89)."""
+        mock_open.side_effect = PermissionError("denied")
+        with pytest.raises(OCRError, match="Permiso denegado"):
+            ocr.extract_from_image("fake/path.png")
+
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="texto pdf")
+    @patch("pdf2image.convert_from_path", return_value=[_TINY_IMG])
+    def test_extract_from_pdf_sin_archivo_sin_cache(self, mock_convert, mock_its, ocr):
+        """PDF inexistente: getmtime OSError → cache desactivado (132-133)."""
+        result = ocr.extract_from_pdf("no/existe.pdf")
+        assert result == "texto pdf"
+
+    @patch("src.utils.ocr.pytesseract.image_to_string", return_value="texto pdf")
+    @patch("pdf2image.convert_from_path", return_value=[_TINY_IMG])
+    def test_extract_from_pdf_cache_hit(self, mock_convert, mock_its, ocr):
+        """PDF existente: 1ª llamada cachea (148), 2ª sirve del caché (129-131)."""
+        pdf = __file__  # archivo que existe → getmtime OK
+        assert ocr.extract_from_pdf(pdf) == "texto pdf"
+        assert ocr.extract_from_pdf(pdf) == "texto pdf"
+        assert mock_convert.call_count == 1
+
+    def test_preprocess_upscale_imagen_chica(self, ocr):
+        """Imagen < 1000px se hace upscale (elif 184+)."""
+        small = Image.new("RGB", (10, 10))
+        out = ocr._preprocess_image(small)
+        assert out.size[0] >= 1000
+
+    def test_preprocess_downscale_imagen_grande(self, ocr):
+        """Imagen > 2000px se hace downscale a 2000px (líneas 181-183)."""
+        big = Image.new("RGB", (3000, 600))
+        out = ocr._preprocess_image(big)
+        assert out.size[0] == 2000
+
+    def test_tesseract_detectado_en_ruta(self, monkeypatch):
+        """Rama de import: tesseract presente en TESSERACT_PATHS (líneas 35-37)."""
+        import importlib
+
+        import src.utils.ocr as ocr_mod
+        monkeypatch.setattr(ocr_mod.os.path, "exists", lambda p: True)
+        monkeypatch.setattr(ocr_mod, "TESSERACT_PATHS", ["C:/fake/tesseract.exe"])
+        reloaded = importlib.reload(ocr_mod)
+        assert reloaded.OCR_AVAILABLE is True

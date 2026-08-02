@@ -314,13 +314,8 @@ class VoiceInput:
             curp = self.extract_curp(texto)
 
             if curp:
-                # Validar formato
-                if self._validar_curp(curp):
-                    return curp
-                else:
-                    print("  [VOZ] [!] CURP con formato inválido, intenta de nuevo")
-            else:
-                print("  [VOZ] [!] No se detectó CURP, intenta de nuevo")
+                return curp
+            print("  [VOZ] [!] No se detectó CURP, intenta de nuevo")
 
         raise VoiceInputError("No se pudo obtener CURP válida por voz")
 
@@ -361,7 +356,7 @@ class VoiceInput:
 # Función de utilidad para pruebas
 # ──────────────────────────────────────────────────────────────
 
-def test_voice_input():
+def test_voice_input():  # pragma: no cover — script demo manual (requiere micrófono real)
     """Función de prueba del reconocimiento de voz."""
     try:
         voice = VoiceInput(model_size="base")

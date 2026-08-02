@@ -317,7 +317,7 @@ class TestRecordAudio:
         assert os.path.dirname(path_str) == tempfile.gettempdir()
 
     def test_llama_sounddevice_con_parametros(self, voice):
-        """Verifica que sd.rec recibe duración y sample rate correctos."""
+        """Verifica que sd.rec recibe duraci�n y sample rate correctos."""
         import sounddevice as sd
 
         sd.rec.return_value = None
@@ -328,6 +328,16 @@ class TestRecordAudio:
         _, kwargs = sd.rec.call_args
         assert kwargs["samplerate"] == 16000
         assert kwargs["channels"] == 1
+
+    def test_record_audio_countdown(self, voice):
+        """countdown=True: cuenta regresiva 3..1 con espera de 1s por paso (97-101)."""
+        import sounddevice as sd
+        sd.rec.return_value = None
+        sd.wait.return_value = None
+        sleeps = []
+        with patch("time.sleep", side_effect=lambda s: sleeps.append(s)):
+            voice.record_audio(duration=1, countdown=True)
+        assert len(sleeps) == 3  # 3...2...1
 
     def test_error_grabacion(self, voice):
         """Error en sounddevice → VoiceInputError."""
@@ -440,6 +450,13 @@ class TestGetCURPInteractive:
         with patch.object(voice, "listen_and_transcribe", return_value="texto sin curp"):
             with pytest.raises(VoiceInputError, match="No se pudo obtener CURP"):
                 voice.get_curp_interactive(max_intentos=2)
+
+    def test_get_curp_retorna_curp_detectada(self, voice):
+        """CURP detectada → se devuelve directamente (rama return, sin re-validar)."""
+        with patch.object(voice, "listen_and_transcribe",
+                          return_value="GALJ800101HDFRRR08"):
+            result = voice.get_curp_interactive(max_intentos=1)
+        assert result == "GALJ800101HDFRRR08"
 
 
 class TestGetEmailInteractive:
