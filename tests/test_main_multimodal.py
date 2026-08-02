@@ -24,7 +24,7 @@ def mm_mod():
 
     # ── Mocks ─────────────────────────────────────────────────────────
     mock_orch_instance = MagicMock()
-    mock_orch_instance.modo_interactivo = MagicMock()
+    mock_orch_instance.modo_interactivo = AsyncMock()
     mock_orch_instance.ejecutar_tramite = AsyncMock()
 
     mock_orch_module = MagicMock()
@@ -71,6 +71,23 @@ class TestMain:
             mm_mod.main()
         self._orch(mm_mod).modo_interactivo.assert_called_once()
         self._orch(mm_mod).ejecutar_tramite.assert_not_called()
+
+    def test_sin_args_ejecuta_coro_via_asyncio_run(self, mm_mod):
+        """Regresión: modo_interactivo se ejecuta VÍA asyncio.run.
+
+        Bug real detectado en ciclo 2: se llamaba la coroutine sin await ni
+        asyncio.run → el modo interactivo nunca ejecutaba. Este test falla
+        si alguien revierte a `orchestrator.modo_interactivo()` directo.
+        """
+        coros = []
+        def _run(coro, *a, **k):
+            coros.append(coro)
+            coro.close()
+            return None
+        with patch.object(sys, "argv", ["main_multimodal.py"]), \
+             patch("src.main_multimodal.asyncio.run", side_effect=_run):
+            mm_mod.main()
+        assert len(coros) == 1  # la coro de modo_interactivo se entregó a asyncio.run
 
     def test_tramite_directo_texto(self, mm_mod):
         """--tramite curp (modo default text) → ejecutar_tramite('curp', 'text')."""

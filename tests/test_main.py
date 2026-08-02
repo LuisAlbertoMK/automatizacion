@@ -7,6 +7,21 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+
+def _run_mock_cierra(coro, *args, error=None, **kwargs):
+    """Mock de asyncio.run que CIERRA la coroutine (evita RuntimeWarning: never awaited).
+
+    Los tests parchean asyncio.run para inspeccionar/verificar el coro que
+    main() construye; si el coro no se cierra, el GC lo recolecta con
+    'RuntimeWarning: coroutine never awaited' (y el warning aparece en un
+    test posterior, no en el que lo causó).
+    """
+    coro.close()
+    if error is not None:
+        raise error
+    return None
+
+
 # ── Fixture global: neutraliza load_dotenv ────────────────────────────────────
 
 @pytest.fixture(autouse=True)
@@ -107,8 +122,9 @@ class TestMain:
         mock_asyncio_run.assert_called_once()
         arg = mock_asyncio_run.call_args[0][0]
         assert arg.__name__ == "modo_directo"
+        arg.close()  # cierra la coro: evita RuntimeWarning: never awaited
 
-    @patch("src.main.asyncio.run", side_effect=KeyboardInterrupt)
+    @patch("src.main.asyncio.run", side_effect=lambda c, *a, **k: _run_mock_cierra(c, error=KeyboardInterrupt()))
     def test_keyboard_interrupt_handling(self, mock_asyncio_run):
         """KeyboardInterrupt se captura graceful."""
         import src.main as main_mod
@@ -116,7 +132,7 @@ class TestMain:
             with patch("src.main._validar_config"):
                 main_mod.main()
 
-    @patch("src.main.asyncio.run", side_effect=asyncio.CancelledError)
+    @patch("src.main.asyncio.run", side_effect=lambda c, *a, **k: _run_mock_cierra(c, error=asyncio.CancelledError()))
     def test_cancelled_error_handling(self, mock_asyncio_run):
         """CancelledError se captura graceful."""
         import src.main as main_mod
@@ -134,6 +150,7 @@ class TestMain:
         mock_asyncio_run.assert_called_once()
         arg = mock_asyncio_run.call_args[0][0]
         assert arg.__name__ == "modo_interactivo"
+        arg.close()  # cierra la coro: evita RuntimeWarning: never awaited
 
 
 # ── argparse ──────────────────────────────────────────────────────────────────
@@ -160,7 +177,7 @@ class TestArgparse:
         for argv in flags:
             with patch.object(sys, "argv", argv):
                 with patch("src.main._validar_config"):
-                    with patch("src.main.asyncio.run"):
+                    with patch("src.main.asyncio.run", side_effect=_run_mock_cierra):
                         main_mod.main()
         # Si llegamos acá, ningún flag causó error
 
@@ -1007,6 +1024,7 @@ class TestModoDirecto:
         args, _ = mock_run.call_args
         coro_fn = args[0]
         assert coro_fn.__name__ == "modo_directo"
+        coro_fn.close()  # evitar RuntimeWarning: coroutine never awaited
 
     @patch("src.main.asyncio.run")
     def test_direct_nss_with_args(self, mock_run):
@@ -1023,6 +1041,7 @@ class TestModoDirecto:
         args, _ = mock_run.call_args
         coro_fn = args[0]
         assert coro_fn.__name__ == "modo_directo"
+        coro_fn.close()  # evitar RuntimeWarning: coroutine never awaited
 
     @patch("src.main.asyncio.run")
     def test_direct_perfil_mode(self, mock_run):
@@ -1036,6 +1055,7 @@ class TestModoDirecto:
         args, _ = mock_run.call_args
         coro_fn = args[0]
         assert coro_fn.__name__ == "modo_directo"
+        coro_fn.close()  # evitar RuntimeWarning: coroutine never awaited
 
 
 class TestModoDirectoExecution:

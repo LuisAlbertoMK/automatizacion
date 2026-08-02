@@ -66,6 +66,13 @@ include = ["src*", "captcha_solver_imss*"]
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = "-q --tb=short --cov-fail-under=80"
+markers = [
+    "real_sleep: test que mide tiempo real (delays no mockeados)",
+]
+filterwarnings = [
+    # fastapi.testclient usa httpx (deprecado en starlette) — dependencia externa
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated.*:Warning",
+]
 
 [tool.coverage.run]
 source = ["src"]

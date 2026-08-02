@@ -81,7 +81,7 @@ def main():
         asyncio.run(orchestrator.ejecutar_tramite(args.tramite, modo))
     else:
         # Modo interactivo
-        orchestrator.modo_interactivo()
+        asyncio.run(orchestrator.modo_interactivo())
 
 
 if __name__ == "__main__":
