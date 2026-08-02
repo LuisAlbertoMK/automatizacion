@@ -1,5 +1,6 @@
 """Tests para src/main.py — CLI del agente."""
 
+import argparse
 import asyncio
 import os
 import sys
@@ -1369,3 +1370,165 @@ class TestModoDirectoExecution:
             args = MagicMock(tramite=None, curp=None, correo=None, perfil="no_existe")
             with pytest.raises(SystemExit):
                 await m.modo_directo(args)
+
+
+class TestModoDirectoArgparse:
+    """modo_directo() — ramas de mapeo de args (612-629)."""
+
+    def _env(self):
+        import importlib
+
+        import src.main as m
+        m = importlib.reload(m)
+        mock_mod = MagicMock()
+        mock_mod.consultar = AsyncMock(return_value={"status": "ok"})
+        mock_orchestrator = MagicMock()
+        mock_orchestrator._get_module.return_value = mock_mod
+        return m, mock_mod, mock_orchestrator
+
+    async def test_rfc_sin_curp_exits(self):
+        """--tramite rfc sin --curp ni perfil → sys.exit(1) (612-617)."""
+        m, _, mock_orch = self._env()
+        with patch.object(m, "CaptchaSolver"), \
+             patch("src.tramites.orchestrator.TramitesOrchestrator", return_value=mock_orch), \
+             patch.object(m, "MAIL_AVAILABLE", False), \
+             patch.object(m, "FREE_SOLVER_AVAILABLE", False):
+            args = MagicMock(tramite="rfc", curp=None, perfil=None)
+            with pytest.raises(SystemExit):
+                await m.modo_directo(args)
+
+    async def test_rfc_con_curp(self):
+        """--tramite rfc con --curp → kwargs["curp"] (617) y consultar."""
+        m, mock_mod, mock_orch = self._env()
+        with patch.object(m, "CaptchaSolver"), \
+             patch("src.tramites.orchestrator.TramitesOrchestrator", return_value=mock_orch), \
+             patch.object(m, "MAIL_AVAILABLE", False), \
+             patch.object(m, "FREE_SOLVER_AVAILABLE", False):
+            args = MagicMock(tramite="rfc", curp="GALJ800101HDFXXXX7", perfil=None)
+            await m.modo_directo(args)
+        mock_mod.consultar.assert_awaited_once_with(curp="GALJ800101HDFXXXX7")
+
+    @pytest.mark.parametrize("cmd", ["buro", "circulo"])
+    async def test_buro_circulo_input_interactivo(self, cmd):
+        """rfc/curp None → pide por input() y construye kwargs (619-623)."""
+        m, mock_mod, mock_orch = self._env()
+        with patch.object(m, "CaptchaSolver"), \
+             patch("src.tramites.orchestrator.TramitesOrchestrator", return_value=mock_orch), \
+             patch.object(m, "MAIL_AVAILABLE", False), \
+             patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
+             patch("builtins.input", side_effect=["XAXX010101000", "GALJ800101HDFXXXX7"]):
+            args = MagicMock(tramite=cmd, rfc=None, curp=None, perfil=None)
+            await m.modo_directo(args)
+        mock_mod.consultar.assert_awaited_once_with(
+            rfc="XAXX010101000", curp="GALJ800101HDFXXXX7")
+
+    async def test_cita_sat_input_rfc(self):
+        """--tramite cita_sat → pide RFC por input, curp default '' (625-629)."""
+        m, mock_mod, mock_orch = self._env()
+        with patch.object(m, "CaptchaSolver"), \
+             patch("src.tramites.orchestrator.TramitesOrchestrator", return_value=mock_orch), \
+             patch.object(m, "MAIL_AVAILABLE", False), \
+             patch.object(m, "FREE_SOLVER_AVAILABLE", False), \
+             patch("builtins.input", side_effect=["XAXX010101000"]):
+            args = MagicMock(tramite="cita_sat", rfc=None, curp=None, perfil=None)
+            await m.modo_directo(args)
+        mock_mod.consultar.assert_awaited_once_with(
+            rfc="XAXX010101000", curp="")
+
+
+class TestTypeHelpers:
+    """_type_curp/_type_rfc/_type_correo — validadores de argparse (646-667)."""
+
+    def _m(self):
+        import importlib
+
+        import src.main as m
+        return importlib.reload(m)
+
+    def test_type_curp_valida(self):
+        assert self._m()._type_curp("GALJ800101HDFXXXX7") == "GALJ800101HDFXXXX7"
+
+    def test_type_curp_invalida(self):
+        with pytest.raises(argparse.ArgumentTypeError, match="CURP inválida"):
+            self._m()._type_curp("curp-mal")
+
+    def test_type_rfc_valida(self):
+        assert self._m()._type_rfc("XAXX010101000") == "XAXX010101000"
+
+    def test_type_rfc_invalida(self):
+        with pytest.raises(argparse.ArgumentTypeError, match="RFC inválido"):
+            self._m()._type_rfc("rfc-mal")
+
+    def test_type_correo_valido(self):
+        assert self._m()._type_correo("a@b.com") == "a@b.com"
+
+    def test_type_correo_invalido(self):
+        with pytest.raises(argparse.ArgumentTypeError, match="Email inválido"):
+            self._m()._type_correo("correo-mal")
+
+
+class TestMainStreamReconfigure:
+    """main() — reconfigure falla → except pass (678-679)."""
+
+    def test_stream_no_reconfigurable(self):
+        import importlib
+
+        import src.main as m
+        m = importlib.reload(m)
+        class _NoReconfig:
+            def reconfigure(self, **kwargs):
+                raise AttributeError("stream no reconfigurable")
+            def write(self, *a, **k):
+                return len(str(a[0]))
+            def flush(self):
+                pass
+        with patch("sys.stdout", _NoReconfig()), \
+             patch("sys.stderr", _NoReconfig()), \
+             patch.object(sys, "argv", ["main.py"]), \
+             patch.object(m, "signal") as mock_sig, \
+             patch.object(m, "_validar_config"), \
+             patch.object(m, "modo_interactivo"), \
+             patch("src.main.asyncio.run", side_effect=_run_mock_cierra):
+            m.main()
+        mock_sig.signal.assert_called()
+
+
+class TestDispatchDocumentos:
+    """Dispatch REPL cv/escrito — ramas DOCUMENTOS_AVAILABLE (537-547)."""
+
+    @pytest.mark.parametrize("cmd,gen_name", [
+        ("cv", "CVGenerator"),
+        ("escrito", "EscritoGenerator"),
+    ])
+    async def test_documentos_available(self, cmd, gen_name):
+        import importlib
+
+        import src.main as m
+        m = importlib.reload(m)
+        mock_agente = MagicMock()
+        with patch.object(m, "Agente", return_value=mock_agente), \
+             patch.object(m, "list_profiles", return_value=[]), \
+             patch.object(m, "DOCUMENTOS_AVAILABLE", True), \
+             patch.object(m, "BANNER", ""), \
+             patch.object(m, "AYUDA", ""), \
+             patch.object(m, gen_name) as mock_gen, \
+             patch("builtins.input", side_effect=[cmd, "salir"]):
+            await m.modo_interactivo()
+        mock_gen.return_value.generar_interactivo.assert_called_once()
+
+    @pytest.mark.parametrize("cmd", ["cv", "escrito"])
+    async def test_documentos_no_disponibles(self, cmd, capsys):
+        import importlib
+
+        import src.main as m
+        m = importlib.reload(m)
+        mock_agente = MagicMock()
+        with patch.object(m, "Agente", return_value=mock_agente), \
+             patch.object(m, "list_profiles", return_value=[]), \
+             patch.object(m, "DOCUMENTOS_AVAILABLE", False), \
+             patch.object(m, "BANNER", ""), \
+             patch.object(m, "AYUDA", ""), \
+             patch("builtins.input", side_effect=[cmd, "salir"]):
+            await m.modo_interactivo()
+        out = capsys.readouterr().out
+        assert "python-docx no instalado" in out
