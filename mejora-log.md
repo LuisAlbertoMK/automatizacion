@@ -142,3 +142,31 @@ Baseline registrado: **1019 passed, 0 failed, 46.78s, 23 warnings, ruff limpio**
 **Criterios de parada**: sin gaps detectables (cobertura ≥ 88% en todo módulo activo, salvo main.py 92% por cv/escrito DOCUMENTOS_AVAILABLE + menú interactivo), breaker superado ×4, 100% tests pasan, benchmark ≥ previo en cada ciclo. **Protocolo completo.**
 
 _(siguientes ciclos aquí)_
+
+## RONDA 2 - Ciclo 1 (cobertura voice_input/ocr)
+
+**Branch**: experimento/mejora-autonoma-2026-08-02-b2 (desde dde7e84 en main) | **Modo**: auto | **Commit**: e88bcd6
+
+**Analisis** (ciclo 1): gap priorizado = cobertura baja en `src/utils/voice_input.py` (85%) y `src/utils/ocr.py` (88%). Baseline ronda: 1056 passed, 0 warnings, 45.01s, cobertura global 95.53%.
+
+**Enfoques aplicados (3)**:
+- **E1 (ocr.py)**: +7 tests en `TestCacheLRU`/preprocess — cache hit, LRU eviction con hit, PDF inexistente (getmtime OSError -> sin cache), PDF cache hit, PermissionError, upscale <1000px, downscale >2000px.
+- **E2 (voice_input.py)**: +2 tests — countdown (3 sleeps 97-101), curp detectada devuelta directo.
+- **E3**: pragma `no cover` en `test_voice_input()` (script demo manual con microfono, no testeable en CI).
+
+**BUG REAL encontrado (via gap de cobertura)**: el cache LRU de OCRExtractor nunca movia la entrada al final en un cache hit (extract_from_bytes/pdf manejaban el hit directo, saltandose `_cache_result`). La eviction era por orden de INSERCION, no por uso. Fix: todos los hits pasan ahora por `_cache_result` -> `move_to_end`. Regresion que la cobertura detecto como linea 54 inalcanzable.
+
+**Dead code eliminado**: rama 'CURP con formato invalido' en `get_curp_interactive` (voice_input.py) — inalcanzable por invariante: `extract_curp` usa la misma regex que `_validar_curp` ([HM] obligatorio en pos 11), toda CURP extraida es siempre valida. Simplificado a `if curp: return curp`.
+
+**Resultado breaker (3 ataques)**: (1) suite completa 1066 passed EXIT=0, (2) 0 warnings, (3) ruff clean src/ + tests/.
+
+**Resultado E2E**: 1066 passed (+10), 0 failed, 0 warnings, 82.46s (con --cov global, no comparable con baseline sin cov).
+
+**Benchmark**: tests 1056->1066 (+10) | warnings 0->0 | cobertura global 95.53->**96.44%** (+0.91) | ocr 88->**100%** | voice_input 85->**100%**.
+
+**Archivos**: `src/utils/ocr.py` (fix LRU real, 4 lineas), `src/utils/voice_input.py` (refactor rama dead, 11 lineas), `tests/test_ocr.py` (+7), `tests/test_voice_input.py` (+2).
+
+**Aprendizaje**: un gap de cobertura persistente tras escribir el test 'obvio' casi siempre es (a) un test mal dirigido (la linea apuntada no es la que crees — verificar con Get-Content la linea exacta) o (b) dead code real. En ocr.py los 3 tests iniciales apuntaban a lineas equivocadas: la 181-183 era el downscale (>2000px) no el upscale, la 129-131 era cache hit de PDF (no el OSError), y la 54 (move_to_end) era inalcanzable por diseno roto del LRU. Leer el codigo real antes de escribir el test evita 2 ciclos de ida y vuelta.
+
+--- 
+_(fin ronda 2 ciclo 1 — siguiente ciclo: gaps restantes pii.py 96%, validators.py 97%, y main.py cv/escrito DOCUMENTOS_AVAILABLE + menu interactivo 612-679)_
