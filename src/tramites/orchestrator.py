@@ -366,17 +366,17 @@ class TramitesOrchestrator:
             curp = _safe_input("  CURP: ").strip().upper()
             correo = _safe_input("  Correo electrónico: ").strip()
 
-        # Preguntar si tiene cuenta
-        tiene_cuenta = _safe_input("  ¿Ya tienes cuenta en el portal? (s/n): ").strip().lower()
-        password = None
-
-        if tiene_cuenta == "s":
-            password = _safe_input("  Contraseña: ").strip()
+        # Flujo real del portal (sin cuenta): tutor + institución + razón
+        nombre_tutor = _safe_input("  Nombre de padre/madre/tutor (registro de nacimiento): ").strip()
+        institucion = _safe_input("  Institución que solicita la constancia: ").strip()
+        razon = _safe_input("  Razón del trámite: ").strip()
 
         return await self._get_module("antecedentes").consultar(
             curp=curp,
             correo=correo,
-            password=password
+            nombre_tutor=nombre_tutor,
+            institucion=institucion,
+            razon=razon,
         )
 
     async def _ejecutar_tenencia(self, modo: InputMode) -> dict:

@@ -138,7 +138,7 @@ class TestEjecutarTramite:
 
     @pytest.mark.asyncio
     async def test_ejecutar_antecedentes(self, orchestrator):
-        with patch("builtins.input", side_effect=["CURP123456HDF", "test@test.com", "n"]):
+        with patch("builtins.input", side_effect=["CURP123456HDF", "test@test.com", "Tutor", "Inst", "Razon"]):
             result = await orchestrator.ejecutar_tramite("antecedentes")
         assert result == {"status": "ok"}
         orchestrator._modules["antecedentes"].consultar.assert_awaited_once()
@@ -238,32 +238,24 @@ class TestEjecutarAmbos:
 
 
 class TestEjecutarAntecedentes:
-    """Lines 138-158: _ejecutar_antecedentes con cuenta/no cuenta."""
+    """Lines 138-158: _ejecutar_antecedentes con el flujo real del portal (sin cuenta)."""
 
     @pytest.mark.asyncio
     async def test_sin_cuenta(self, orchestrator):
-        inputs = ["CURP123456HDF", "test@test.com", "n"]
+        inputs = ["CURP123456HDF", "test@test.com", "Tutor", "Inst", "Razon"]
         with patch("builtins.input", side_effect=inputs):
             result = await orchestrator._ejecutar_antecedentes("text")
         assert result == {"status": "ok"}
         orchestrator._modules["antecedentes"].consultar.assert_awaited_once_with(
-            curp="CURP123456HDF", correo="test@test.com", password=None
-        )
-
-    @pytest.mark.asyncio
-    async def test_con_cuenta(self, orchestrator):
-        inputs = ["CURP123456HDF", "test@test.com", "s", "mypassword"]
-        with patch("builtins.input", side_effect=inputs):
-            result = await orchestrator._ejecutar_antecedentes("text")
-        assert result == {"status": "ok"}
-        orchestrator._modules["antecedentes"].consultar.assert_awaited_once_with(
-            curp="CURP123456HDF", correo="test@test.com", password="mypassword"
+            curp="CURP123456HDF", correo="test@test.com",
+            nombre_tutor="Tutor", institucion="Inst", razon="Razon",
         )
 
     @pytest.mark.asyncio
     async def test_con_multimodal(self, orchestrator_multimodal):
         """Line 141-142: _ejecutar_antecedentes con multimodal."""
-        with patch("builtins.input", return_value="n"):
+        inputs = ["Tutor", "Inst", "Razon"]
+        with patch("builtins.input", side_effect=inputs):
             result = await orchestrator_multimodal._ejecutar_antecedentes("text")
         assert result == {"status": "ok"}
         orchestrator_multimodal.multimodal.get_curp.assert_called_once()

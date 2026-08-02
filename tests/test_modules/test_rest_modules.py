@@ -20,7 +20,7 @@ class TestAntecedentesModule:
             patch(f"{self.MODULE}.BaseModule.close_browser") as mock_cb,
         ):
             mod.launch_browser = AsyncMock(return_value=MagicMock(page=MagicMock(), browser=MagicMock()))
-            result = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com", password="pass")
+            result = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
         assert result == expected
         mock_cb.assert_awaited_once()
 

@@ -17,6 +17,7 @@ Tiempo estimado: 20-40 segundos
 import asyncio
 import re
 import time
+from datetime import datetime
 
 from playwright.async_api import Page
 
@@ -234,5 +235,5 @@ class TenenciaModule(BaseModule):
         return {
             "monto": monto,
             "linea_captura": linea_captura,
-            "vigencia": "2026",
+            "vigencia": str(datetime.now().year),
         }

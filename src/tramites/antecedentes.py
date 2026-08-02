@@ -1,27 +1,26 @@
 """
 modules/antecedentes.py
-Automatiza el tr\u00e1mite de Constancia de Antecedentes No Penales (Federal)
-Portal: https://constancias.oadprs.gob.mx/
+Automatiza el trámite de Constancia de Antecedentes No Penales (Federal)
+Portal: https://constancias.oadprs.gob.mx/  (VIVO verificado 2026-08-02)
 
-Flujo:
-  1. Verificar/crear cuenta
-  2. Login autom\u00e1tico
-  3. Llenar formulario
-  4. Resolver reCAPTCHA (semiautom\u00e1tico)
-  5. Descargar constancia PDF
-  6. Abrir autom\u00e1ticamente
+Flujo REAL del portal (sin registro de cuenta):
+  1. Capturar CURP (o Llave MX opcional)
+  2. Validar datos + nombre de padre/madre/tutor
+  3. Generar solicitud: institución + razón + correo (inmodificable)
+  4. Pago $240.00 MXN (desde ene-2026; acreditación 72h hábiles)
+  5. Descarga por liga al correo (disponible 30 días)
 
-Tiempo estimado: 45-90 segundos
+Tiempo estimado: 45-90 segundos (sin contar acreditación de pago)
 """
 
 import asyncio
-import secrets
+import re
 import time
 
 from playwright.async_api import Page
 
 from src.exceptions import AntecedentesError
-from src.tramites.base import OUTPUT_DIR, TIMEOUT, BaseModule
+from src.tramites.base import TIMEOUT, BaseModule
 
 PORTAL_URL = "https://constancias.oadprs.gob.mx/"
 
@@ -29,145 +28,104 @@ class AntecedentesModule(BaseModule):
     def __init__(self, captcha_solver=None, use_ocr=True):
         super().__init__(captcha_solver=captcha_solver, use_ocr=use_ocr, name="ANTECEDENTES")
 
-    async def consultar(self, curp: str, correo: str, password: str = None,
-                        datos_personales: dict = None) -> dict:
+    async def consultar(self, curp: str, correo: str,
+                        nombre_tutor: str = "", institucion: str = "",
+                        razon: str = "") -> dict:
         """
-        Tramita constancia de antecedentes no penales.
+        Tramita constancia de antecedentes no penales (sin registro de cuenta).
 
         Args:
             curp: CURP de 18 caracteres
-            correo: Correo electr\u00f3nico
-            password: Contrase\u00f1a (si ya tiene cuenta)
-            datos_personales: Dict con datos adicionales si es primera vez
+            correo: Correo electrónico válido (liga de descarga de la constancia)
+            nombre_tutor: Nombre del padre/madre/tutor que registró el nacimiento
+            institucion: Institución que solicita la constancia
+            razon: Motivo del trámite
 
         Returns:
-            dict con: constancia_path, folio, fecha
+            dict con: status, folio, curp, correo, nota
         """
         if not curp or not correo:
             raise AntecedentesError("Se requieren CURP y correo")
 
         curp = curp.upper().strip()
-        self.log(f"Iniciando tr\u00e1mite para CURP {curp[:4]}****")
+        if not re.match(r"^[A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d$", curp):
+            raise AntecedentesError("CURP inválida (debe tener 18 caracteres)")
+        if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", correo):
+            raise AntecedentesError("Correo electrónico inválido")
+
+        self.log(f"Iniciando trámite para CURP {curp[:4]}****")
         start = time.time()
 
         async with self.browser_context() as br:
             page = br.page
-            result = await self._run(page, curp, correo, password, datos_personales)
+            result = await self._run(page, curp, correo, nombre_tutor, institucion, razon)
             elapsed = time.time() - start
             self.log(f"Completado en {elapsed:.1f}s")
             return result
 
     async def _run(self, page: Page, curp: str, correo: str,
-                   password: str = None, datos_personales: dict = None) -> dict:
-        """Flujo principal."""
+                   nombre_tutor: str = "", institucion: str = "",
+                   razon: str = "") -> dict:
+        """Flujo principal alineado al portal real (sin registro)."""
 
         # 1. Abrir portal
         self.log("Abriendo portal...")
         await page.goto(PORTAL_URL, wait_until="domcontentloaded", timeout=TIMEOUT)
         await asyncio.sleep(2)
 
-        # Screenshot para debug
-        try:
-            await page.screenshot(path="debug_antecedentes.png")
-            self.debug("Screenshot guardado: debug_antecedentes.png")
-        except Exception:
-            self.debug("No se pudo cerrar sesion previa")
+        # 2. Capturar CURP (flujo sin Llave MX)
+        self.log("Capturando CURP...")
+        await self.fill_field(page, [
+            "input[name='curp']", "input[id='curp']",
+            "input[placeholder*='CURP']", "input[type='text']",
+        ], curp)
+        await self.click_first(page, [
+            "button:has-text('Continuar')",
+            "button:has-text('Consultar')",
+            "button:has-text('Buscar')",
+            "button[type='submit']",
+        ], wait_nav=True)
 
-        # 2. Verificar si necesita login o registro
-        if password is not None:
-            await self._login(page, correo, password)
-        else:
-            await self._registrar_cuenta(page, curp, correo, datos_personales or {})
+        # 3. Validar datos + tutor
+        if nombre_tutor:
+            await self.fill_field(page, [
+                "input[name='nombreRegistro']",
+                "input[name='nombreTutor']",
+                "input[placeholder*='padre']",
+                "input[placeholder*='madre']",
+                "input[placeholder*='tutor']",
+            ], nombre_tutor)
 
-        # 3. Llenar solicitud
-        await self._llenar_solicitud(page, curp)
+        # 4. Llenar solicitud
+        await self._llenar_solicitud(page, institucion, razon, correo)
 
-        # 4. Resolver reCAPTCHA
+        # 5. Resolver reCAPTCHA (semiautomático)
         await self._resolver_recaptcha(page)
 
-        # 5. Enviar solicitud
+        # 6. Enviar solicitud
         await self._enviar_solicitud(page)
 
-        # 6. Descargar constancia
-        pdf_selectors = [
-            "a:has-text('Descargar')",
-            "button:has-text('Descargar')",
-            "a:has-text('PDF')",
-            "a[href*='.pdf']",
-        ]
-        pdf_path = await self.download_pdf(
-            page, pdf_selectors,
-            OUTPUT_DIR / f"Antecedentes_{curp}.pdf",
-            name="Constancia"
-        )
+        # 7. Registrar folio si aparece
+        folio = None
+        try:
+            folio_match = await page.locator("text=/FOLIO[:\\s]*[A-Z0-9-]{6,}/i").first.text_content(timeout=3000)
+            if folio_match:
+                folio = folio_match.strip()
+                self.log(f"Folio: {folio}")
+        except Exception:
+            pass
 
-        nueva_password = getattr(self, '_generated_password', None)
-        result = {
-            "constancia_path": str(pdf_path) if pdf_path else None,
+        return {
+            "status": "solicitado",
+            "folio": folio,
             "curp": curp,
             "correo": correo,
+            "nota": "Pago $240 MXN requerido; constancia llega por correo en ~72h hábiles",
         }
-        if nueva_password:
-            result["_nueva_password"] = nueva_password
-            self.log("  [ANTECEDENTES] Contrasena generada (guardada en perfil)")
-        return result
 
-    async def _login(self, page: Page, correo: str, password: str):
-        """Login con cuenta existente."""
-        self.log("Iniciando sesi\u00f3n...")
-
-        # Buscar bot\u00f3n de login
-        await self.click_first(page, [
-            "a:has-text('Iniciar sesi\u00f3n')",
-            "button:has-text('Iniciar sesi\u00f3n')",
-            "a:has-text('Ingresar')",
-            "#btnLogin",
-        ])
-
-        # Llenar formulario de login
-        await self.fill_field(page, ["input[type='email']", "input[name='email']"], correo)
-        await self.fill_field(page, ["input[type='password']", "input[name='password']"], password)
-
-        # Hacer clic en bot\u00f3n de login
-        try:
-            await page.click("button[type='submit']")
-        except Exception:
-            self.debug("Error en sub-paso del flujo")
-        await asyncio.sleep(2)
-
-        self.log("Sesi\u00f3n iniciada")
-
-    async def _registrar_cuenta(self, page: Page, curp: str, correo: str, datos: dict):
-        """Registra nueva cuenta."""
-        self.log("Registrando nueva cuenta...")
-        self._generated_password = None
-
-        # Buscar bot\u00f3n de registro
-        await self.click_first(page, [
-            "a:has-text('Registrarse')",
-            "button:has-text('Crear cuenta')",
-            "a:has-text('Registro')",
-        ])
-
-        # Llenar formulario de registro
-        if datos:
-            await self.fill_field(page, ["input[name='curp']"], curp)
-            await self.fill_field(page, ["input[name='email']", "input[type='email']"], correo)
-
-            if "password" in datos:
-                password = datos["password"]
-            else:
-                suffix = secrets.token_hex(4)  # 8 chars aleatorios
-                password = f"Auto{secrets.token_urlsafe(8)}{suffix}!"
-            self._generated_password = password
-            await self.fill_field(page, ["input[name='password']", "input[type='password']"], password)
-
-            self._guardar_credenciales(curp, correo, password)
-
-        self.log("Cuenta registrada")
-
-    async def _llenar_solicitud(self, page: Page, curp: str):
-        """Llena el formulario de solicitud."""
+    async def _llenar_solicitud(self, page: Page, institucion: str = "",
+                                razon: str = "", correo: str = ""):
+        """Llena el formulario de solicitud: institución, razón y correo."""
         self.log("Llenando solicitud...")
 
         await self.click_first(page, [
@@ -176,12 +134,30 @@ class AntecedentesModule(BaseModule):
             "button:has-text('Tramitar')",
         ])
 
-        await self.fill_field(page, ["input[name='curp']", "input[id='curp']"], curp)
+        if institucion:
+            await self.fill_field(page, [
+                "select[name*='institucion']", "select[id*='institucion']",
+                "input[name*='institucion']", "input[id*='institucion']",
+                "input[placeholder*='instituci']",
+            ], institucion)
+
+        if razon:
+            await self.fill_field(page, [
+                "textarea[name*='razon']", "textarea[id*='razon']",
+                "input[name*='razon']", "input[id*='razon']",
+                "input[placeholder*='razon']", "input[placeholder*='motivo']",
+            ], razon)
+
+        if correo:
+            await self.fill_field(page, [
+                "input[type='email']", "input[name*='correo']", "input[id*='correo']",
+                "input[placeholder*='correo']", "input[placeholder*='email']",
+            ], correo)
 
         self.log("Solicitud llenada")
 
     async def _resolver_recaptcha(self, page: Page):
-        """Resuelve reCAPTCHA en modo semiautom\u00e1tico."""
+        """Resuelve reCAPTCHA en modo semiautomático."""
         await asyncio.sleep(1)
 
         recaptcha_presente = await page.locator("iframe[src*='recaptcha']").count() > 0
@@ -202,11 +178,11 @@ class AntecedentesModule(BaseModule):
                     self.log("reCAPTCHA resuelto con audio")
                     return
 
-        # Fallback: esperar resoluci\u00f3n manual usando base
+        # Fallback: esperar resolución manual usando base
         await self.wait_for_recaptcha(page, max_wait=120, module_name="ANTECEDENTES")
 
     async def _enviar_solicitud(self, page: Page):
-        """Env\u00eda la solicitud."""
+        """Envía la solicitud."""
         self.log("Enviando solicitud...")
 
         submit_selectors = [
@@ -226,19 +202,3 @@ class AntecedentesModule(BaseModule):
             except Exception:
                 self.debug("Selector no disponible")
                 continue
-
-    def _guardar_credenciales(self, curp: str, correo: str, password: str):
-        """Guarda credenciales de forma segura usando el almacenamiento encriptado."""
-        try:
-            from src.utils.storage import save_profile
-            profile = {
-                "curp": curp,
-                "correo": correo,
-                "password": password,
-                "tipo": "antecedentes",
-            }
-            save_profile(f"antecedentes_{curp}", profile)
-            self.log("Credenciales guardadas de forma segura")
-        except Exception as e:
-            self.warn(f"No se pudieron guardar credenciales: {e}")
-            self.warn("Record\u00e1 tus credenciales para usos futuros.")
