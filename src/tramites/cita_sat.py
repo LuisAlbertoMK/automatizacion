@@ -1,10 +1,11 @@
 """
 modules/cita_sat.py
 Automatiza el agendamiento de cita en el SAT.
-Portal: https://www.citas.sat.gob.mx/citasat/AgregarCita.aspx
+Portal: https://citas.sat.gob.mx/
 
 Migrado de: tramites-auto/tramites-bot/tramites/cita_sat.js
-Updated: 2026-07-30 — URL actualizada (portal cambió a /citasat/)
+Updated: 2026-08-01 — URL actualizada (dominio viejo www.citas.sat.gob.mx/citasat/AgregarCita.aspx
+daba conn reset; el portal oficial ahora es citas.sat.gob.mx, flujo en /datosPersonales)
 """
 
 import time
@@ -12,7 +13,7 @@ import time
 from src.exceptions import CitaSATError
 from src.tramites.base import OUTPUT_DIR, BaseModule
 
-PORTAL_URL = "https://www.citas.sat.gob.mx/citasat/AgregarCita.aspx"
+PORTAL_URL = "https://citas.sat.gob.mx/"
 
 
 class CitaSATModule(BaseModule):

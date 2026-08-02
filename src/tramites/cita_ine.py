@@ -4,7 +4,8 @@ Automatiza el agendamiento de cita en el INE.
 Portal: https://inetel-citas.ine.mx/ReservaCitas/
 
 Migrado de: tramites-auto/tramites-bot/tramites/cita_ine.js
-Updated: 2026-07-23 — URL actualizada (portal anterior devolvía 404)
+Updated: 2026-08-01 — URL verificada (responde 403 = bot-protection con dominio VIVO;
+el 404 del análisis previo era el bot-block, no un portal movido)
 """
 
 import time

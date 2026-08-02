@@ -95,7 +95,7 @@ AYUDA = f"""
   acta             -> Descargar Acta de Nacimiento
   pasaporte        -> Cita de Pasaporte SRE
   semanas          -> Semanas Cotizadas IMSS
-  control_confianza -> Control de Confianza SESNSP
+  control_confianza -> Control de Confianza SESNSP (portal MUERTO — no usar)
   buro             -> Buró de Crédito
   circulo          -> Círculo de Crédito
   cita_ine         -> Cita INE

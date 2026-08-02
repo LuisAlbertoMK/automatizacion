@@ -100,18 +100,12 @@ class TestControlConfianzaModule:
     MODULE = "src.tramites.control_confianza"
 
     @pytest.mark.asyncio
-    async def test_consultar_success(self):
+    async def test_consultar_portal_muerto(self):
+        """El portal federal está muerto (DNS dead) — consultar() falla rápido."""
         from src.tramites.control_confianza import ControlConfianzaModule
         mod = ControlConfianzaModule()
-        expected = {"status": "ok", "folio": "FOL123", "curp": "GALJ..."}
-        with (
-            patch.object(mod, "_run", AsyncMock(return_value=expected)),
-            patch(f"{self.MODULE}.BaseModule.close_browser") as mock_cb,
-        ):
-            mod.launch_browser = AsyncMock(return_value=MagicMock(page=MagicMock(), browser=MagicMock()))
-            result = await mod.consultar(curp="GALJ800101HDFXXXX0")
-        assert result == expected
-        mock_cb.assert_awaited_once()
+        with pytest.raises(ControlConfianzaError, match="portal federal de Control de Confianza"):
+            await mod.consultar(curp="GALJ800101HDFXXXX0")
 
     @pytest.mark.asyncio
     async def test_missing_curp(self):

@@ -1,90 +1,36 @@
-"""Tests para src/tramites/control_confianza.py — Control de Confianza SESNSP."""
+"""Tests para src/tramites/control_confianza.py — Control de Confianza SESNSP.
 
-from unittest.mock import AsyncMock, MagicMock
+El portal federal (certificado.sesnsp.gob.mx) está MUERTO (DNS dead desde 2025).
+El módulo falla rápido con error claro en lugar de navegar a un dominio inexistente.
+"""
 
 import pytest
 
 from src.exceptions import ControlConfianzaError
-from src.tramites.control_confianza import ControlConfianzaModule
+from src.tramites.control_confianza import _PORTAL_MUERTO_MSG, ControlConfianzaModule
 
 
 class TestConsultar:
     async def test_sin_curp(self):
+        """Sin CURP → error de validación (antes del chequeo de portal muerto)."""
         mod = ControlConfianzaModule()
         with pytest.raises(ControlConfianzaError, match="Se requiere CURP"):
             await mod.consultar(curp="")
 
-    async def test_exitoso_minimo(self, mock_base):
-        """Solo CURP, sin campos opcionales."""
+    async def test_portal_muerto_hard_fail(self):
+        """Portal muerto → falla rápido con mensaje claro, sin navegar."""
         mod = ControlConfianzaModule()
-        mod.interaction = MagicMock()
-        mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(curp="ABCD123456HDFRRN08")
-        assert r["status"] == "completado"
-        assert r["curp"] == "ABCD123456HDFRRN08"
-        assert r["pdf_path"] == "test.pdf"
-
-    async def test_con_todos_los_datos(self, mock_base):
-        """Todos los campos opcionales presentes."""
-        mod = ControlConfianzaModule()
-        mod.interaction = MagicMock()
-        mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(
-            curp="ABCD123456HDFRRN08",
-            rfc="BAAC800101XXX",
-            nombre="Juan Pérez",
-            fecha_nacimiento="01/01/1990",
-            estado_nacimiento="CDMX",
-            domicilio="Calle 123",
-            telefono="5512345678",
-            email="juan@test.com",
-            estado_civil="casado",
-            escolaridad="maestria",
-            ingreso_mensual=50000,
-            egreso_mensual=30000,
-        )
-        assert r["status"] == "completado"
-        # Debe haber llamado fill_field para cada campo presente
-        assert mock_base['fill_field'].call_count >= 9
-
-    async def test_select_loop(self, mock_base):
-        """selectores de estado civil/escolaridad: locator.count > 0 → select_option."""
-        loc = MagicMock()
-        loc.count = AsyncMock(return_value=1)
-        mock_base['page'].locator = MagicMock(return_value=loc)
-        mod = ControlConfianzaModule()
-        mod.interaction = MagicMock()
-        mod.interaction.prompt_enter = AsyncMock()
-        await mod.consultar(curp="ABCD123456HDFRRN08")
-        mock_base['page'].select_option.assert_called()
-
-    async def test_select_loop_exception(self, mock_base):
-        """select loop inner except: locator.count falla → debug + continúa."""
-        loc = MagicMock()
-        loc.count = AsyncMock(side_effect=[Exception("fail"), 1])
-        mock_base['page'].locator = MagicMock(return_value=loc)
-        mod = ControlConfianzaModule()
-        mod.interaction = MagicMock()
-        mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(curp="ABCD123456HDFRRN08")
-        assert r["status"] == "completado"
-
-    async def test_pdf_no_descargado(self, mock_base):
-        mock_base['download_pdf'].return_value = None
-        mod = ControlConfianzaModule()
-        mod.interaction = MagicMock()
-        mod.interaction.prompt_enter = AsyncMock()
-        r = await mod.consultar(curp="ABCD123456HDFRRN08")
-        assert r["pdf_path"] is None
-
-    async def test_error_generico(self, mock_base):
-        mock_base['goto'].side_effect = ValueError("fail")
-        mod = ControlConfianzaModule()
-        with pytest.raises(ControlConfianzaError, match="Error en Control de Confianza"):
+        with pytest.raises(ControlConfianzaError, match="portal federal de Control de Confianza"):
             await mod.consultar(curp="ABCD123456HDFRRN08")
 
-    async def test_error_re_raise(self, mock_base):
-        mock_base['goto'].side_effect = ControlConfianzaError("no disponible")
+    async def test_portal_muerto_mensaje_exacto(self):
+        """El mensaje incluye la alternativa (CECC por estado)."""
+        assert "CECC" in _PORTAL_MUERTO_MSG
+        assert "DNS dead" in _PORTAL_MUERTO_MSG
+
+    async def test_portal_muerto_no_navega(self):
+        """No debe intentar abrir browser ni navegar (falla antes de browser_context)."""
         mod = ControlConfianzaModule()
-        with pytest.raises(ControlConfianzaError, match="no disponible"):
+        mod.browser_context = None  # si intentara navegar, explotaría con TypeError
+        with pytest.raises(ControlConfianzaError, match="portal federal"):
             await mod.consultar(curp="ABCD123456HDFRRN08")
