@@ -51,7 +51,7 @@ init_secrets()
 logger = get_logger("API")
 
 
-if not FASTAPI_AVAILABLE:
+if not FASTAPI_AVAILABLE:  # pragma: no cover — solo en entornos sin fastapi instalado
     raise ImportError(
         "FastAPI no está instalado. Instalá con: pip install fastapi uvicorn"
     )
@@ -264,13 +264,13 @@ if SLOWAPI_AVAILABLE:
     app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 else:
     # No-op fallback para que los decoradores no rompan
-    def _noop(f):
+    def _noop(f):  # pragma: no cover — solo sin slowapi instalado
         return f
 
-    class _NoopLimiter:
+    class _NoopLimiter:  # pragma: no cover — solo sin slowapi instalado
         def limit(self, *args, **kwargs):
             return _noop
-    limiter = _NoopLimiter()
+    limiter = _NoopLimiter()  # pragma: no cover — solo sin slowapi instalado
 
 
 
