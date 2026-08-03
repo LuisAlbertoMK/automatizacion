@@ -250,3 +250,34 @@ _(ciclo 5 en curso: logger 91%, browser_pool 92%, cedula_profesional 93%, intera
 
 ---
 _(ronde 2 completada — todos los modulos a 100%. Siguiente: parada del protocolo, merge ff a main y push a master)_
+
+## RONDA 2 - Cierre: condiciones de parada cumplidas + merge
+
+**Verificacion final (breaker completo)**:
+- Suite E2E completa: **1151 passed, 0 failed** (122.67s con --cov).
+- Cobertura global: **100%** (4180 stmts, 0 miss) — todos los modulos `src/` a 100%.
+- `ruff check src/ tests/`: limpio. 5/5 hooks pre-commit: OK.
+- Working tree limpio tras la suite.
+
+**Condiciones de parada (seccion 3 del protocolo)**:
+1. Sin gaps detectables: cobertura global 100% — NO hay mas gaps de coverage. ✅
+2. Breaker >=3 enfoques por ciclo: suite completa + ruff + hooks pre-commit (5 pasos) en cada ciclo. ✅
+3. 100% tests E2E: 1151/1151. ✅
+4. Benchmark >= ciclo previo en cada ciclo (1019 -> 1151 tests, sin regresiones). ✅
+
+**Merge**: ff de `experimento/mejora-autonoma-2026-08-02-b2` -> `main` (dde7e84..446e5b8), push a `origin/master` completado.
+
+### Tabla resumen benchmark baseline vs. final (ronda 2)
+
+| Metrica | Baseline (inicio ronda 2) | Final | Delta |
+|---|---|---|---|
+| Tests E2E | 1056 | 1151 | **+95** |
+| Warnings | 0 | 0 | 0 |
+| Cobertura global | 95.53% | **100%** | **+4.47** |
+| Modulos <100% | 12 | 0 | **-12** |
+| Bugs preexistentes corregidos | - | 2 (bcrypt rounds, main_multimodal.py:84) | - |
+| Dead code eliminado | - | template.py + flujo inalcanzable | - |
+
+**Ciclos ronda 2 (10 commits)**: ocr/voice_input 100% -> main.py 100% -> validators/pii 100% -> api.py 100% -> logger/browser_pool/interaction/cedula_profesional 100% -> base/free_captcha/captcha/nss/orchestrator/curp/predial_cdmx 100%.
+
+**Aprendizaje final**: la cobertura 95.5->100% se logro casi exclusivamente con TESTS (ramas de error, edge cases, import-time via reload) — solo 3 archivos fuente tocados (api.py, ocr.py, voice_input.py) por bugs destapados. El patron reload-final (TestZ prefix) + parchear el modulo origen (no patch.object sobre import local) fueron las llaves para ramas import-time.
