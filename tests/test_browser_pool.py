@@ -1,4 +1,5 @@
 """Tests unitarios para BrowserPool — pool de browsers Firefox."""
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -115,6 +116,27 @@ class TestBrowserPoolInitialize:
         assert pool._pool is None
         mocks[1].stop.assert_awaited_once()
 
+    @pytest.mark.asyncio
+    @patch("src.utils.browser_pool.async_playwright")
+    async def test_failure_stop_tambien_falla(self, mock_async_playwright):
+        """Cleanup: stop() lanza → except + logger.debug (94-95)."""
+        mocks = _make_async_playwright_mock(mock_browsers=[AsyncMock()])
+
+        def fail_on_first(*args, **kwargs):
+            raise RuntimeError("browser launch failed")
+
+        mocks[1].firefox.launch = AsyncMock(side_effect=fail_on_first)
+        mocks[1].stop = AsyncMock(side_effect=RuntimeError("stop failed"))
+        mock_async_playwright.return_value = mocks[0].return_value
+
+        pool = BrowserPool(pool_size=1)
+        with patch("src.utils.browser_pool.logger") as mock_logger:
+            with pytest.raises(RuntimeError, match="browser launch failed"):
+                await pool.initialize()
+
+        mock_logger.debug.assert_called_once()
+        assert pool._initialized is False
+
 
 class TestBrowserPoolAcquireRelease:
     """acquire() / release() — ciclo de vida de browsers."""
@@ -162,6 +184,24 @@ class TestBrowserPoolAcquireRelease:
         await pool.acquire()
 
         mocks[1].firefox.launch.assert_not_called()
+
+    @pytest.mark.asyncio
+    @patch("src.utils.browser_pool.async_playwright")
+    async def test_acquire_relaunch_browser_inactivo(self, mock_async_playwright):
+        """acquire con browser inactivo → relaunch FUERA del lock (94-95)."""
+        b1, b2, b3 = AsyncMock(), AsyncMock(), AsyncMock()
+        mocks = _make_async_playwright_mock(mock_browsers=[b1, b2, b3])
+        mock_async_playwright.return_value = mocks[0].return_value
+
+        pool = BrowserPool(pool_size=2, idle_timeout=1)
+        await pool.initialize()
+        pool._last_used[b1] = 0  # b1 quedó inactivo
+
+        browser = await pool.acquire()
+
+        assert browser is b3  # se relanzó (no reusó b1 ni b2)
+        b1.close.assert_awaited_once()  # el inactivo se cerró
+        assert pool._last_used[b3] > 0
 
     @pytest.mark.asyncio
     @patch("src.utils.browser_pool.async_playwright")
@@ -242,6 +282,46 @@ class TestBrowserPoolClose:
         await pool.close()
 
         mocks[1].stop.assert_awaited_once()
+
+
+class TestCloseIdleBrowser:
+    """_close_idle_browser() — cierre de browsers inactivos."""
+
+    @pytest.mark.asyncio
+    async def test_cierra_inactivo(self):
+        pool = BrowserPool(pool_size=1, idle_timeout=10)
+        browser = AsyncMock()
+        pool._last_used[browser] = 0  # inactivo desde hace mucho
+
+        result = await pool._close_idle_browser(browser)
+
+        assert result is True
+        browser.close.assert_awaited_once()
+        assert browser not in pool._last_used
+
+    @pytest.mark.asyncio
+    async def test_no_cierra_reciente(self):
+        pool = BrowserPool(pool_size=1, idle_timeout=300)
+        browser = AsyncMock()
+        pool._last_used[browser] = time.time()
+
+        result = await pool._close_idle_browser(browser)
+
+        assert result is False
+        browser.close.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_error_close_no_propaga(self):
+        """browser.close() lanza → se registra debug y se limpia igual."""
+        pool = BrowserPool(pool_size=1, idle_timeout=10)
+        browser = AsyncMock()
+        browser.close = AsyncMock(side_effect=RuntimeError("boom"))
+        pool._last_used[browser] = 0
+        with patch("src.utils.browser_pool.logger") as mock_logger:
+            result = await pool._close_idle_browser(browser)
+        assert result is True
+        mock_logger.debug.assert_called_once()
+        assert browser not in pool._last_used
 
 
 class TestBrowserPoolSingleton:

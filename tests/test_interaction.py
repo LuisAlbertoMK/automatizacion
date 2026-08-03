@@ -14,6 +14,20 @@ class TestInteractionHandler:
         with pytest.raises(TypeError, match="abstract"):
             InteractionHandler()
 
+    @pytest.mark.asyncio
+    async def test_prompt_enter_delega_en_prompt(self):
+        """prompt_enter() del ABC delega en prompt() (línea 20)."""
+        calls: list[str] = []
+
+        class DummyHandler(InteractionHandler):
+            async def prompt(self, message: str) -> str:
+                calls.append(message)
+                return "ok"
+
+        handler = DummyHandler()
+        await handler.prompt_enter("Presiona Enter para continuar")
+        assert calls == ["Presiona Enter para continuar"]
+
 
 class TestCLIPromptHandler:
     """CLIPromptHandler — usa input() real (mockeado)."""

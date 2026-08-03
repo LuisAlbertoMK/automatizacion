@@ -108,8 +108,65 @@ class TestConsultar:
             assert "login" not in " ".join(selectors)
 
 
-class TestConsultaSolr:
-    async def test_http_error_devuelve_none(self):
+    async def test_solr_exception_usa_navegador(self, mock_base, mod):
+        """Solr LANZA excepción (no solo None) → except + fallback navegador."""
+        with patch.object(CedulaProfesionalModule, "_consulta_solr",
+                          AsyncMock(side_effect=RuntimeError("conn reset"))):
+            mock_base['page'].content = AsyncMock(
+                return_value="<html>CÉDULA: 1234567</html>")
+            mock_base['page'].inner_text = AsyncMock(return_value="CÉDULA: 1234567")
+            r = await mod.consultar(curp=CURP_OK)
+        assert r["fuente"] == "navegador"
+        assert r["total"] == 1
+        mock_base['goto'].assert_called_once()
+
+    async def test_consulta_solr_por_nombre_query(self):
+        """Sin CURP → query AND sobre apellido paterno/materno/nombre."""
+        mod = CedulaProfesionalModule()
+        with patch("src.tramites.cedula_profesional.requests.get") as mock_get:
+            mock_get.return_value.raise_for_status = lambda: None
+            mock_get.return_value.json.return_value = {"response": {"docs": []}}
+            docs = await mod._consulta_solr(nombre="JUAN", apellido_paterno="PEREZ")
+        assert docs == []
+        params = mock_get.call_args.kwargs["params"]
+        assert params["q"] == 'nombre:"PEREZ" AND nombre:"JUAN"'
+
+    async def test_consulta_solr_json_no_dict_devuelve_none(self):
+        """resp.json() que no es dict → None (fallback a navegador)."""
+        mod = CedulaProfesionalModule()
+        with patch("src.tramites.cedula_profesional.requests.get") as mock_get:
+            mock_get.return_value.raise_for_status = lambda: None
+            mock_get.return_value.json.return_value = [1, 2, 3]
+            docs = await mod._consulta_solr(curp=CURP_OK)
+        assert docs is None
+
+
+class TestCampoSolr:
+    def test_campo_scalar(self):
+        """doc[k] con valor escalar → str(v) (rama lista vs scalar)."""
+        assert CedulaProfesionalModule._campo_solr(
+            {"cedula": "12345"}, "numero_cedula", "cedula") == "12345"
+
+    def test_campo_lista(self):
+        assert CedulaProfesionalModule._campo_solr(
+            {"cedula": ["111", "222"]}, "numero_cedula", "cedula") == "111 222"
+
+    def test_campo_ausente_devuelve_vacio(self):
+        assert CedulaProfesionalModule._campo_solr({}, "numero_cedula") == ""
+
+
+class TestRunNavegador:
+    async def test_run_por_nombre_fill_field(self, mock_base, mod):
+        """_run sin CURP → fill_field con nombre completo combinado."""
+        with patch.object(CedulaProfesionalModule, "_extraer_resultado",
+                          AsyncMock(return_value={"status": "ok", "fuente": "navegador",
+                                                  "total": 0, "cedulas": []})):
+            r = await mod._run(mock_base['page'], curp="", nombre="JUAN",
+                               apellido_paterno="PEREZ")
+        assert r["status"] == "ok"
+        value = mock_base['fill_field'].call_args.args[2]
+        assert value == "JUAN PEREZ"
+        mock_base['click_first'].assert_awaited_once()
         """Error HTTP en Solr → None (gatilla fallback a navegador)."""
         mod = CedulaProfesionalModule()
         with patch("src.tramites.cedula_profesional.requests.get") as mock_get:

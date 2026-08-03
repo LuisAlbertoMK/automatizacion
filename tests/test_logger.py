@@ -1,10 +1,38 @@
 """Tests para utils/logger.py — logging y métricas."""
 
 import json
+import logging
 import os
 from unittest.mock import patch
 
-from src.utils.logger import TramiteLogger, TramiteMetrics, get_logger, metrics  # noqa: E402
+from src.utils.logger import (
+    JsonFormatter,
+    TramiteLogger,
+    TramiteMetrics,
+    get_logger,  # noqa: E402
+    metrics,
+)
+
+
+class TestJsonFormatter:
+    """JsonFormatter.format() — output JSON con/sin extra_data."""
+
+    def test_format_sin_extra_data(self):
+        record = logging.LogRecord("tramites.test", logging.INFO, "f.py", 1,
+                                   "msg %s", ("arg",), None)
+        out = json.loads(JsonFormatter().format(record))
+        assert out["level"] == "INFO"
+        assert out["logger"] == "tramites.test"
+        assert out["message"] == "msg arg"
+        assert "timestamp" in out
+
+    def test_format_con_extra_data(self):
+        record = logging.LogRecord("tramites.test", logging.ERROR, "f.py", 1,
+                                   "fallo", (), None)
+        record.extra_data = {"curp": "GODE561231HDFRRN09"}
+        out = json.loads(JsonFormatter().format(record))
+        assert out["curp"] == "GODE561231HDFRRN09"
+        assert out["level"] == "ERROR"
 
 
 class TestTramiteLogger:
@@ -47,6 +75,25 @@ class TestTramiteLogger:
             log.warn("test msg")
         mock_warn.assert_called_once_with("test msg")
 
+    def test_warning_alias_delega_en_warn(self):
+        """warning() alias → warn() (línea 114)."""
+        log = TramiteLogger("test_mod")
+        with patch.object(log._logger, "warning") as mock_warn:
+            log.warning("test msg")
+        mock_warn.assert_called_once_with("test msg")
+
+    def test_info_pii_sanitiza_en_archivo(self):
+        """info_pii: stdout con PII, archivo sanitizado (127-132)."""
+        log = TramiteLogger("test_mod")
+        with patch.object(log._logger, "info") as mock_info:
+            with patch("builtins.print") as mock_print:
+                log.info_pii("curp: GODE561231HDFRRN09 listo",
+                             "GODE561231HDFRRN09", "curp")
+        mock_info.assert_called_once_with("curp: GODE**** listo")
+        mock_print.assert_called_once()
+        printed = mock_print.call_args.args[0]
+        assert "GODE561231HDFRRN09" not in printed
+
     def test_error_logs(self):
         log = TramiteLogger("test_mod")
         with patch.object(log._logger, "error") as mock_err:
@@ -78,6 +125,26 @@ class TestTramiteLogger:
         args, _ = mock_print.call_args
         assert "[test_mod]" in args[0]
         assert "hello" in args[0]
+
+    def test_init_json_format_from_env(self, tmp_path):
+        """LOG_FORMAT=json → el file handler usa JsonFormatter (línea 77)."""
+        with patch("src.utils.logger.LOG_DIR", tmp_path):
+            with patch.dict(os.environ, {"LOG_FORMAT": "json"}):
+                log = TramiteLogger("test_json_mod")
+        json_handlers = [h for h in log._logger.handlers
+                         if isinstance(h.formatter, JsonFormatter)]
+        assert json_handlers, "debe existir un handler con JsonFormatter"
+
+    def test_sanitize_pii_masks_curp_nss_email(self):
+        """_sanitize reemplaza CURP, NSS y email en el mensaje (127-132)."""
+        msg = TramiteLogger._sanitize(
+            "CURP GODE561231HDFRRN09 NSS 12345678901 email a@b.com")
+        assert "GODE561231HDFRRN09" not in msg
+        assert "12345678901" not in msg
+        assert "a@b.com" not in msg
+        assert "GODE****" in msg
+        assert "12345******" in msg
+        assert "a***@b.com" in msg
 
     def test_error_prints_colored_message(self):
         log = TramiteLogger("test_mod")
