@@ -197,3 +197,25 @@ _(fin ronda 2 ciclo 1 — siguiente ciclo: gaps restantes pii.py 96%, validators
 
 ---
 _(fin ronda 2 ciclo 2 — siguientes: pii.py 96%, validators.py 97%, resto de main.py 100%. Despues: parada del protocolo y merge a main/master)_
+
+## RONDA 2 - Ciclo 3 y 4 (validators/pii, api.py)
+
+**Ciclo 3** (commit previo): validators.py 97->100% (bad_curp con digito verificador mal, linea 51) + pii.py 96->100% (sanitize_email local vacio, linea 30). 1084 passed, benchmark 97.33%.
+
+**Ciclo 4** (api.py 76->100%): commit con 6 grupos de tests:
+- TestExceptionMapping (10 casos): _tramite_exception_to_http — mro completo + hints ModuleError -> 422.
+- TestVerifyApiKey (4): public paths, dev sin key (warning 1x), 403 key invalida, key valida.
+- TestZProductionReload (3): ramas de PRODUCTION via importlib.reload (SystemExit sin API_KEY, RuntimeError CORS, prod completo con middleware + _get_solver cache/CaptchaError/fallback free).
+- TestPerfilMinimo (3): validators None-path 205/213 (Pydantic v2 NO ejecuta field_validator sobre campos ausentes — hay que pasar None explicito o llamar al validator directo).
+- TestExceptionHandlers (4): endpoints con TramiteError/StorageError -> status mapeado.
+- pragma no cover: ramas de entorno fastapi/slowapi ausentes (55, 267-273).
+
+**Gotchas tecnicos**:
+1. Los subprocess tests PASAN pero NO contribuyen al coverage del pytest (datafile .coverage solo captura el proceso pytest). Para ramas import-time de config: importlib.reload + patch.dict env en proceso.
+2. El reload PISA los patch.object sobre el modulo api — parchear los modulos ORIGEN ("src.utils.captcha.CaptchaSolver" no "src.api.CaptchaSolver").
+3. Reload tests deben ir en la clase final (TestZ prefix) para no romper tests posteriores (el modulo queda en estado prod).
+
+**Benchmark ronda**: 1056 -> 1108 tests (+52) | warnings 0->0 | cobertura global 95.53 -> **98.49%** (+2.96) | main.py 92->100 | ocr 88->100 | voice_input 85->100 | api.py 76->100 | validators/pii 100. Todos los modulos >=91%.
+
+---
+_(ciclo 5 en curso: logger 91%, browser_pool 92%, cedula_profesional 93%, interaction 94%)_
