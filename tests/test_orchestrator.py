@@ -5,7 +5,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.tramites.orchestrator import TRAMITES_REGISTRADOS, listar_tramites  # noqa: E402
+from src.tramites.orchestrator import (
+    TRAMITES_REGISTRADOS,
+    _safe_input,
+    listar_tramites,
+)
 
 TRAMITES_ESPERADOS = [
     "curp", "nss", "antecedentes", "tenencia",
@@ -480,12 +484,42 @@ class TestEjecutarMigrados:
         ("cita_ine",         [""]),
     ])
     async def test_ejecutar_con_multimodal(self, orchestrator_multimodal, tipo, inputs):
-        """Test con multimodal disponible (solo trámites que lo usan)."""
+        """Test con multimodal disponible (solo tr�mites que lo usan)."""
         mock_mod = _make_mock_module()
         orchestrator_multimodal._modules[tipo] = mock_mod
         with patch("builtins.input", side_effect=inputs):
             result = await orchestrator_multimodal.ejecutar_tramite(tipo)
         assert result == {"status": "ok"}
+
+
+class TestSafeInput:
+    def test_sin_loop_fallback_directo(self):
+        """Sin event loop activo  input() directo (except RuntimeError)."""
+        with patch(
+            "src.tramites.orchestrator.asyncio.get_event_loop",
+            side_effect=RuntimeError("no loop"),
+        ):
+            with patch("builtins.input", return_value="valor") as mock_input:
+                assert _safe_input("prompt: ") == "valor"
+        mock_input.assert_called_once_with("prompt: ")
+
+    def test_loop_no_corriendo_input_directo(self):
+        """Loop existe pero no corre  input() directo (linea 219)."""
+        with patch("builtins.input", return_value="valor") as mock_input:
+            assert _safe_input("prompt: ") == "valor"
+        mock_input.assert_called_once_with("prompt: ")
+
+
+class TestRePromptRequerido:
+    def test_campo_vacio_reprompt(self, orchestrator):
+        """Campo requerido vac�o  re-prompt hasta obtener valor."""
+        field = {
+            "name": "cuenta", "prompt": "Cuenta predial",
+            "type": "text", "required": True,
+        }
+        with patch("builtins.input", side_effect=["", "123456789012"]):
+            valor = orchestrator._collect_single_input(field, "text")
+        assert valor == "123456789012"
 
 
 # ── Menu interactivo — opciones 6-18 ────────────────────────────────────────

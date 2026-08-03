@@ -91,14 +91,43 @@ class TestEsperarFormulario:
         assert r is not None
 
     async def test_mantenimiento(self, mock_base):
-        """Timeout + contenido 'mantenimiento' → NSSError."""
+        """Timeout + contenido 'mantenimiento'  NSSError."""
         mock_base['page'].wait_for_selector = AsyncMock(side_effect=PwTimeout("timeout"))
         mock_base['page'].content.return_value = (
-            "<html>El portal está en mantenimiento</html>"
+            "<html>El portal IMSS esta en mantenimiento</html>"
         )
         mod = NSSModule()
         with pytest.raises(NSSError, match="portal IMSS está en mantenimiento"):
             await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
+
+    async def test_sin_mantenimiento_continua(self, mock_base):
+        """Timeout en todos los selectors + contenido normal  debug y sigue."""
+        mock_base['page'].wait_for_selector = AsyncMock(side_effect=PwTimeout("timeout"))
+        mock_base['page'].content.return_value = "<html>Portal IMSS</html>"
+        mod = NSSModule()
+        await mod._esperar_formulario(mock_base['page'])
+        mock_base['debug'].assert_called()
+
+
+class TestObtenerNss:
+    async def test_ocr_sin_nss_unlink_y_raise(self, mock_base):
+        """OCR sin nss  unlink del screenshot y sigue hasta NSSError."""
+        mock_base['page'].content.return_value = "<html>sin NSS en HTML</html>"
+        mock_base['page'].screenshot = AsyncMock()
+        mod = NSSModule()
+        mod.ocr = MagicMock()
+        mod.ocr.extract_from_screenshot.return_value = {"curp": "x"}
+        with patch("src.tramites.nss.Path.unlink") as mock_unlink:
+            with pytest.raises(NSSError, match="No se pudo obtener el NSS"):
+                await mod._obtener_nss(mock_base['page'], "a@b.com")
+        mock_unlink.assert_called()
+
+    async def test_formato_nss_valido(self, mock_base):
+        """Quinto paso: 11 d�gitos con formato NSS v�lido  return."""
+        mock_base['page'].content.return_value = "abc12345601234xyz"
+        mod = NSSModule(use_ocr=False)
+        nss = await mod._obtener_nss(mock_base['page'], "a@b.com")
+        assert nss == "12345601234"
 
 
 class TestIngresarCurp:

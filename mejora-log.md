@@ -219,3 +219,34 @@ _(fin ronda 2 ciclo 2 — siguientes: pii.py 96%, validators.py 97%, resto de ma
 
 ---
 _(ciclo 5 en curso: logger 91%, browser_pool 92%, cedula_profesional 93%, interaction 94%)_
+
+## RONDA 2 - Ciclo 5 y 6 (resto de modulos -> 100%)
+
+**Ciclo 5** (commit `test(logger,browser_pool,interaction,cedula_profesional): 100% cobertura`):
+- logger.py 91->100: JsonFormatter con/sin extra_data, LOG_FORMAT=json desde env, _sanitize_pii (CURP/NSS/email), alias warning, info_pii.
+- browser_pool.py 92->100: _close_idle_browser (idle/in_use/stop cierra), relaunch en acquire (browser inactivo), stop() que lanza en cleanup.
+- interaction.py 94->100: prompt_enter delega a prompt (linea 20).
+- cedula_profesional.py 93->100: except Solr -> usa navegador, query por nombre, json no-dict -> None, _campo_solr (escalar/lista/ausente), _run por nombre.
+- Benchmark: 1108 -> 1126 tests (+18) | cobertura global 98.49 -> **99.07%** | ruff clean.
+
+**Ciclo 6** (en curso al commit): base, free_captcha, captcha, nss, orchestrator, curp, predial_cdmx -> **100%**:
+- base.py 96->100: TestGoto (retry 503, 404 -> ModuleError, timeout retry/no-retry), eviction _selector_cache >512 (fill_field/click_first), browser_context (cierra con excepcion), download_pdf fallback expect_download enter lanza.
+- free_captcha.py 95->100: TestModuleImport (flags import-time via reload, _get_whisper_model singleton), token vacio -> MANUAL, token invalido -> MANUAL.
+- captcha.py 97->100: balance cache hit (no llama API), saldo impreso, ValueError en verify, adaptive polling (5s/10s).
+- nss.py 98->100: _esperar_formulario sin mantenimiento (debug + sigue), OCR sin nss -> unlink, formato NSS valido (1er digito 1-9 + mes <= 32).
+- orchestrator.py 98->100: _safe_input sin loop (fallback directo), re-prompt campo requerido vacio.
+- curp.py 99->100: _run sin curp ni datos -> CURPError.
+- predial_cdmx.py 98->100: fill_field False -> PredialError.
+
+**Gotchas tecnicos nuevos**:
+1. info_pii: el ARCHIVO recibe mensaje sanitizado, stdout el PII visible — assert sobre el handler, no stdout.
+2. _get_whisper_model hace import whisper LOCAL — no existe atributo fc._whisper; parchear sys.modules["whisper"].
+3. Reload import-time de free_captcha: parchear os.path.exists + pytesseract.get_tesseract_version, luego re-reload para restaurar flags.
+4. link.get_attribute en download_pdf es await — AsyncMock, no MagicMock.
+5. Goto: RETRYABLE_STATUS {408,429,500,502,503,504}; 4xx -> ModuleError; PwTimeout -> retry.
+6. _selector_cache eviction: popitem(last=False) en fill_field y click_first.
+
+**Benchmark ronda 2 completa**: 1056 -> 1151 tests | warnings 0 | cobertura global 95.53 -> **100%** (4180 stmts, 0 miss) | todos los modulos src/ a 100%.
+
+---
+_(ronde 2 completada — todos los modulos a 100%. Siguiente: parada del protocolo, merge ff a main y push a master)_

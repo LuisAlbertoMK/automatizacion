@@ -86,6 +86,46 @@ class TestInit:
 # ── FreeCaptchaSolver.solve_image ──────────────────────────────────────────
 
 
+class TestModuleImport:
+    """Ramas import-time: TESSERACT_PATHS, flags de disponibilidad."""
+
+    def test_import_time_tesseract_path_y_flags(self):
+        import importlib
+        import sys
+
+        import src.utils.free_captcha as fc
+
+        with patch.dict(sys.modules, {"whisper": MagicMock()}):
+            with patch("src.utils.free_captcha.os.path.exists", return_value=True):
+                with patch("src.utils.free_captcha.pytesseract.get_tesseract_version",
+                           return_value="v6"):
+                    with patch("builtins.print"):
+                        importlib.reload(fc)
+        assert fc.TESSERACT_AVAILABLE is True
+        assert fc.WHISPER_AVAILABLE is True
+        assert fc.pytesseract.pytesseract.tesseract_cmd == fc.TESSERACT_PATHS[0]
+        # Restaurar estado original (tesseract/whisper ausentes en CI)
+        with patch("builtins.print"):
+            importlib.reload(fc)
+        assert fc.TESSERACT_AVAILABLE is False
+        assert fc.WHISPER_AVAILABLE is False
+
+    def test_get_whisper_model_carga_singleton(self):
+        import sys
+
+        import src.utils.free_captcha as fc
+
+        model = MagicMock()
+        mock_whisper = MagicMock()
+        mock_whisper.load_model.return_value = model
+        with patch("src.utils.free_captcha._whisper_model", None):
+            with patch.dict(sys.modules, {"whisper": mock_whisper}):
+                with patch("builtins.print"):
+                    result = fc._get_whisper_model()
+        assert result is model
+        mock_whisper.load_model.assert_called_once_with("base")
+
+
 class TestSolveImage:
     """FreeCaptchaSolver.solve_image — OCR exitoso y fallos."""
 
@@ -259,6 +299,34 @@ class TestRecaptchaAudio:
     async def test_audio_no_challenge_falls_back_to_manual(self, mock_sleep, solver):
         page, _ = _MockPageBuilder.build(count_side_effect=[0], evaluate_return="")
         result = await solver.solve_recaptcha_v2_audio(page, "sk", "https://ex.com")
+        assert result == "MANUAL"
+
+    @pytest.mark.asyncio
+    @patch("src.utils.free_captcha.asyncio.sleep")
+    async def test_audio_no_challenge_token_vacio_manual(self, mock_sleep, solver):
+        """229: sin botón audio (3 counts 0) y token vacío → MANUAL."""
+        page, _ = _MockPageBuilder.build(
+            count_side_effect=[0, 0, 0], evaluate_return=""
+        )
+        result = await solver.solve_recaptcha_v2_audio(page, "sk", "https://ex.com")
+        assert result == "MANUAL"
+
+    @pytest.mark.asyncio
+    @patch("src.utils.free_captcha.asyncio.sleep")
+    async def test_audio_token_invalido_despues_de_verify(self, mock_sleep, solver):
+        """289: audio resuelto pero token final vacío → print + MANUAL."""
+        page, _ = _MockPageBuilder.build(evaluate_return="")
+        with patch("src.utils.free_captcha.tempfile.NamedTemporaryFile") as mock_temp:
+            mock_temp.return_value.__enter__.return_value.name = "/tmp/fake.mp3"
+            with patch("requests.get") as mock_req:
+                mock_req.return_value.content = b"fake_audio_bytes"
+                with patch("src.utils.free_captcha._get_whisper_model") as mock_get:
+                    model = MagicMock()
+                    model.transcribe.return_value = {"text": "1 2 3"}
+                    mock_get.return_value = model
+                    with patch("pathlib.Path.unlink"):
+                        result = await solver.solve_recaptcha_v2_audio(
+                            page, "sk", "https://ex.com")
         assert result == "MANUAL"
 
     @pytest.mark.asyncio

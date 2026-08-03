@@ -41,6 +41,12 @@ class TestConsultar:
         with pytest.raises(CURPError, match="Se requiere curp o datos personales"):
             await mod.consultar(curp="")
 
+    async def test_run_sin_datos_ni_curp(self, mock_base):
+        """_run sin curp y sin datos  CURPError por datos requeridos."""
+        mod = CURPModule()
+        with pytest.raises(CURPError, match="datos personales para consulta"):
+            await mod._run(mock_base['page'])
+
     async def test_exitoso_por_curp(self, mock_base):
         """Happy path: consulta por CURP directa."""
         _setup_happy(mock_base)

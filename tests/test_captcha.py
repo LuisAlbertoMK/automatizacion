@@ -49,6 +49,34 @@ class TestVerifyBalance:
         solver = CaptchaSolver()
         assert solver is not None
 
+    @patch("src.utils.captcha.requests.get")
+    def test_balance_cache_hit_no_llama_requests(self, mock_get):
+        """47: cache de balance válido → early return sin requests."""
+        mock_get.return_value.text = "5.5000"
+        solver = CaptchaSolver()
+        solver._verify_balance()  # primera llamada → hace requests
+        mock_get.reset_mock()
+        solver._verify_balance()  # cache válido → no llama requests
+        mock_get.assert_not_called()
+
+    @patch("src.utils.captcha.requests.get")
+    def test_balance_ok_imprime_saldo(self, mock_get):
+        """61: saldo suficiente → print del saldo."""
+        mock_get.return_value.text = "5.5000"
+        solver = CaptchaSolver()
+        with patch("builtins.print") as mock_print:
+            solver._verify_balance()
+        printed = " ".join(str(a) for a, _ in mock_print.call_args_list)
+        assert "$5.5000" in printed
+
+    @patch("src.utils.captcha.requests.get")
+    def test_verify_balance_value_error_no_levanta(self, mock_get):
+        """63: ValueError en _verify_balance directo → pass sin excepción."""
+        mock_get.return_value.text = "no-un-numero"
+        solver = CaptchaSolver()
+        solver._verify_balance()  # no debe lanzar
+        assert solver._balance_cache is None
+
 
 class TestRecaptchaErrors:
     """Lines 115, 161: error paths en métodos sync."""
@@ -183,6 +211,23 @@ class TestAsyncMethods:
         with patch("src.utils.captcha.asyncio.sleep"):
             result = await solver._wait_for_result_async("task_id", max_wait=20)
         assert result == "solution"
+
+    @patch("src.utils.captcha.requests.get")
+    async def test_wait_for_result_adaptive_polling(self, mock_get, solver):
+        """257/259: intervalo adaptativo (5s tras 20s, 10s tras 60s)."""
+        mock_get.return_value.json.return_value = {
+            "status": 0, "request": "CAPTCHA_NOT_READY"}
+        sleeps: list[float] = []
+
+        async def fake_sleep(delay):
+            sleeps.append(delay)
+
+        with patch("src.utils.captcha.asyncio.sleep", new=fake_sleep):
+            with pytest.raises(CaptchaError, match="Timeout"):
+                await solver._wait_for_result_async("task_id", max_wait=100)
+
+        assert 5 in sleeps   # elapsed > 20 → interval 5
+        assert 10 in sleeps  # elapsed > 60 → interval 10
 
 
 class TestCaptchaSolver:

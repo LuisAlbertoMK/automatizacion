@@ -80,6 +80,12 @@ class TestConsultar:
             assert "password" not in " ".join(selectors)
             assert "login" not in " ".join(selectors)
 
+    async def test_campo_no_encontrado(self, mock_base, mod):
+        """fill_field falla  PredialError campo de cuenta predial."""
+        mock_base['fill_field'].return_value = False
+        with pytest.raises(PredialError, match="No se encontr"):
+            await mod.consultar(cuenta=CUENTA_OK)
+
 
 class TestParseo:
     async def test_sin_montos_ni_texto(self, mock_base, mod):

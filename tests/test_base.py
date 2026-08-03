@@ -2,11 +2,14 @@
 
 import asyncio
 import os
+from collections import OrderedDict
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from playwright.async_api import TimeoutError as PwTimeout
 
+from src.exceptions import ModuleError
 from src.tramites.base import OUTPUT_DIR, TIMEOUT, BaseModule, BrowserResources  # noqa: E402
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -250,6 +253,18 @@ class TestFillField:
         result = await module.fill_field(mock_page, ["#a", "#b"], "valor")
         assert result is False
 
+    @pytest.mark.asyncio
+    async def test_fill_evicta_cache_cuando_excede_512(self, module, mock_page):
+        """Cache de selectores > 512 → evicta el más viejo (315)."""
+        mock_page.locator.side_effect = lambda sel: _make_mock_locator(visible=True)
+        cache = OrderedDict((f"k{i}", f"sel{i}") for i in range(512))
+        module._selector_cache = cache
+        result = await module.fill_field(mock_page, ["#nuevo"], "valor")
+        assert result is True
+        assert len(cache) == 512
+        assert "#nuevo" in cache.values()
+        assert "sel0" not in cache.values()
+
 
 # ── Click First ───────────────────────────────────────────────────────────────
 
@@ -290,6 +305,18 @@ class TestClickFirst:
         mock_page.expect_navigation.return_value.__aexit__ = AsyncMock(return_value=None)
         result = await module.click_first(mock_page, ["#btn"], wait_nav=True)
         assert result is True
+
+    @pytest.mark.asyncio
+    async def test_click_evicta_cache_cuando_excede_512(self, module, mock_page):
+        """Cache de selectores > 512 en click_first → evicta viejo (358)."""
+        mock_page.locator.side_effect = lambda sel: _make_mock_locator(visible=True)
+        cache = OrderedDict((f"k{i}", f"sel{i}") for i in range(512))
+        module._selector_cache = cache
+        result = await module.click_first(mock_page, ["#nuevo-btn"])
+        assert result is True
+        assert len(cache) == 512
+        assert "#nuevo-btn" in cache.values()
+        assert "sel0" not in cache.values()
 
 
 # ── Resolve Image Captcha ──────────────────────────────────────────────────────
@@ -673,6 +700,63 @@ class TestGoto:
         assert mock_page.goto.call_count == 2
         mock_page.wait_for_timeout.assert_called_once()
 
+    @pytest.mark.asyncio
+    async def test_goto_retryable_status_reintenta(self, module, mock_page):
+        """Status 5xx/408/429 → backoff + reintento (253-256)."""
+        resp503 = MagicMock()
+        resp503.status = 503
+        resp200 = MagicMock()
+        resp200.status = 200
+        mock_page.goto = AsyncMock(side_effect=[resp503, resp200])
+        mock_page.wait_for_timeout = AsyncMock()
+        with (
+            patch("src.tramites.base._rate_limit", AsyncMock()),
+            patch("src.tramites.base.asyncio.sleep", AsyncMock()),
+        ):
+            await module.goto(mock_page, "https://example.com")
+        assert mock_page.goto.call_count == 2
+        assert mock_page.wait_for_timeout.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_goto_timeout_sin_reintentos_rompe(self, module, mock_page):
+        """PwTimeout con retries=0 → break → ModuleError (264)."""
+        mock_page.goto = AsyncMock(side_effect=PwTimeout("slow"))
+        mock_page.wait_for_timeout = AsyncMock()
+        with (
+            patch("src.tramites.base._rate_limit", AsyncMock()),
+            patch("src.tramites.base.asyncio.sleep", AsyncMock()),
+        ):
+            with pytest.raises(ModuleError):
+                await module.goto(mock_page, "https://example.com", retries=0)
+        assert mock_page.goto.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_goto_status_no_retryable_rompe(self, module, mock_page):
+        """Status 4xx (no retryable) → break sin reintento → ModuleError (257)."""
+        resp404 = MagicMock()
+        resp404.status = 404
+        mock_page.goto = AsyncMock(return_value=resp404)
+        mock_page.wait_for_timeout = AsyncMock()
+        with (
+            patch("src.tramites.base._rate_limit", AsyncMock()),
+            patch("src.tramites.base.asyncio.sleep", AsyncMock()),
+        ):
+            with pytest.raises(ModuleError):
+                await module.goto(mock_page, "https://example.com")
+        assert mock_page.goto.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_goto_timeout_reintenta(self, module, mock_page):
+        """PwTimeout/TimeoutError/ConnectionError → backoff + reintento (260-264)."""
+        mock_page.goto = AsyncMock(side_effect=[PwTimeout("slow"), None])
+        mock_page.wait_for_timeout = AsyncMock()
+        with (
+            patch("src.tramites.base._rate_limit", AsyncMock()),
+            patch("src.tramites.base.asyncio.sleep", AsyncMock()),
+        ):
+            await module.goto(mock_page, "https://example.com")
+        assert mock_page.goto.call_count == 2
+
 
 # ── Browser ───────────────────────────────────────────────────────────────────
 
@@ -707,6 +791,31 @@ class TestBrowser:
         br = AsyncMock(spec=BrowserResources)
         await module.close_browser(br)
         br.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_browser_context_launch_y_close(self, module):
+        """browser_context: launch + yield + close (226-230)."""
+        br = MagicMock()
+        with (
+            patch.object(module, "launch_browser", AsyncMock(return_value=br)),
+            patch.object(module, "close_browser", AsyncMock()) as mock_close,
+        ):
+            async with module.browser_context() as got:
+                assert got is br
+        mock_close.assert_awaited_once_with(br)
+
+    @pytest.mark.asyncio
+    async def test_browser_context_cierra_con_excepcion(self, module):
+        """browser_context: excepción en el body → close igual se llama."""
+        br = MagicMock()
+        with (
+            patch.object(module, "launch_browser", AsyncMock(return_value=br)),
+            patch.object(module, "close_browser", AsyncMock()) as mock_close,
+        ):
+            with pytest.raises(RuntimeError, match="boom"):
+                async with module.browser_context():
+                    raise RuntimeError("boom")
+        mock_close.assert_awaited_once_with(br)
 
     @pytest.mark.asyncio
     async def test_launch_via_pool(self, module):
@@ -998,6 +1107,32 @@ class TestDownloadPDFFallbackError:
         with patch.object(module, "debug"):
             result = await module.download_pdf(mock_page, ["#btn"], Path("out.pdf"))
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_fallback_expect_download_enter_lanza(self, module, mock_page):
+        """543-545: expect_download.__aenter__ lanza → debug + continue."""
+        mock_page.locator.side_effect = lambda sel: _make_mock_locator(count=0)
+        link = MagicMock()
+        link.is_visible = AsyncMock(return_value=True)
+        link.text_content = AsyncMock(return_value="descargar")
+        link.get_attribute = AsyncMock(return_value="")
+        link.click = AsyncMock()
+        mock_page.query_selector_all = AsyncMock(return_value=[link])
+
+        class _EnterRaises:
+            async def __aenter__(self):
+                raise Exception("download failed")
+
+            async def __aexit__(self, *args):
+                pass
+
+        mock_page.expect_download.return_value = _EnterRaises()
+        with patch.object(module, "debug") as mock_debug:
+            result = await module.download_pdf(mock_page, ["#btn"], Path("out.pdf"))
+        assert result is None
+        assert mock_debug.call_count >= 1
+        args, _ = mock_debug.call_args
+        assert "fallback click" in args[0]
 
     @pytest.mark.asyncio
     async def test_fallback_link_not_visible(self, module, mock_page):
