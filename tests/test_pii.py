@@ -37,6 +37,10 @@ class TestSanitizeEmail:
     def test_no_at_sign_returns_masked(self):
         assert sanitize_email("invalido") == "***@***"
 
+    def test_local_vacio_returns_mask(self):
+        """'@dominio' → local vacío → '***@dominio' (línea 30)."""
+        assert sanitize_email("@gmail.com") == "***@gmail.com"
+
     def test_empty_returns_masked(self):
         assert sanitize_email("") == "***@***"
 

@@ -24,6 +24,7 @@ class TestValidarCurp:
         "GODE561231",             # muy corto
         "GODE561231HDFLRN03X",    # muy largo
         "GODE56123XHDFLRN03",     # letra en posición numérica
+        "GODE561231HDFLRN99",     # formato ok, dígito verificador mal
         "123456789012345678",     # solo dígitos
         "GODE561231HDFLRN0$",     # caracter especial
     ])
