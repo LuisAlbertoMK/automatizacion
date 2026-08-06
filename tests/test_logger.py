@@ -126,14 +126,41 @@ class TestTramiteLogger:
         assert "[test_mod]" in args[0]
         assert "hello" in args[0]
 
+    def test_print_sanitize_env_masks_pii(self):
+        """SANITIZE_STDOUT=true → PII enmascarada en stdout."""
+        with patch.dict(os.environ, {"SANITIZE_STDOUT": "true"}):
+            log = TramiteLogger("prod_mod")
+            with patch("builtins.print") as mock_print:
+                log.info("CURP GODE561231HDFRRN09 listo")
+            printed = mock_print.call_args.args[0]
+            assert "GODE561231HDFRRN09" not in printed
+            assert "GODE****" in printed
+
+    def test_print_no_sanitize_by_default(self):
+        """SANITIZE_STDOUT no set (default false) → PII visible en stdout."""
+        os.environ.pop("SANITIZE_STDOUT", None)
+        log = TramiteLogger("dev_mod")
+        with patch("builtins.print") as mock_print:
+            log.info("CURP GODE561231HDFRRN09 listo")
+        printed = mock_print.call_args.args[0]
+        assert "GODE561231HDFRRN09" in printed
+
     def test_init_json_format_from_env(self, tmp_path):
         """LOG_FORMAT=json → el file handler usa JsonFormatter (línea 77)."""
         with patch("src.utils.logger.LOG_DIR", tmp_path):
             with patch.dict(os.environ, {"LOG_FORMAT": "json"}):
                 log = TramiteLogger("test_json_mod")
-        json_handlers = [h for h in log._logger.handlers
-                         if isinstance(h.formatter, JsonFormatter)]
-        assert json_handlers, "debe existir un handler con JsonFormatter"
+        assert isinstance(log._file_handler.formatter, JsonFormatter)
+
+    def test_init_uses_queue_handler(self, tmp_path):
+        """TramiteLogger usa QueueHandler + QueueListener (no file I/O en event loop)."""
+        with patch("src.utils.logger.LOG_DIR", tmp_path):
+            log = TramiteLogger("async_test_mod")
+        # El handler en el logger debe ser QueueHandler
+        from logging.handlers import QueueHandler
+        assert any(isinstance(h, QueueHandler) for h in log._logger.handlers)
+        # El listener debe estar corriendo
+        assert log._queue_listener is not None
 
     def test_sanitize_pii_masks_curp_nss_email(self):
         """_sanitize reemplaza CURP, NSS y email en el mensaje (127-132)."""
@@ -198,6 +225,36 @@ class TestTramiteMetrics:
         with patch("builtins.open", side_effect=PermissionError("denied")):
             result = tm.finish(True)
         assert result is not None  # record still returned
+
+    async def test_finish_async_writes_to_file(self, tmp_path):
+        """finish_async writes via asyncio.to_thread (non-blocking)."""
+        metrics_path = tmp_path / "metricas_async.jsonl"
+        tm = TramiteMetrics()
+        tm.start("nss")
+        with patch("src.utils.logger.METRICS_FILE", metrics_path):
+            result = await tm.finish_async(False, extra={"test": "val"})
+        assert result is not None
+        assert result["tramite"] == "nss"
+        assert result["success"] is False
+        assert result["test"] == "val"
+        data = json.loads(metrics_path.read_text(encoding="utf-8"))
+        assert data["success"] is False
+
+    async def test_finish_async_without_start_returns_none(self):
+        """finish_async sin start devuelve None."""
+        tm = TramiteMetrics()
+        result = await tm.finish_async(True)
+        assert result is None
+
+    def test_write_metric_to_file(self, tmp_path):
+        """_write_metric_to_file escribe JSON línea al archivo."""
+        record = {"timestamp": "2025", "tramite": "curp", "success": True, "elapsed_s": 5.0}
+        path = tmp_path / "metrics_test.jsonl"
+        with patch("src.utils.logger.METRICS_FILE", path):
+            TramiteMetrics._write_metric_to_file(record)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        assert data["tramite"] == "curp"
+        assert data["success"] is True
 
     def test_resumen_no_file(self, tmp_path):
         tm = TramiteMetrics()

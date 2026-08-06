@@ -354,3 +354,140 @@ class TestBrowserPoolSingleton:
 
         bp._pool_instance = None
         await shutdown_browser_pool()
+
+
+class TestBrowserPoolLifecycle:
+    """P1: max_uses, health check (is_connected), stats."""
+
+    def test_max_uses_default(self):
+        pool = BrowserPool()
+        assert pool.max_uses == 10
+
+    def test_max_uses_custom(self):
+        pool = BrowserPool(max_uses=5)
+        assert pool.max_uses == 5
+
+    @pytest.mark.asyncio
+    @patch("src.utils.browser_pool.async_playwright")
+    async def test_usage_count_initialized(self, mock_async_playwright):
+        """New browsers start with usage_count = 0."""
+        mock_browser = AsyncMock()
+        mock_browser.is_connected = True
+        mocks = _make_async_playwright_mock(mock_browsers=[mock_browser])
+        mock_async_playwright.return_value = mocks[0].return_value
+
+        pool = BrowserPool(pool_size=1)
+        await pool.initialize()
+        assert pool._usage_count[mock_browser] == 0
+
+    @pytest.mark.asyncio
+    async def test_check_lifecycle_disconnected(self):
+        """Returns True (relaunch) when is_connected is False."""
+        pool = BrowserPool(max_uses=10)
+        mock_browser = AsyncMock()
+        mock_browser.is_connected = False
+        result = await pool._check_lifecycle(mock_browser)
+        assert result is True
+        mock_browser.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_check_lifecycle_max_uses(self):
+        """Returns True when usage_count >= max_uses."""
+        pool = BrowserPool(max_uses=3)
+        mock_browser = AsyncMock()
+        mock_browser.is_connected = True
+        pool._usage_count[mock_browser] = 3
+        result = await pool._check_lifecycle(mock_browser)
+        assert result is True
+        mock_browser.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_check_lifecycle_healthy(self):
+        """Returns False when browser connected + under max_uses."""
+        pool = BrowserPool(max_uses=10)
+        mock_browser = AsyncMock()
+        mock_browser.is_connected = True
+        pool._usage_count[mock_browser] = 1
+        result = await pool._check_lifecycle(mock_browser)
+        assert result is False
+        mock_browser.close.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    @patch("src.utils.browser_pool.async_playwright")
+    async def test_release_increments_count(self, mock_async_playwright):
+        """release() increments _usage_count."""
+        mock_browser = AsyncMock()
+        mock_browser.is_connected = True
+        mocks = _make_async_playwright_mock(mock_browsers=[mock_browser])
+        mock_async_playwright.return_value = mocks[0].return_value
+
+        pool = BrowserPool(pool_size=1, max_uses=10)
+        await pool.initialize()
+        browser = await pool._pool.get()
+        await pool.release(browser)
+        assert pool._usage_count[browser] == 1
+        assert pool._pool.qsize() == 1
+
+    @pytest.mark.asyncio
+    @patch("src.utils.browser_pool.async_playwright")
+    async def test_acquire_relaunches_on_disconnect(self, mock_async_playwright):
+        """acquire() relaunches when browser is disconnected."""
+        mock_old = AsyncMock()
+        mock_old.is_connected = False
+        mock_new = AsyncMock()
+        mock_new.is_connected = True
+        mocks = _make_async_playwright_mock(
+            mock_browsers=[mock_old, mock_new]
+        )
+        mock_async_playwright.return_value = mocks[0].return_value
+
+        pool = BrowserPool(pool_size=1, max_uses=10)
+        await pool.initialize()
+        browser = await pool.acquire()
+        assert browser is mock_new
+        assert pool._usage_count[browser] == 0
+
+    @pytest.mark.asyncio
+    @patch("src.utils.browser_pool.async_playwright")
+    async def test_acquire_relaunches_on_max_uses(self, mock_async_playwright):
+        """acquire() relaunches when max_uses exceeded."""
+        mock_old = AsyncMock()
+        mock_old.is_connected = True
+        mock_new = AsyncMock()
+        mock_new.is_connected = True
+        mocks = _make_async_playwright_mock(
+            mock_browsers=[mock_old, mock_new]
+        )
+        mock_async_playwright.return_value = mocks[0].return_value
+
+        pool = BrowserPool(pool_size=1, max_uses=1)
+        await pool.initialize()
+        b1 = await pool.acquire()
+        await pool.release(b1)  # usage_count → 1, meets max_uses
+        b2 = await pool.acquire()  # should relaunch
+        assert b2 is mock_new
+        assert pool._usage_count[b2] == 0
+
+    def test_stats_property(self):
+        """stats returns correct dict."""
+        pool = BrowserPool(pool_size=3, max_uses=10)
+        stats = pool.stats
+        assert stats["pool_size"] == 3
+        assert stats["max_uses"] == 10
+        assert stats["initialized"] is False
+        assert stats["tracked_browsers"] == 0
+
+    @pytest.mark.asyncio
+    @patch("src.utils.browser_pool.async_playwright")
+    async def test_close_clears_usage_count(self, mock_async_playwright):
+        """close() clears _usage_count."""
+        mock_browser = AsyncMock()
+        mock_browser.is_connected = True
+        mocks = _make_async_playwright_mock(mock_browsers=[mock_browser])
+        mock_async_playwright.return_value = mocks[0].return_value
+
+        pool = BrowserPool(pool_size=1)
+        await pool.initialize()
+        pool._usage_count = {mock_browser: 3}
+        await pool.close()
+        assert pool._usage_count == {}

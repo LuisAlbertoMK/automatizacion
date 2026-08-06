@@ -8,6 +8,7 @@ import json
 import logging
 import logging.handlers
 import os
+import queue
 import re
 import time
 from datetime import datetime
@@ -61,9 +62,11 @@ class TramiteLogger:
         self.modulo = modulo
         self.verbose = verbose or os.getenv("VERBOSE", "false").lower() == "true"
 
-        # Python logging estándar (a archivo)
+        # Python logging estándar (a archivo) — QueueHandler para no bloquear el
+        # event loop; QueueListener ejecuta el I/O síncrono en un thread background.
         self._logger = logging.getLogger(f"tramites.{modulo}")
         if not self._logger.handlers:
+            self._log_queue: queue.Queue = queue.Queue(-1)
             fh = logging.handlers.RotatingFileHandler(
                 LOG_DIR / "tramites.log",
                 maxBytes=10 * 1024 * 1024,  # 10 MB
@@ -75,8 +78,19 @@ class TramiteLogger:
             ))
             if os.getenv("LOG_FORMAT") == "json":
                 fh.setFormatter(JsonFormatter())
-            self._logger.addHandler(fh)
+            self._queue_handler = logging.handlers.QueueHandler(self._log_queue)
+            self._queue_listener = logging.handlers.QueueListener(
+                self._log_queue, fh
+            )
+            self._queue_listener.start()
+            self._logger.addHandler(self._queue_handler)
             self._logger.setLevel(logging.DEBUG)
+            # Guardar referencia al file handler real (para tests/inspección)
+            self._file_handler = fh
+        else:
+            self._queue_handler = self._logger.handlers[0]
+            self._file_handler = None
+            self._queue_listener = None
 
     # Patrones PII para sanitización automática en archivo de log
     _PII_PATTERNS = [
@@ -95,6 +109,8 @@ class TramiteLogger:
     def _print(self, level: str, msg: str):
         color = self.COLORS.get(level, "")
         icon = self.ICONS.get(level, "")
+        if os.getenv("SANITIZE_STDOUT", "false").lower() == "true":
+            msg = self._sanitize(msg)
         print(f"  {color}[{self.modulo}] {icon} {msg}{Style.RESET_ALL}")
 
     def info(self, msg: str):
@@ -145,23 +161,47 @@ class TramiteMetrics:
         self._start = time.time()
 
     def finish(self, success: bool, extra: dict = None):
+        """Registra métrica (versión sync — para compatibilidad)."""
         if not self._start:
             return
-        elapsed = time.time() - self._start
         record = {
             "timestamp": datetime.now().isoformat(),
             "tramite": self._tramite,
             "success": success,
-            "elapsed_s": round(elapsed, 1),
+            "elapsed_s": round(time.time() - self._start, 1),
             **(extra or {}),
         }
+        self._write_metric_to_file(record)
+        self._start = None
+        return record
+
+    async def finish_async(self, success: bool, extra: dict = None):
+        """Registra métrica sin bloquear el event loop (file I/O en thread)."""
+        if not self._start:
+            return None
+        record = {
+            "timestamp": datetime.now().isoformat(),
+            "tramite": self._tramite,
+            "success": success,
+            "elapsed_s": round(time.time() - self._start, 1),
+            **(extra or {}),
+        }
+        try:
+            import asyncio
+            await asyncio.to_thread(self._write_metric_to_file, record)
+        except Exception:
+            logger.debug("Error escribiendo métrica async")
+        self._start = None
+        return record
+
+    @staticmethod
+    def _write_metric_to_file(record: dict):
+        """Escribe un registro de métrica a archivo (sync — para to_thread)."""
         try:
             with open(METRICS_FILE, "a", encoding="utf-8") as f:
                 f.write(json.dumps(record, ensure_ascii=False) + "\n")
         except Exception:
             logger.debug("Error limpiando logs viejos")
-        self._start = None
-        return record
 
     @staticmethod
     def resumen() -> dict:

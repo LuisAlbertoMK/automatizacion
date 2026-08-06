@@ -132,20 +132,43 @@ SENSITIVE_FIELDS = {"password", "secret", "token", "api_key", "imap_password"}
 def _hash_sensitive(profile: dict, alias: str = "") -> dict:
     """Hashea campos sensibles dentro del perfil.
 
-    Usa salt derivado del alias como antes, PERO el alias es
-    suficientemente único por perfil para evitar hashes idénticos.
+    Usa salt aleatorio por campo (secrets.token_hex) — nunca determinístico.
+    Migración lazy: verify_sensitive detecta y marca profiles con salt viejo.
     """
     _guard_rounds()
     safe = {}
     for k, v in profile.items():
         if isinstance(v, str) and any(s in k.lower() for s in SENSITIVE_FIELDS):
-            salt = hashlib.sha256(alias.encode()).hexdigest()[:16]
+            salt = secrets.token_hex(16)[:16]  # random per-field salt
             hashed = bcrypt.kdf(v.encode(), salt.encode(), 32, rounds=_HASH_ROUNDS)
             safe[f"_{k}_hash"] = base64.urlsafe_b64encode(hashed).decode()
             safe[f"_{k}_salt"] = salt
         else:
             safe[k] = v
     return safe
+
+
+def _is_deterministic_salt(salt: str, alias: str) -> bool:
+    """Detecta salt determinístico (sha256(alias)[:16]) usado por profiles legacy."""
+    expected = hashlib.sha256(alias.encode()).hexdigest()[:16]
+    return salt == expected
+
+
+def storage_needs_migration(alias: str) -> bool:
+    """Retorna True si el perfil usa salt determinístico (necesita migración).
+
+    Los profiles creados con el código anterior usaban sha256(alias)[:16] como
+    salt. Los nuevos usan secrets.token_hex. Este check permite migrar lazy.
+    """
+    all_profiles = _load_all()
+    profile = all_profiles.get(alias)
+    if not profile:
+        return False
+    for k, v in profile.items():
+        if k.endswith("_salt") and isinstance(v, str):
+            if _is_deterministic_salt(v, alias):
+                return True
+    return False
 
 
 def save_profile(alias: str, profile: dict):

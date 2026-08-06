@@ -4,6 +4,7 @@ import base64
 import hashlib
 import json
 import os
+import secrets
 from unittest.mock import patch
 
 import pytest
@@ -120,6 +121,75 @@ class TestVerifySensitive:
         save_profile("_test_nohash", {"curp": "ABC123"})
         # verify_sensitive sobre campo que nunca se guardó con hash
         assert verify_sensitive("_test_nohash", "password", "anything") is True
+
+
+class TestRandomSalt:
+    """M6: salt aleatorio por campo (no determinístico)."""
+
+    def test_salt_is_not_deterministic(self):
+        """Dos llamadas con el mismo alias producen salts diferentes."""
+        from src.utils.storage import _hash_sensitive
+
+        profile = {"password": "secret123"}
+        h1 = _hash_sensitive(profile, "_test_salt1")
+        h2 = _hash_sensitive(profile, "_test_salt1")
+        assert h1["_password_salt"] != h2["_password_salt"]
+
+    def test_verify_works_with_random_salt(self):
+        """verify_sensitive funciona con salt aleatorio."""
+        from src.utils.storage import save_profile, verify_sensitive
+
+        save_profile("_test_rs", {"api_key": "key123"})
+        assert verify_sensitive("_test_rs", "api_key", "key123") is True
+        assert verify_sensitive("_test_rs", "api_key", "wrong") is False
+
+    def test_salt_is_hex_16_chars(self):
+        """El salt es un hex string de 16 chars."""
+        from src.utils.storage import _hash_sensitive
+
+        h = _hash_sensitive({"password": "x"}, "_test_fmt")
+        salt = h["_password_salt"]
+        assert len(salt) == 16
+        int(salt, 16)  # parseable como hex
+
+    def test_is_deterministic_salt_detects_old(self):
+        """_is_deterministic_salt detecta sha256(alias)[:16]."""
+        from src.utils.storage import _is_deterministic_salt
+
+        alias = "_test_det"
+        old_salt = hashlib.sha256(alias.encode()).hexdigest()[:16]
+        assert _is_deterministic_salt(old_salt, alias) is True
+
+    def test_is_deterministic_salt_random_is_false(self):
+        """Salt aleatorio no es detectado como deterministic."""
+        from src.utils.storage import _is_deterministic_salt
+
+        assert _is_deterministic_salt(secrets.token_hex(16)[:16], "_any") is False
+
+    def test_storage_needs_migration_detected(self):
+        """storage_needs_migration detecta salt determinístico en profile."""
+        from src.utils.storage import storage_needs_migration
+
+        alias = "_test_mig"
+        old_salt = hashlib.sha256(alias.encode()).hexdigest()[:16]
+        with patch("src.utils.storage._load_all") as mock_load:
+            mock_load.return_value = {
+                alias: {"_password_hash": "abc", "_password_salt": old_salt}
+            }
+            assert storage_needs_migration(alias) is True
+
+    def test_storage_needs_migraton_false_for_random_salt(self):
+        """storage_needs_migration retorna False para salt aleatorio."""
+        from src.utils.storage import _save_all, storage_needs_migration
+
+        alias = "_test_nm"
+        _save_all({alias: {"_password_salt": secrets.token_hex(16)[:16]}})
+        assert storage_needs_migration(alias) is False
+
+    def test_storage_needs_migraton_false_nonexistent(self):
+        """storage_needs_migration retorna False para perfil inexistente."""
+        from src.utils.storage import storage_needs_migration
+        assert storage_needs_migration("_noexiste_xyz") is False
 
 
 class TestDeleteProfile:

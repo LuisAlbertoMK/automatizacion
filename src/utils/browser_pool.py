@@ -23,18 +23,23 @@ class BrowserPool:
     - Singleton pattern para compartir entre módulos
     """
     
-    def __init__(self, pool_size: int = 2, idle_timeout: int = 300):
+    def __init__(self, pool_size: int = 2, idle_timeout: int = 300,
+                 max_uses: int = 10):
         """
         Args:
             pool_size: Número de browsers a pre-lanzar (default: 2)
             idle_timeout: Segundos antes de cerrar browser inactivo (default: 300)
+            max_uses: Máximo número de usos antes de reciclar browser (default: 10).
+                Previene memory leak de cookies/cache/sesiones (200MB → 800MB+).
         """
         self.pool_size = pool_size
         self.idle_timeout = idle_timeout
+        self.max_uses = max_uses
         self._pool: Optional[asyncio.Queue] = None
         self._playwright: Optional[Playwright] = None
         self._initialized: bool = False
         self._last_used: dict[Browser, float] = {}
+        self._usage_count: dict[Browser, int] = {}
         self._lock: asyncio.Lock = asyncio.Lock()
         
     async def initialize(self):
@@ -49,6 +54,7 @@ class BrowserPool:
             for _ in range(self.pool_size):
                 browser = await self._playwright.firefox.launch(headless=True)
                 self._last_used[browser] = time.time()
+                self._usage_count[browser] = 0
                 await self._pool.put(browser)
                 
             self._initialized = True
@@ -75,6 +81,33 @@ class BrowserPool:
             return True
         return False
 
+    async def _check_lifecycle(self, browser: Browser) -> bool:
+        """Verifica health + max_uses. Retorna True si necesita relaunch.
+
+        - Health check: ``browser.is_connected`` (detecta crash/OOM/segfault)
+        - Max uses: recicla después de N usos para prevenir memory leak
+        """
+        needs_relaunch = False
+
+        if not browser.is_connected:
+            logger.warning("Browser desconectado — relanzando")
+            needs_relaunch = True
+        elif self._usage_count.get(browser, 0) >= self.max_uses:
+            logger.info(
+                f"Browser alcanzó max_uses={self.max_uses} — reciclando"
+            )
+            needs_relaunch = True
+
+        if needs_relaunch:
+            try:
+                await browser.close()
+            except Exception:
+                logger.debug("Error cerrando browser para relaunch")
+            self._last_used.pop(browser, None)
+            self._usage_count.pop(browser, None)
+
+        return needs_relaunch
+
     async def acquire(self) -> Browser:
         """Adquiere un browser del pool. Cierra inactivos sin bloquear el lock.
 
@@ -87,12 +120,14 @@ class BrowserPool:
         async with self._lock:
             assert self._pool is not None, "pool no inicializado"
             browser = await self._pool.get()
-            needs_relaunch = await self._close_idle_browser(browser)
+            needs_relaunch = await self._close_idle_browser(browser) \
+                or await self._check_lifecycle(browser)
 
         # Fase 2: relaunch FUERA del lock (puede tomar 3-5s)
         if needs_relaunch:
             assert self._playwright is not None, "playwright no inicializado"
             browser = await self._playwright.firefox.launch(headless=True)
+            self._usage_count[browser] = 0
 
         # Fase 3: actualizar timestamp
         async with self._lock:
@@ -101,10 +136,11 @@ class BrowserPool:
         return browser
         
     async def release(self, browser: Browser):
-        """Libera un browser de vuelta al pool."""
+        """Libera un browser de vuelta al pool. Incrementa contador de usos."""
         async with self._lock:
-            assert self._pool is not None, "pool no inicializado"
+            self._usage_count[browser] = self._usage_count.get(browser, 0) + 1
             self._last_used[browser] = time.time()
+            assert self._pool is not None, "pool no inicializado"
             await self._pool.put(browser)
             
     async def close(self):
@@ -124,6 +160,17 @@ class BrowserPool:
                 await self._playwright.stop()
             self._initialized = False
             self._last_used.clear()
+            self._usage_count.clear()
+
+    @property
+    def stats(self) -> dict:
+        """Stats del pool para monitoreo: tamaño, usage counts, connected."""
+        return {
+            "pool_size": self.pool_size,
+            "max_uses": self.max_uses,
+            "initialized": self._initialized,
+            "tracked_browsers": len(self._usage_count),
+        }
 
 
 _pool_instance: Optional[BrowserPool] = None
