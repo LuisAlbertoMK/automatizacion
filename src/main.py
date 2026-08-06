@@ -236,16 +236,28 @@ class Agente:
 
         resultados = {}
 
-        # CURP
+        # CURP (con cache LRU+TTL para evitar duplicación)
         from src.tramites.curp import CURPModule
-        modulo_curp = CURPModule(captcha_solver=self.solver)
-        res_curp    = await modulo_curp.consultar(curp=curp)
+        from src.utils.cache import TramiteCache
+        _cache = TramiteCache.get_instance()
+        res_curp = _cache.get("curp", (curp,))
+        if res_curp is None:
+            modulo_curp = CURPModule(captcha_solver=self.solver)
+            res_curp    = await modulo_curp.consultar(curp=curp)
+            _cache.set("curp", (curp,), res_curp)
+        else:
+            print(f"  {Fore.YELLOW}  CURP desde cache{Style.RESET_ALL}")
         resultados["curp"] = res_curp
 
-        # NSS
+        # NSS (con cache LRU+TTL)
         from src.tramites.nss import NSSModule
-        modulo_nss = NSSModule(captcha_solver=self.solver, mail_reader=self.mail_reader)
-        res_nss    = await modulo_nss.consultar(curp=curp, correo=correo)
+        res_nss = _cache.get("nss", (curp, correo))
+        if res_nss is None:
+            modulo_nss = NSSModule(captcha_solver=self.solver, mail_reader=self.mail_reader)
+            res_nss    = await modulo_nss.consultar(curp=curp, correo=correo)
+            _cache.set("nss", (curp, correo), res_nss)
+        else:
+            print(f"  {Fore.YELLOW}  NSS desde cache{Style.RESET_ALL}")
         resultados["nss"] = res_nss
 
         # Resumen

@@ -37,6 +37,15 @@ def _sin_delays(monkeypatch, request):
     monkeypatch.setattr(asyncio, "sleep", _noop)
 
 
+@pytest.fixture(autouse=True)
+def _reset_tramite_cache():
+    """Resetea TramiteCache singleton antes de cada test — isolation."""
+    from src.utils.cache import TramiteCache
+    TramiteCache.reset_instance()
+    yield
+    TramiteCache.reset_instance()
+
+
 @pytest.fixture
 def mock_page():
     """Mock de playwright Page — todos los métodos async son AsyncMock."""

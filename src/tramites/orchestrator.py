@@ -356,14 +356,26 @@ class TramitesOrchestrator:
 
         resultados = {}
 
-        # CURP
-        print("\n  [1/2] Ejecutando CURP...")
-        res_curp = await self._get_module("curp").consultar(curp=curp)
+        # CURP (con cache LRU+TTL para evitar duplicación)
+        from src.utils.cache import TramiteCache
+        _cache = TramiteCache.get_instance()
+        res_curp = _cache.get("curp", (curp,))
+        if res_curp is None:
+            print("\n  [1/2] Ejecutando CURP...")
+            res_curp = await self._get_module("curp").consultar(curp=curp)
+            _cache.set("curp", (curp,), res_curp)
+        else:
+            print("\n  [1/2] CURP desde cache")
         resultados["curp"] = res_curp
 
-        # NSS
-        print("\n  [2/2] Ejecutando NSS...")
-        res_nss = await self._get_module("nss").consultar(curp=curp, correo=correo)
+        # NSS (con cache LRU+TTL)
+        res_nss = _cache.get("nss", (curp, correo))
+        if res_nss is None:
+            print("\n  [2/2] Ejecutando NSS...")
+            res_nss = await self._get_module("nss").consultar(curp=curp, correo=correo)
+            _cache.set("nss", (curp, correo), res_nss)
+        else:
+            print("\n  [2/2] NSS desde cache")
         resultados["nss"] = res_nss
 
         # Resumen
