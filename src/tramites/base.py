@@ -499,31 +499,36 @@ class BaseModule:
         """)
         self.log("[OK] Token reCAPTCHA inyectado [OK]")
 
-    async def download_pdf(self, page: Page, selectors: list, output_path: Path, name: str = "PDF") -> Path | None:
-        """Busca botón de descarga PDF y lo descarga."""
-        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    async def _intentar_descargar_pdf(self, page, element, output_path, name, debug_prefix):
+        """Intenta descargar un PDF haciendo click en *element*.
 
-        for sel in selectors:
-            try:
-                loc = page.locator(sel)
-                if await loc.count() > 0 and await loc.first.is_visible():
-                    self.debug(f"Descargando con selector: {sel}")
-                    try:
-                        async with page.expect_download(timeout=30000) as dl_info:
-                            await loc.first.click()
-                        download = await dl_info.value
-                        await download.save_as(output_path)
-                        self.log(f"{name} descargado: {output_path} [OK]")
-                        self.open_pdf(output_path)
-                        return output_path
-                    except Exception as e:
-                        self.debug(f"download_pdf: error con selector {sel}: {e}")
-                        continue
-            except Exception as e:
-                self.debug(f"download_pdf: locator error en {sel}: {e}")
-                continue
+        Returns output_path on success, None on failure (caught exception).
+        debug_prefix: etiqueta para el mensaje de debug en caso de error.
+        """
+        try:
+            async with page.expect_download(timeout=30000) as dl_info:
+                await element.click()
+            download = await dl_info.value
+            await download.save_as(output_path)
+            self.log(f"{name} descargado: {output_path} [OK]")
+            self.open_pdf(output_path)
+            return output_path
+        except Exception as e:
+            self.debug(f"download_pdf: {debug_prefix}: {e}")
+            return None
 
-        # Fallback: buscar cualquier link/botón visible con keywords
+    @staticmethod
+    def _es_link_pdf(text: str, href: str, onclick: str) -> bool:
+        """Verifica si un link/botón parece un enlace de descarga PDF."""
+        keywords = ["imprimir", "pdf", "descargar", "generar"]
+        return (
+            any(k in text for k in keywords)
+            or "pdf" in href.lower()
+            or "imprimir" in onclick.lower()
+        )
+
+    async def _buscar_fallback(self, page, output_path, name):
+        """Fallback: busca links/botones visibles con keywords de PDF."""
         try:
             all_links = await page.query_selector_all("a, button")
             for link in all_links:
@@ -531,21 +536,46 @@ class BaseModule:
                     text = (await link.text_content() or "").lower()
                     href = await link.get_attribute("href") or ""
                     onclick = await link.get_attribute("onclick") or ""
-                    keywords = ["imprimir", "pdf", "descargar", "generar"]
-                    if any(k in text for k in keywords) or "pdf" in href.lower() or "imprimir" in onclick.lower():
-                        try:
-                            async with page.expect_download(timeout=30000) as dl_info:
-                                await link.click()
-                            download = await dl_info.value
-                            await download.save_as(output_path)
-                            self.log(f"{name} descargado: {output_path} [OK]")
-                            self.open_pdf(output_path)
-                            return output_path
-                        except Exception as e:
-                            self.debug(f"download_pdf: fallback click falló: {e}")
-                            continue
+                    if self._es_link_pdf(text, href, onclick):
+                        result = await self._intentar_descargar_pdf(
+                            page, link, output_path, name,
+                            "fallback click falló",
+                        )
+                        if result:
+                            return result
         except Exception as e:
             self.debug(f"Error en fallback de descarga: {e}")
+        return None
+
+    async def download_pdf(self, page: Page, selectors: list, output_path: Path, name: str = "PDF") -> Path | None:
+        """Busca botón de descarga PDF y lo descarga.
+
+        Pipeline:
+          1. Intenta selectors específicos (rápido, preciso)
+          2. Fallback a búsqueda de keywords en links/botones visibles
+        """
+        OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+        # Fase 1: probar selectors específicos
+        for sel in selectors:
+            try:
+                loc = page.locator(sel)
+                if await loc.count() > 0 and await loc.first.is_visible():
+                    self.debug(f"Descargando con selector: {sel}")
+                    result = await self._intentar_descargar_pdf(
+                        page, loc.first, output_path, name,
+                        f"error con selector {sel}",
+                    )
+                    if result:
+                        return result
+            except Exception as e:
+                self.debug(f"download_pdf: locator error en {sel}: {e}")
+                continue
+
+        # Fase 2: fallback por keywords
+        result = await self._buscar_fallback(page, output_path, name)
+        if result:
+            return result
 
         self.warn(f"No se encontró botón de descarga para {name}")
         return None
