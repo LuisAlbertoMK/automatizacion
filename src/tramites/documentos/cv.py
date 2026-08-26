@@ -149,7 +149,16 @@ Si falta información, usa placeholders descriptivos como "[Agregar empresa]".""
             section.left_margin = Inches(0.79)
             section.right_margin = Inches(0.79)
 
-        # ── Encabezado ──
+        # Construir secciones
+        self._builder_header(doc, cv)
+        self._builder_experiencia(doc, cv)
+        self._builder_educacion(doc, cv)
+        self._builder_habilidades(doc, cv)
+
+        return doc
+
+    def _builder_header(self, doc, cv):
+        """Construye el encabezado: nombre, título, contacto."""
         nombre = doc.add_paragraph()
         nombre.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = nombre.add_run(cv.get("nombre_completo", ""))
@@ -181,12 +190,12 @@ Si falta información, usa placeholders descriptivos como "[Agregar empresa]".""
                      alignment=WD_ALIGN_PARAGRAPH.CENTER)
             doc.paragraphs[-1].paragraph_format.space_after = Pt(12)
 
-        # ── Perfil Profesional ──
         _seccion(doc, "Perfil Profesional")
         _parrafo(doc, cv.get("resumen", ""))
         doc.paragraphs[-1].paragraph_format.space_after = Pt(8)
 
-        # ── Experiencia Laboral ──
+    def _builder_experiencia(self, doc, cv):
+        """Construye la sección de experiencia laboral."""
         _seccion(doc, "Experiencia Laboral")
         for exp in cv.get("experiencia", []):
             p = doc.add_paragraph()
@@ -217,7 +226,8 @@ Si falta información, usa placeholders descriptivos como "[Agregar empresa]".""
             for logro in exp.get("logros", []):
                 _bullet(doc, logro)
 
-        # ── Educación ──
+    def _builder_educacion(self, doc, cv):
+        """Construye la sección de educación."""
         _seccion(doc, "Educación")
         for ed in cv.get("educacion", []):
             p = doc.add_paragraph()
@@ -242,20 +252,18 @@ Si falta información, usa placeholders descriptivos como "[Agregar empresa]".""
 
             p.paragraph_format.space_after = Pt(4)
 
-        # ── Habilidades ──
+    def _builder_habilidades(self, doc, cv):
+        """Construye las secciones de habilidades e idiomas."""
         _seccion(doc, "Habilidades")
         habilidades = cv.get("habilidades", [])
         if habilidades:
             _parrafo(doc, "  •  ".join(habilidades))
             doc.paragraphs[-1].paragraph_format.space_after = Pt(8)
 
-        # ── Idiomas ──
         _seccion(doc, "Idiomas")
         idiomas = cv.get("idiomas", [])
         if idiomas:
             _parrafo(doc, "  •  ".join(idiomas))
-
-        return doc
 
     # ── Flujo interactivo ────────────────────────────────────────────────────
 
