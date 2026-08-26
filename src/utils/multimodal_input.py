@@ -133,45 +133,53 @@ class MultimodalInput:
                     validator=None) -> str:
         """
         Obtiene cualquier dato genérico.
-        
+
         Args:
             field_name: Nombre del campo
             mode: Modo de entrada
             validator: Función de validación opcional
-        
+
         Returns:
             Dato ingresado
         """
         if mode == "auto":
             mode = self._select_mode()
 
-        if mode == "text":
-            while True:
-                valor = input(f"  {field_name}: ").strip()
-                if not valor:
-                    print(f"  [!] {field_name} es requerido")
-                    continue
-                if validator and not validator(valor):
-                    print(f"  [!] Formato inválido para {field_name}")
-                    continue
-                return valor
-
-        elif mode == "voice":
-            if not self.voice:
-                raise VoiceInputError("Entrada por voz no disponible")
-            print(f"\n  🎤 Di tu {field_name}...")
-            texto = self.voice.listen_and_transcribe(duration=5)
-            return texto
-
-        elif mode == "image":
-            if not self.ocr:
-                raise OCRError("Entrada por imagen no disponible")
-            print(f"\n  📷 Toma foto con {field_name}...")
-            # Aquí iría la captura de imagen
-            raise NotImplementedError("Captura de imagen en desarrollo")
-
-        else:
+        handlers = {
+            "text": lambda: self._get_text_input(field_name, validator),
+            "voice": lambda: self._get_voice_input(field_name),
+            "image": lambda: self._get_image_input(field_name),
+        }
+        handler = handlers.get(mode)
+        if handler is None:
             raise ValueError(f"Modo inválido: {mode}")
+        return handler()
+
+    def _get_text_input(self, field_name: str, validator=None) -> str:
+        """Obtiene entrada de texto con validación."""
+        while True:
+            valor = input(f"  {field_name}: ").strip()
+            if not valor:
+                print(f"  [!] {field_name} es requerido")
+                continue
+            if validator and not validator(valor):
+                print(f"  [!] Formato inválido para {field_name}")
+                continue
+            return valor
+
+    def _get_voice_input(self, field_name: str) -> str:
+        """Obtiene entrada de voz."""
+        if not self.voice:
+            raise VoiceInputError("Entrada por voz no disponible")
+        print(f"\n  🎤 Di tu {field_name}...")
+        return self.voice.listen_and_transcribe(duration=5)
+
+    def _get_image_input(self, field_name: str) -> str:
+        """Obtiene entrada por imagen."""
+        if not self.ocr:
+            raise OCRError("Entrada por imagen no disponible")
+        print(f"\n  📷 Toma foto con {field_name}...")
+        raise NotImplementedError("Captura de imagen en desarrollo")
 
     # ──────────────────────────────────────────────────────────────
     # Métodos internos por modo
