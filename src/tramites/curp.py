@@ -282,67 +282,34 @@ class CURPModule(BaseModule):
 
         raise CURPError("No se encontr\u00f3 el bot\u00f3n de b\u00fasqueda")
 
-    async def _extraer_resultado(self, page: Page) -> dict:
-        """Extrae los datos de la p\u00e1gina de resultado usando HTML y OCR."""
-        await asyncio.sleep(1)
-        content = await page.content()
-        body_text = await page.inner_text("body")
+    @staticmethod
+    def _extraer_campo(text: str, label: str) -> str:
+        """Extrae un campo del texto usando regex label-based matching."""
+        m = re.search(
+            rf"{label}[:\s]+\s*([A-Za-z\u00c0-\u024f\u00f1\u00d1\s\d/]+?)(?:\n|$)",
+            text,
+        )
+        return m.group(1).strip() if m else ""
 
-        # Extraer CURP del resultado
+    def _extraer_campos_html(self, content: str, body_text: str) -> dict:
+        """Extrae todos los campos del HTML de la página de resultado."""
         curp_match = re.search(r"\b([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)\b", content)
         curp_val = curp_match.group(1) if curp_match else None
 
-        # Extraer todos los campos del resultado (portal gob.mx/curp nuevo)
-        def _campo(text: str, label: str) -> str:
-            m = re.search(
-                rf"{label}[:\s]+\s*([A-Za-z\u00c0-\u024f\u00f1\u00d1\s\d/]+?)(?:\n|$)",
-                text,
-            )
-            return m.group(1).strip() if m else ""
-
-        nombres = _campo(body_text, r"Nombre\(s\)")
-        primer_ap = _campo(body_text, r"Primer apellido")
-        segundo_ap = _campo(body_text, r"Segundo apellido")
-        sexo = _campo(body_text, r"Sexo")
-        fecha_nac = _campo(body_text, r"Fecha de nacimiento")
-        nacionalidad = _campo(body_text, r"Nacionalidad")
-        entidad_nac = _campo(body_text, r"Entidad de nacimiento")
-        doc_probatorio = _campo(body_text, r"Documento probatorio")
+        nombres = self._extraer_campo(body_text, r"Nombre\(s\)")
+        primer_ap = self._extraer_campo(body_text, r"Primer apellido")
+        segundo_ap = self._extraer_campo(body_text, r"Segundo apellido")
+        sexo = self._extraer_campo(body_text, r"Sexo")
+        fecha_nac = self._extraer_campo(body_text, r"Fecha de nacimiento")
+        nacionalidad = self._extraer_campo(body_text, r"Nacionalidad")
+        entidad_nac = self._extraer_campo(body_text, r"Entidad de nacimiento")
+        doc_probatorio = self._extraer_campo(body_text, r"Documento probatorio")
 
         nombre = f"{nombres} {primer_ap} {segundo_ap}".strip()
 
-        # Si no se encontraron datos, usar OCR como respaldo
-        if (not curp_val or not nombre) and self.use_ocr and self.ocr:
-            self.log("Usando OCR para extraer datos adicionales...")
-            try:
-                screenshot_path = "resultado_curp_temp.png"
-                await page.screenshot(path=screenshot_path, full_page=True)
-
-                ocr_data = self.ocr.extract_from_screenshot(screenshot_path)
-
-                if not curp_val and ocr_data.get("curp"):
-                    curp_val = ocr_data["curp"]
-                    self.debug(f"CURP extraída: {curp_val}")
-
-                if not nombre and ocr_data.get("raw_text"):
-                    nombres = _campo(ocr_data["raw_text"], r"Nombre\(s\)")
-                    primer_ap = _campo(ocr_data["raw_text"], r"Primer apellido")
-                    segundo_ap = _campo(ocr_data["raw_text"], r"Segundo apellido")
-                    nombre = f"{nombres} {primer_ap} {segundo_ap}".strip()
-                    if nombre:
-                        self.debug(f"Nombre extraído: {nombre}")
-
-                try:
-                    os.remove(screenshot_path)
-                except Exception:
-                    self.debug("Error procesando dato extra")
-            except Exception as e:
-                self.warn(f"Error al extraer datos: {e}")
-
-        curp_val = curp_val or "DESCONOCIDA"
-        result = {
+        return {
             "curp": curp_val,
-            "nombre": nombre or "",
+            "nombre": nombre,
             "nombres": nombres,
             "primer_apellido": primer_ap,
             "segundo_apellido": segundo_ap,
@@ -352,7 +319,69 @@ class CURPModule(BaseModule):
             "entidad_nacimiento": entidad_nac,
             "documento_probatorio": doc_probatorio,
         }
-        self.log(f"Resultado: CURP={curp_val}, Nombre={nombre or '(pendiente PDF)'}")
-        if sexo:
-            self.debug(f"+ {nombres} {primer_ap} {segundo_ap} | {sexo} | {fecha_nac}")
-        return result
+
+    async def _extraer_campos_ocr(self, page, campos: dict) -> dict:
+        """OCR fallback: actualiza campos faltantes desde screenshot."""
+        self.log("Usando OCR para extraer datos adicionales...")
+        try:
+            screenshot_path = "resultado_curp_temp.png"
+            await page.screenshot(path=screenshot_path, full_page=True)
+
+            ocr_data = self.ocr.extract_from_screenshot(screenshot_path)
+
+            if not campos["curp"] and ocr_data.get("curp"):
+                campos["curp"] = ocr_data["curp"]
+                self.debug(f"CURP extraída: {campos['curp']}")
+
+            if not campos["nombre"] and ocr_data.get("raw_text"):
+                campos["nombres"] = self._extraer_campo(
+                    ocr_data["raw_text"], r"Nombre\(s\)"
+                )
+                campos["primer_apellido"] = self._extraer_campo(
+                    ocr_data["raw_text"], r"Primer apellido"
+                )
+                campos["segundo_apellido"] = self._extraer_campo(
+                    ocr_data["raw_text"], r"Segundo apellido"
+                )
+                campos["nombre"] = (
+                    f"{campos['nombres']} {campos['primer_apellido']} "
+                    f"{campos['segundo_apellido']}"
+                ).strip()
+                if campos["nombre"]:
+                    self.debug(f"Nombre extraído: {campos['nombre']}")
+
+            try:
+                os.remove(screenshot_path)
+            except Exception:
+                self.debug("Error procesando dato extra")
+        except Exception as e:
+            self.warn(f"Error al extraer datos: {e}")
+
+        return campos
+
+    async def _extraer_resultado(self, page: Page) -> dict:
+        """Extrae los datos de la página de resultado usando HTML y OCR."""
+        await asyncio.sleep(1)
+        content = await page.content()
+        body_text = await page.inner_text("body")
+
+        campos = self._extraer_campos_html(content, body_text)
+
+        # Si no se encontraron datos, usar OCR como respaldo
+        if (not campos["curp"] or not campos["nombre"]) and self.use_ocr and self.ocr:
+            campos = await self._extraer_campos_ocr(page, campos)
+
+        campos["curp"] = campos["curp"] or "DESCONOCIDA"
+        campos["nombre"] = campos["nombre"] or ""
+
+        self.log(
+            f"Resultado: CURP={campos['curp']}, "
+            f"Nombre={campos['nombre'] or '(pendiente PDF)'}"
+        )
+        if campos["sexo"]:
+            self.debug(
+                f"+ {campos['nombres']} {campos['primer_apellido']} "
+                f"{campos['segundo_apellido']} | {campos['sexo']} | "
+                f"{campos['fecha_nacimiento']}"
+            )
+        return campos
