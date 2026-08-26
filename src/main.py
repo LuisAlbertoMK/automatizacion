@@ -619,6 +619,82 @@ async def modo_interactivo():
             print(f"  {Fore.RED}Error: {e}{Style.RESET_ALL}")
 
 
+# ── Kwargs builders for modo_directo ─────────────────────────────────────────────
+# Extraído del if/elif chain de modo_directo (E(24)) → dispatch table.
+
+_TRAMITES_CON_CURP = frozenset({
+    "curp", "acta_nacimiento", "pasaporte", "semanas",
+    "control_confianza", "cita_ine",
+})
+
+
+def _kwargs_curp_simple(tramite: str, args, perfil) -> dict:
+    """Tramites que solo necesitan CURP (curp, acta, pasaporte, semanas,
+    control_confianza, cita_ine)."""
+    curp = args.curp or (perfil and perfil.get("curp"))
+    if not curp:
+        print(f"Error: se requiere --curp para {tramite}")
+        sys.exit(1)
+    return {"curp": curp}
+
+
+def _kwargs_nss(args, perfil) -> dict:
+    """NSS necesita CURP + correo electrónico."""
+    curp = args.curp or (perfil and perfil.get("curp"))
+    correo = args.correo or (perfil and perfil.get("correo"))
+    if not curp or not correo:
+        print("Error: se requieren --curp y --correo")
+        sys.exit(1)
+    return {"curp": curp, "correo": correo}
+
+
+def _kwargs_rfc(args, perfil) -> dict:
+    """RFC necesita CURP."""
+    curp = args.curp or (perfil and perfil.get("curp"))
+    if not curp:
+        print("Error: se requiere --curp")
+        sys.exit(1)
+    return {"curp": curp}
+
+
+def _kwargs_buro_circulo(args, perfil) -> dict:
+    """Buró / Círculo necesitan RFC + CURP vía input interactivo."""
+    rfc = args.rfc or _type_rfc(input("RFC: "))
+    curp = args.curp or _type_curp(input("CURP: "))
+    return {"rfc": rfc, "curp": curp}
+
+
+def _kwargs_cita_sat(args, perfil) -> dict:
+    """Cita SAT necesita RFC (input) + CURP (opcional, default '')."""
+    rfc = args.rfc or input("RFC: ").strip().upper()
+    curp = args.curp or ""
+    return {"rfc": rfc, "curp": curp}
+
+
+_DIRECTO_KWARGS_BUILDERS = {
+    "nss": _kwargs_nss,
+    "rfc": _kwargs_rfc,
+    "buro": _kwargs_buro_circulo,
+    "circulo": _kwargs_buro_circulo,
+    "cita_sat": _kwargs_cita_sat,
+}
+
+
+def _construir_kwargs(tramite: str, args, perfil) -> dict:
+    """Dispatch table: mapa tramite → kwargs para orchestrator.consultar.
+
+    Usa _DIRECTO_KWARGS_BUILDERS para casos especializados; cae en
+    _kwargs_curp_simple para trámites que solo necesitan CURP; {} para
+    trámites sin kwargs (e.g. perfil=None, tramite=None).
+    """
+    builder = _DIRECTO_KWARGS_BUILDERS.get(tramite)
+    if builder:
+        return builder(args, perfil)
+    if tramite in _TRAMITES_CON_CURP:
+        return _kwargs_curp_simple(tramite, args, perfil)
+    return {}
+
+
 async def modo_directo(args):
     """Modo sin interacción para scripts y automatización.
 
@@ -640,45 +716,9 @@ async def modo_directo(args):
             print(f"Perfil '{args.perfil}' no encontrado.")
             sys.exit(1)
 
-    # Mapear args a kwargs del orchestrator
+    # Mapear args a kwargs del orchestrator via dispatch table
     tramite = args.tramite
-    kwargs = {}
-
-    if tramite in ("curp", "acta_nacimiento", "pasaporte", "semanas",
-                    "control_confianza", "cita_ine"):
-        curp = args.curp or (perfil and perfil.get("curp"))
-        if not curp:
-            print(f"Error: se requiere --curp para {tramite}")
-            sys.exit(1)
-        kwargs["curp"] = curp
-
-    elif tramite == "nss":
-        curp = args.curp or (perfil and perfil.get("curp"))
-        correo = args.correo or (perfil and perfil.get("correo"))
-        if not curp or not correo:
-            print("Error: se requieren --curp y --correo")
-            sys.exit(1)
-        kwargs["curp"] = curp
-        kwargs["correo"] = correo
-
-    elif tramite == "rfc":
-        curp = args.curp or (perfil and perfil.get("curp"))
-        if not curp:
-            print("Error: se requiere --curp")
-            sys.exit(1)
-        kwargs["curp"] = curp
-
-    elif tramite in ("buro", "circulo"):
-        rfc = args.rfc or _type_rfc(input("RFC: "))
-        curp = args.curp or _type_curp(input("CURP: "))
-        kwargs["rfc"] = rfc
-        kwargs["curp"] = curp
-
-    elif tramite == "cita_sat":
-        rfc = args.rfc or input("RFC: ").strip().upper()
-        curp = args.curp or ""
-        kwargs["rfc"] = rfc
-        kwargs["curp"] = curp
+    kwargs = _construir_kwargs(tramite, args, perfil)
 
     # Ejecutar via orchestrator (lazy loading)
     module = orchestrator._get_module(tramite)
