@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from src.utils.logger import (
     JsonFormatter,
+    SanitizingFormatter,
     TramiteLogger,
     TramiteMetrics,
     get_logger,  # noqa: E402
@@ -324,3 +325,54 @@ class TestTramiteLoggerFileHandler:
             count = len(log1._logger.handlers)
             log2 = TramiteLogger("test")
             assert len(log2._logger.handlers) == count  # same logger, no dup handlers
+
+
+class TestSanitizingFormatter:
+    """M5-S1: SanitizingFormatter — PII in tracebacks must be masked."""
+
+    def test_curp_in_traceback_is_masked(self):
+        """CURP in traceback text → masked as GODE****."""
+        formatter = SanitizingFormatter("%(message)s")
+        try:
+            raise ValueError("Error processing CURP GODE561231HDFRRN09")
+        except ValueError:
+            import sys
+            exc_info = sys.exc_info()
+            formatted = formatter.formatException(exc_info)
+        assert "GODE561231HDFRRN09" not in formatted
+        assert "GODE****" in formatted
+
+    def test_email_in_traceback_is_masked(self):
+        """Email in traceback text → masked as a***@domain."""
+        formatter = SanitizingFormatter("%(message)s")
+        try:
+            raise RuntimeError("SMTP error for user@example.com")
+        except RuntimeError:
+            import sys
+            exc_info = sys.exc_info()
+            formatted = formatter.formatException(exc_info)
+        assert "user@example.com" not in formatted
+        assert "u***@example.com" in formatted
+
+    def test_nss_in_traceback_is_masked(self):
+        """11-digit NSS in traceback text → masked as first5******."""
+        formatter = SanitizingFormatter("%(message)s")
+        try:
+            raise RuntimeError("NSS lookup failed for 12345678901")
+        except RuntimeError:
+            import sys
+            exc_info = sys.exc_info()
+            formatted = formatter.formatException(exc_info)
+        assert "12345678901" not in formatted
+        assert "12345******" in formatted
+
+
+class TestFileHandlerUsesSanitizingFormatter:
+    """Verify the RotatingFileHandler uses SanitizingFormatter, not plain Formatter."""
+
+    def test_file_handler_uses_sanitizing_formatter(self, tmp_path):
+        """File handler formatter is SanitizingFormatter instance (M5 fix)."""
+        with patch("src.utils.logger.LOG_DIR", tmp_path):
+            log = TramiteLogger("m5_test_mod")
+        if log._file_handler:
+            assert isinstance(log._file_handler.formatter, SanitizingFormatter)

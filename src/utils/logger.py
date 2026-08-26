@@ -32,6 +32,21 @@ class JsonFormatter(logging.Formatter):
             log_entry.update(record.extra_data)
         return json.dumps(log_entry, ensure_ascii=False)
 
+
+class SanitizingFormatter(logging.Formatter):
+    """Formatter that sanitizes PII from tracebacks (exc_info).
+
+    When exc_info=True is passed to logger.error(), Python's logging framework
+    appends the traceback to the log output via formatException(). This subclass
+    overrides formatException() to pass the traceback through _sanitize(), closing
+    the M5 gap where PII in exception messages leaked to log files unsanitized.
+    """
+
+    def formatException(self, exc_info):
+        """Format traceback and sanitize PII before returning."""
+        formatted = super().formatException(exc_info)
+        return TramiteLogger._sanitize(formatted)
+
 # ── Directorio de logs ──────────────────────────────────────────────────
 LOG_DIR = Path(os.getenv("LOG_DIR", "./logs"))
 LOG_DIR.mkdir(exist_ok=True)
@@ -73,7 +88,7 @@ class TramiteLogger:
                 backupCount=5,
                 encoding="utf-8",
             )
-            fh.setFormatter(logging.Formatter(
+            fh.setFormatter(SanitizingFormatter(
                 "%(asctime)s [%(name)s] %(levelname)s: %(message)s"
             ))
             if os.getenv("LOG_FORMAT") == "json":
