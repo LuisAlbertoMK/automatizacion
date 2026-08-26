@@ -128,42 +128,20 @@ class PredialCDMXModule(BaseModule):
     async def _parsear_adeudo(self, page: Page, cuenta: str = "", clu: str = "") -> dict:
         """Parsea el resultado de la consulta de adeudo."""
         await asyncio.sleep(1)
-        try:
-            content = await page.content()
-        except Exception:
-            content = ""
-        try:
-            body_text = await page.inner_text("body")
-        except Exception:
-            body_text = ""
+        content, body_text = await self._extraer_contenido(page)
 
         texto = re.sub(r"<[^>]+>", " ", content)
         texto = re.sub(r"\s+", " ", texto)
 
-        sin_adeudo = bool(
-            re.search(r"sin adeudo", texto, re.IGNORECASE)
-            or re.search(r"sin adeudo", body_text, re.IGNORECASE)
-        )
+        sin_adeudo = self._calcular_sin_adeudo(texto, body_text)
 
         montos = re.findall(MONTO_RE, texto) + re.findall(MONTO_RE, body_text)
         montos = list(dict.fromkeys(montos))
 
         ejercicios = list(dict.fromkeys(re.findall(r"\b(20\d{2})\b", body_text)))
 
-        adeudos = []
-        if montos and not sin_adeudo:
-            for monto in montos:
-                adeudos.append({
-                    "ejercicio": ejercicios[0] if ejercicios else None,
-                    "monto": monto,
-                })
-
-        if sin_adeudo:
-            adeudo_actual = False
-        elif montos:
-            adeudo_actual = True
-        else:
-            adeudo_actual = None
+        adeudos = self._construir_adeudos(montos, sin_adeudo, ejercicios)
+        adeudo_actual = self._determinar_adeudo_actual(sin_adeudo, montos)
 
         return {
             "status": "ok",
@@ -176,3 +154,41 @@ class PredialCDMXModule(BaseModule):
             "ejercicios": ejercicios,
             "adeudos": adeudos,
         }
+
+    async def _extraer_contenido(self, page: Page) -> tuple[str, str]:
+        """Extrae HTML y texto del body de la página, tolerando errores."""
+        try:
+            content = await page.content()
+        except Exception:
+            content = ""
+        try:
+            body_text = await page.inner_text("body")
+        except Exception:
+            body_text = ""
+        return content, body_text
+
+    @staticmethod
+    def _calcular_sin_adeudo(texto: str, body_text: str) -> bool:
+        """Verifica si la respuesta indica 'sin adeudo'."""
+        return bool(
+            re.search(r"sin adeudo", texto, re.IGNORECASE)
+            or re.search(r"sin adeudo", body_text, re.IGNORECASE)
+        )
+
+    @staticmethod
+    def _construir_adeudos(montos: list, sin_adeudo: bool, ejercicios: list) -> list:
+        """Construye la lista de adeudos a partir de montos detectados."""
+        if not (montos and not sin_adeudo):
+            return []
+        ejercicio = ejercicios[0] if ejercicios else None
+        return [{"ejercicio": ejercicio, "monto": monto} for monto in montos]
+
+    @staticmethod
+    def _determinar_adeudo_actual(sin_adeudo: bool, montos: list):
+        """Determina el estado de adeudo actual."""
+        if sin_adeudo:
+            return False
+        elif montos:
+            return True
+        else:
+            return None
