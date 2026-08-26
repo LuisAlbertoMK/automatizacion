@@ -219,6 +219,57 @@ def _safe_input(msg):
     return input(msg)
 
 
+# ── Menú interactivo: dispatch tables ─────────────────────────────────────────────
+# Extraído del if/elif chain (E(30)) de modo_interactivo para reducir
+# complejidad ciclomática.
+
+_MENU_LINEAS = (
+    "  1)  CURP - Consulta y descarga",
+    "  2)  NSS - Número de Seguridad Social",
+    "  3)  Antecedentes No Penales",
+    "  4)  Tenencia Vehicular",
+    "  5)  CURP + NSS (ambos)",
+    "  ── Migrados ──",
+    "  6)  RFC SAT",
+    "  7)  Acta de Nacimiento (RENAPO)",
+    "  8)  Cita Pasaporte SRE",
+    "  9)  Semanas Cotizadas IMSS",
+    "  10) Control de Confianza (SESNSP)",
+    "  11) Buró de Crédito",
+    "  12) Círculo de Crédito",
+    "  13) Cita INE",
+    "  14) Cita SAT",
+    "  15) Cédula Profesional SEP",
+    "  16) Predial CDMX (consulta de adeudo)",
+    "  ── Documentos ──",
+    "  17) CV - Generar CV profesional con IA",
+    "  18) Escrito - Carta / Contrato / Documento legal con IA",
+    "  ──",
+    "  0)  Salir",
+)
+
+_MENU_TRAMITES = {
+    "1": "curp",
+    "2": "nss",
+    "3": "antecedentes",
+    "4": "tenencia",
+    "5": "ambos",
+    "6": "rfc",
+    "7": "acta_nacimiento",
+    "8": "pasaporte",
+    "9": "semanas",
+    "10": "control_confianza",
+    "11": "buro",
+    "12": "circulo",
+    "13": "cita_ine",
+    "14": "cita_sat",
+    "15": "cedula_profesional",
+    "16": "predial_cdmx",
+}
+
+_EXIT_OPCIONES = frozenset({"0", "salir", "exit"})
+
+
 class TramitesOrchestrator:
     """Orquestador de trámites gubernamentales con entrada multimodal."""
 
@@ -454,105 +505,64 @@ class TramitesOrchestrator:
         gen = EscritoGenerator()
         return gen.generar_interactivo()
 
+    def _seleccionar_modo(self) -> str:
+        """Selecciona modo de entrada (text/voice/image) según multimodal.
+
+        No consumes input si multimodal no está disponible → devuelve "text".
+        """
+        if not self.multimodal:
+            return "text"
+        print("\n  Modo de entrada:")
+        print("  1) Texto (teclado)")
+        if self.multimodal.voice:
+            print("  2) Voz (micrófono)")
+        if self.multimodal.ocr:
+            print("  3) Imagen (foto/archivo)")
+        modo_opcion = _safe_input("  Modo: ").strip()
+        if modo_opcion == "2" and self.multimodal.voice:
+            return "voice"
+        if modo_opcion == "3" and self.multimodal.ocr:
+            return "image"
+        return "text"
+
+    async def _ejecutar_opcion(self, opcion: str, modo: str):
+        """Ejecuta la opción seleccionada del menú interactivo.
+
+        Dispatch via _MENU_TRAMITES dict (16 options) + explicit handlers
+        for CV (17) and escrito (18) + invalid case.
+        """
+        tramite = _MENU_TRAMITES.get(opcion)
+        if tramite:
+            await self.ejecutar_tramite(tramite, modo)
+        elif opcion == "17":
+            await self.generar_cv_interactivo()
+        elif opcion == "18":
+            await self.generar_escrito_interactivo()
+        else:
+            print("  Opción inválida")
+
     async def modo_interactivo(self):
         """Modo interactivo con menú de opciones (async)."""
-        print("\n" + "="*60)
+        print("\n" + "=" * 60)
         print("  SISTEMA DE TRÁMITES GUBERNAMENTALES")
         print("  Entrada Multimodal: Texto, Voz, Imagen")
-        print("="*60)
+        print("=" * 60)
 
         while True:
             print("\n  Trámites disponibles:")
-            print("  1)  CURP - Consulta y descarga")
-            print("  2)  NSS - Número de Seguridad Social")
-            print("  3)  Antecedentes No Penales")
-            print("  4)  Tenencia Vehicular")
-            print("  5)  CURP + NSS (ambos)")
-            print("  ── Migrados ──")
-            print("  6)  RFC SAT")
-            print("  7)  Acta de Nacimiento (RENAPO)")
-            print("  8)  Cita Pasaporte SRE")
-            print("  9)  Semanas Cotizadas IMSS")
-            print("  10) Control de Confianza (SESNSP)")
-            print("  11) Buró de Crédito")
-            print("  12) Círculo de Crédito")
-            print("  13) Cita INE")
-            print("  14) Cita SAT")
-            print("  15) Cédula Profesional SEP")
-            print("  16) Predial CDMX (consulta de adeudo)")
-            print("  ── Documentos ──")
-            print("  17) CV - Generar CV profesional con IA")
-            print("  18) Escrito - Carta / Contrato / Documento legal con IA")
-            print("  ──")
-            print("  0)  Salir")
+            for linea in _MENU_LINEAS:
+                print(linea)
 
             opcion = _safe_input("\n  Selecciona opción: ").strip()
 
-            if opcion in ("0", "salir", "exit"):
+            if opcion in _EXIT_OPCIONES:
                 print("  Hasta luego.")
                 break
 
-            # Seleccionar modo de entrada
-            if self.multimodal:
-                print("\n  Modo de entrada:")
-                print("  1) Texto (teclado)")
-                if self.multimodal.voice:
-                    print("  2) Voz (micrófono)")
-                if self.multimodal.ocr:
-                    print("  3) Imagen (foto/archivo)")
+            modo = self._seleccionar_modo()
 
-                modo_opcion = _safe_input("  Modo: ").strip()
-
-                if modo_opcion == "2" and self.multimodal.voice:
-                    modo = "voice"
-                elif modo_opcion == "3" and self.multimodal.ocr:
-                    modo = "image"
-                else:
-                    modo = "text"
-            else:
-                modo = "text"
-
-            # Ejecutar trámite
             try:
-                if opcion == "1":
-                    await self.ejecutar_tramite("curp", modo)
-                elif opcion == "2":
-                    await self.ejecutar_tramite("nss", modo)
-                elif opcion == "3":
-                    await self.ejecutar_tramite("antecedentes", modo)
-                elif opcion == "4":
-                    await self.ejecutar_tramite("tenencia", modo)
-                elif opcion == "5":
-                    await self.ejecutar_tramite("ambos", modo)
-                elif opcion == "6":
-                    await self.ejecutar_tramite("rfc", modo)
-                elif opcion == "7":
-                    await self.ejecutar_tramite("acta_nacimiento", modo)
-                elif opcion == "8":
-                    await self.ejecutar_tramite("pasaporte", modo)
-                elif opcion == "9":
-                    await self.ejecutar_tramite("semanas", modo)
-                elif opcion == "10":
-                    await self.ejecutar_tramite("control_confianza", modo)
-                elif opcion == "11":
-                    await self.ejecutar_tramite("buro", modo)
-                elif opcion == "12":
-                    await self.ejecutar_tramite("circulo", modo)
-                elif opcion == "13":
-                    await self.ejecutar_tramite("cita_ine", modo)
-                elif opcion == "14":
-                    await self.ejecutar_tramite("cita_sat", modo)
-                elif opcion == "15":
-                    await self.ejecutar_tramite("cedula_profesional", modo)
-                elif opcion == "16":
-                    await self.ejecutar_tramite("predial_cdmx", modo)
-                elif opcion == "17":
-                    await self.generar_cv_interactivo()
-                elif opcion == "18":
-                    await self.generar_escrito_interactivo()
-                else:
-                    print("  Opción inválida")
-
+                await self._ejecutar_opcion(opcion, modo)
             except KeyboardInterrupt:
                 print("\n  Trámite cancelado")
             except Exception as e:
