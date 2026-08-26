@@ -10,10 +10,16 @@ Uso:
 
 import json
 import os
+import re
 
 import httpx
 
 from src.exceptions import ClaudeError
+
+# Anthropic API key format: sk-ant-api-<alphanumeric segments>
+# Real keys are 100+ chars; we validate prefix + min length + segment chars.
+_ANTHROPIC_KEY_PATTERN = re.compile(r"^sk-ant-api-[A-Za-z0-9_-]{10,}$")
+_ANTHROPIC_KEY_MIN_LENGTH = 50
 
 ANTHROPIC_VERSION = "2023-06-01"
 DEFAULT_MODEL = "claude-sonnet-4-20250514"
@@ -28,6 +34,36 @@ def _get_httpx_client(timeout: int = DEFAULT_TIMEOUT) -> httpx.Client:
     if _httpx_client is None:
         _httpx_client = httpx.Client(timeout=timeout)
     return _httpx_client
+
+
+def _validate_api_key(api_key: str) -> None:
+    """Validates that the provided API key matches Anthropic's format.
+
+    Raises:
+        ClaudeError: If the key is empty, too short, or has wrong format.
+    """
+    _MISSING_MSG = (
+        "ANTHROPIC_API_KEY no configurada o inválida.\n"
+        "  1. Configurá ANTHROPIC_API_KEY en config.env o Windows Credential Manager\n"
+        "  2. Obtené tu API key en https://console.anthropic.com"
+    )
+    _SHORT_MSG = (
+        "ANTHROPIC_API_KEY es demasiado corta (mínimo {} caracteres).\n"
+        "  1. Configurá ANTHROPIC_API_KEY en config.env o Windows Credential Manager\n"
+        "  2. Obtené tu API key en https://console.anthropic.com"
+    ).format(_ANTHROPIC_KEY_MIN_LENGTH)
+    _FORMAT_MSG = (
+        "ANTHROPIC_API_KEY inválida — el formato es incorrecto.\n"
+        "  La clave debe comenzar con 'sk-ant-api-' y contener al menos 10 caracteres alfanuméricos.\n"
+        "  1. Obtené tu API key en https://console.anthropic.com"
+    )
+
+    if not api_key:
+        raise ClaudeError(_MISSING_MSG)
+    if len(api_key) < _ANTHROPIC_KEY_MIN_LENGTH:
+        raise ClaudeError(_SHORT_MSG)
+    if not _ANTHROPIC_KEY_PATTERN.match(api_key):
+        raise ClaudeError(_FORMAT_MSG)
 
 
 def call_claude(
@@ -52,12 +88,7 @@ def call_claude(
         ClaudeError: Si hay error de API, timeout, o parseo
     """
     api_key = os.getenv("ANTHROPIC_API_KEY", "")
-    if not api_key or not api_key.startswith("sk-ant-"):
-        raise ClaudeError(
-            "ANTHROPIC_API_KEY no configurada o inválida.\n"
-            "  1. Configurá ANTHROPIC_API_KEY en config.env o Windows Credential Manager\n"
-            "  2. Obtené tu API key en https://console.anthropic.com"
-        )
+    _validate_api_key(api_key)
 
     url = "https://api.anthropic.com/v1/messages"
     headers = {

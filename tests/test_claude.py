@@ -6,13 +6,13 @@ from unittest.mock import MagicMock, patch
 import httpx
 import pytest
 
-from src.utils.claude import ClaudeError, call_claude
+from src.utils.claude import ClaudeError, _validate_api_key, call_claude
 
 
 @pytest.fixture(autouse=True)
 def setup_key():
     """Asegura ANTHROPIC_API_KEY para tests que lo necesitan."""
-    os.environ["ANTHROPIC_API_KEY"] = "sk-ant-test-key-12345"
+    os.environ["ANTHROPIC_API_KEY"] = "sk-ant-api-0P1xYz-test-abc123-456def78901234567890"
     yield
     os.environ.pop("ANTHROPIC_API_KEY", None)
 
@@ -60,7 +60,7 @@ class TestCallClaude:
         assert args[0] == "https://api.anthropic.com/v1/messages"
         assert kwargs["json"]["model"] == "claude-sonnet-4"
         assert kwargs["json"]["max_tokens"] == 500
-        assert kwargs["headers"]["x-api-key"] == "sk-ant-test-key-12345"
+        assert kwargs["headers"]["x-api-key"] == "sk-ant-api-0P1xYz-test-abc123-456def78901234567890"
         assert kwargs["headers"]["anthropic-version"] == "2023-06-01"
 
     def test_strips_markdown_backticks(self, mock_client):
@@ -78,11 +78,26 @@ class TestCallClaude:
         with pytest.raises(ClaudeError, match="ANTHROPIC_API_KEY no configurada"):
             call_claude([])
 
-    def test_raises_on_invalid_api_key_prefix(self):
-        """Key que no empieza con sk-ant- → ClaudeError."""
-        os.environ["ANTHROPIC_API_KEY"] = "invalid-key"
-        with pytest.raises(ClaudeError, match="ANTHROPIC_API_KEY no configurada"):
+    def test_raises_on_key_too_short(self):
+        """Key con prefijo correcto pero <50 chars → ClaudeError."""
+        os.environ["ANTHROPIC_API_KEY"] = "sk-ant-api-short"
+        with pytest.raises(ClaudeError, match="demasiado corta"):
             call_claude([])
+
+    def test_raises_on_wrong_prefix(self):
+        """Key con sk-ant- pero no sk-ant-api- → ClaudeError."""
+        os.environ["ANTHROPIC_API_KEY"] = "sk-ant-old-key-format-with-sufficient-length-12345678901234567890123456"
+        with pytest.raises(ClaudeError, match="inválida"):
+            call_claude([])
+
+    def test_valid_key_passes_validation(self, mock_client):
+        """Key con formato válido → pasa validación, retorna JSON."""
+        mock_client.post.return_value = MagicMock(**_ok_response(
+            '{"validated": true}'
+        ))
+
+        result = call_claude([{"role": "user", "content": "test"}])
+        assert result == {"validated": True}
 
     def test_raises_on_timeout(self, mock_client):
         """httpx.TimeoutException → ClaudeError."""
@@ -126,3 +141,31 @@ class TestCallClaude:
 
         with pytest.raises(ClaudeError, match="Claude no devolvió JSON válido"):
             call_claude([{"role": "user", "content": "test"}])
+
+
+class TestValidateApiKey:
+    """Unit tests for _validate_api_key() — no HTTP mocking needed."""
+
+    def test_empty_key_raises(self):
+        with pytest.raises(ClaudeError, match="no configurada"):
+            _validate_api_key("")
+
+    def test_none_key_raises(self):
+        with pytest.raises(ClaudeError, match="no configurada"):
+            _validate_api_key(None)  # type: ignore[arg-type]
+
+    def test_short_key_raises(self):
+        with pytest.raises(ClaudeError, match="demasiado corta"):
+            _validate_api_key("sk-ant-api-abc123")
+
+    def test_wrong_prefix_raises(self):
+        with pytest.raises(ClaudeError, match="inválida"):
+            _validate_api_key("sk-ant-old-format-key-very-long-string-12345678901234567890123456")
+
+    def test_valid_key_passes(self):
+        _validate_api_key("sk-ant-api-0P1xYz-test-abc123-456def78901234567890")
+        # No exception = pass
+
+    def test_key_with_underscores_valid(self):
+        _validate_api_key("sk-ant-api-0123456789_ABCD-efgh-ijkl-mnop-qrstuvwxYz")
+        # No exception = pass
