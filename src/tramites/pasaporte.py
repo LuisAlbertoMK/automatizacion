@@ -66,7 +66,11 @@ class PasaporteModule(BaseModule):
     async def _run(self, page, curp: str, nombre: str = "", apellido_paterno: str = "",
                    apellido_materno: str = "", estado: str = "MEX",
                    telefono: str = "", email: str = "") -> dict:
-        """Flujo principal de cita de pasaporte."""
+        """Flujo principal de cita de pasaporte.
+
+        Pipeline: navegar → click → estado → captcha → fecha → horario →
+        datos personales → reCAPTCHA → PDF → resultado.
+        """
 
         # ── 1. Navegar al portal ──────────────────────────────
         self.log("Abriendo portal SRE pasaporte...")
@@ -80,11 +84,47 @@ class PasaporteModule(BaseModule):
             "a:has-text('Agendar')",
         ], wait_nav=True)
 
-        # ── 3. Seleccionar estado/delegación ───────────────────
+        # ── 3-8. Fases secuenciales ───────────────────────────
+        await self._seleccionar_estado(page, estado)
+        await self.resolve_image_captcha(
+            page,
+            img_selectors=[".captcha img", "#captcha img", "img[src*='captcha']"],
+            input_selectors=["input[name='captcha']", "#captcha"],
+            captcha_name="Pasaporte",
+        )
+        await page.wait_for_timeout(3000)
+        await self._seleccionar_fecha(page)
+        await self._seleccionar_horario(page)
+        await self._llenar_datos_personales(
+            page, nombre, apellido_paterno, apellido_materno, curp, telefono, email,
+        )
+        await self._manejar_recaptcha(page)
+
+        # ── 9. Descargar comprobante ───────────────────────────
+        pdf_path = await self.download_pdf(
+            page, [
+                "a:has-text('Descargar')",
+                "button:has-text('Descargar')",
+                "a:has-text('Comprobante')",
+                "a[href$='.pdf']",
+                "#btnDescargar",
+            ],
+            OUTPUT_DIR / f"Pasaporte_{curp[:8]}.pdf",
+            name="Cita PDF",
+        )
+
+        return {
+            "status": "cita_agendada",
+            "curp": curp.upper(),
+            "pdf_path": str(pdf_path) if pdf_path else None,
+        }
+
+    async def _seleccionar_estado(self, page, estado: str):
+        """Selecciona estado/delegación del formulario."""
         try:
             await page.wait_for_selector(
                 "select[name='delegacion'], select[name='estado'], #delegacion",
-                timeout=15000
+                timeout=15000,
             )
             selectors = ["select[name='delegacion']", "select[name='estado']", "#delegacion"]
             for sel in selectors:
@@ -99,18 +139,8 @@ class PasaporteModule(BaseModule):
         except Exception as e:
             self.debug(f"Selector de estado no encontrado: {e}")
 
-        # ── 4. Captcha ─────────────────────────────────────────
-        await self.resolve_image_captcha(
-            page,
-            img_selectors=[".captcha img", "#captcha img", "img[src*='captcha']"],
-            input_selectors=["input[name='captcha']", "#captcha"],
-            captcha_name="Pasaporte"
-        )
-
-        # Esperar a que cargue el calendario
-        await page.wait_for_timeout(3000)
-
-        # ── 5. Seleccionar fecha disponible ────────────────────
+    async def _seleccionar_fecha(self, page):
+        """Selecciona el primer slot de fecha disponible."""
         try:
             primer_slot = await page.query_selector(
                 ".fecha-disponible:not(.ocupada), td.disponible, button.dia-disponible, .horario-libre"
@@ -122,7 +152,8 @@ class PasaporteModule(BaseModule):
         except Exception as e:
             self.debug(f"No se pudo seleccionar fecha: {e}")
 
-        # ── 6. Seleccionar horario disponible ──────────────────
+    async def _seleccionar_horario(self, page):
+        """Selecciona el horario disponible (select o click)."""
         try:
             horario = await page.query_selector(
                 ".horario-disponible:not(.ocupado), .hora-disponible, select[name='hora']"
@@ -139,56 +170,27 @@ class PasaporteModule(BaseModule):
         except Exception as e:
             self.debug(f"No se pudo seleccionar horario: {e}")
 
-        # ── 7. Llenar datos personales ─────────────────────────
-        await self.fill_field(page, [
-            "input[name='nombre']",
-            "#nombre",
-        ], nombre)
-        await self.fill_field(page, [
-            "input[name='apPat']",
-            "#apellidoPaterno",
-            "input[name='apellidoPaterno']",
-        ], apellido_paterno)
-        await self.fill_field(page, [
-            "input[name='apMat']",
-            "#apellidoMaterno",
-            "input[name='apellidoMaterno']",
-        ], apellido_materno)
-        await self.fill_field(page, [
-            "input[name='curp']",
-            "#curp",
-        ], curp.upper().strip())
-        await self.fill_field(page, [
-            "input[name='telefono']",
-            "#telefono",
-        ], telefono)
-        await self.fill_field(page, [
-            "input[name='email']",
-            "#email",
-            "input[type='email']",
-        ], email)
+    async def _llenar_datos_personales(self, page, nombre, apellido_paterno,
+                                        apellido_materno, curp, telefono, email):
+        """Llena todos los campos del formulario con datos personales."""
+        await self.fill_field(page, ["input[name='nombre']", "#nombre"], nombre)
+        await self.fill_field(
+            page, ["input[name='apPat']", "#apellidoPaterno", "input[name='apellidoPaterno']"],
+            apellido_paterno,
+        )
+        await self.fill_field(
+            page, ["input[name='apMat']", "#apellidoMaterno", "input[name='apellidoMaterno']"],
+            apellido_materno,
+        )
+        await self.fill_field(page, ["input[name='curp']", "#curp"], curp.upper().strip())
+        await self.fill_field(page, ["input[name='telefono']", "#telefono"], telefono)
+        await self.fill_field(
+            page, ["input[name='email']", "#email", "input[type='email']"], email,
+        )
 
-        # ── 8. Esperar confirmación manual si aplica reCAPTCHA ─
+    async def _manejar_recaptcha(self, page):
+        """Si hay reCAPTCHA, espera resolución manual del usuario."""
         self.log("Si hay reCAPTCHA, resolvelo en el navegador...")
         site_key = await self.detect_site_key(page)
         if site_key:
             await self.wait_for_recaptcha(page, max_wait=120, module_name=self.name)
-
-        # ── 9. Descargar comprobante ───────────────────────────
-        pdf_path = await self.download_pdf(
-            page, [
-                "a:has-text('Descargar')",
-                "button:has-text('Descargar')",
-                "a:has-text('Comprobante')",
-                "a[href$='.pdf']",
-                "#btnDescargar",
-            ],
-            OUTPUT_DIR / f"Pasaporte_{curp[:8]}.pdf",
-            name="Cita PDF"
-        )
-
-        return {
-            "status": "cita_agendada",
-            "curp": curp.upper(),
-            "pdf_path": str(pdf_path) if pdf_path else None,
-        }
