@@ -179,6 +179,69 @@ class FreeCaptchaSolver:
     # reCAPTCHA v2 audio challenge solver (IMSS, Antecedentes)
     # ────────────────────────────────────────────────────────────
 
+    @staticmethod
+    async def _find_audio_button(frame):
+        """Localiza el botón de audio del reCAPTCHA. Returns locator o None."""
+        audio_btn = frame.locator("#recaptcha-audio-button")
+        if await audio_btn.count() == 0:
+            audio_btn = frame.locator("button[aria-label*='audio']")
+        if await audio_btn.count() == 0:
+            audio_btn = frame.locator("button[id='recaptcha-audio-button']")
+        if await audio_btn.count() == 0:
+            return None
+        return audio_btn
+
+    @staticmethod
+    async def _check_existing_token(page):
+        """Verifica si el checkbox fue suficiente para obtener token."""
+        print("  [FreeCaptcha] Sin desafío de audio — verificando si ya resolvió...")
+        token = await page.evaluate(
+            "() => document.getElementById('g-recaptcha-response')?.value || ''"
+        )
+        if token and len(token) > 20:
+            return token
+        return "MANUAL"
+
+    @staticmethod
+    def _transcribir_y_extraer_digitos(audio_path):
+        """Transcribe audio con Whisper y extrae dígitos. Returns str o None."""
+        whisper_model = _get_whisper_model()
+        print("  [FreeCaptcha] Transcribiendo audio...")
+        result = whisper_model.transcribe(audio_path, language="en")
+        text = result["text"].strip()
+        print(f"  [FreeCaptcha] Transcripción: '{text}'")
+
+        # El audio challenge usa dígitos en inglés
+        digits = re.sub(r"[^0-9]", "", text)
+        if not digits:
+            print("  [FreeCaptcha] No se detectaron dígitos en el audio")
+            return None
+        print(f"  [FreeCaptcha] Dígitos detectados: {digits}")
+        return digits
+
+    @staticmethod
+    async def _verificar_y_obtener_token(frame, page):
+        """Hace click en verify (o Enter) y extrae el token. Returns token o None."""
+        verify_btn = frame.locator("#recaptcha-verify-button")
+        if await verify_btn.count() > 0:
+            await verify_btn.click()
+        else:
+            # Fallback: submit alternativo
+            await page.keyboard.press("Enter")
+
+        await asyncio.sleep(3)
+
+        token = await page.evaluate(
+            "() => document.getElementById('g-recaptcha-response')?.value || ''"
+        )
+
+        if token and len(token) > 20:
+            print("  [FreeCaptcha] ✅ reCAPTCHA resuelto con audio")
+            return token
+
+        print("  [FreeCaptcha] Token no válido después del audio")
+        return None
+
     async def solve_recaptcha_v2_audio(
         self, page, site_key: str, page_url: str, max_wait: int = 120
     ) -> str:
@@ -211,22 +274,10 @@ class FreeCaptchaSolver:
             await frame.locator(".recaptcha-checkbox-border").first.click()
             await asyncio.sleep(2)
 
-            # Detectar si pide desafío (no siempre aparece)
-            audio_btn = frame.locator("#recaptcha-audio-button")
-            if await audio_btn.count() == 0:
-                audio_btn = frame.locator("button[aria-label*='audio']")
-            if await audio_btn.count() == 0:
-                audio_btn = frame.locator("button[id='recaptcha-audio-button']")
-
-            if await audio_btn.count() == 0:
-                print("  [FreeCaptcha] Sin desafío de audio — verificando si ya resolvió...")
-                # Puede que el checkbox haya sido suficiente
-                token = await page.evaluate(
-                    "() => document.getElementById('g-recaptcha-response')?.value || ''"
-                )
-                if token and len(token) > 20:
-                    return token
-                return "MANUAL"
+            # Buscar botón de audio
+            audio_btn = await self._find_audio_button(frame)
+            if audio_btn is None:
+                return await self._check_existing_token(page)
 
             await audio_btn.first.click()
             await asyncio.sleep(3)
@@ -247,51 +298,22 @@ class FreeCaptchaSolver:
                 audio_path = f.name
 
             try:
-                # Cargar Whisper (singleton)
-                whisper_model = _get_whisper_model()
-
-                print("  [FreeCaptcha] Transcribiendo audio...")
-                result = whisper_model.transcribe(audio_path, language="en")
-                text = result["text"].strip()
-                print(f"  [FreeCaptcha] Transcripción: '{text}'")
-
-                # El audio challenge usa dígitos en inglés
-                digits = re.sub(r"[^0-9]", "", text)
+                digits = self._transcribir_y_extraer_digitos(audio_path)
                 if not digits:
-                    print("  [FreeCaptcha] No se detectaron dígitos en el audio")
                     return "MANUAL"
-
-                print(f"  [FreeCaptcha] Dígitos detectados: {digits}")
 
                 # Ingresar respuesta
                 await frame.locator("#audio-response").fill(digits)
                 await asyncio.sleep(0.5)
 
-                # Click verificar
-                verify_btn = frame.locator("#recaptcha-verify-button")
-                if await verify_btn.count() > 0:
-                    await verify_btn.click()
-                else:
-                    # Fallback: submit alternativo
-                    await page.keyboard.press("Enter")
-
-                await asyncio.sleep(3)
-
-                # Obtener token
-                token = await page.evaluate(
-                    "() => document.getElementById('g-recaptcha-response')?.value || ''"
-                )
-
-                if token and len(token) > 20:
-                    print("  [FreeCaptcha] \u2705 reCAPTCHA resuelto con audio")
+                token = await self._verificar_y_obtener_token(frame, page)
+                if token:
                     return token
-
-                print("  [FreeCaptcha] Token no válido después del audio")
             finally:
                 Path(audio_path).unlink(missing_ok=True)
 
         except Exception as e:
-            print(f"  [FreeCaptcha] \u26a0 Error en audio challenge: {e}")
+            print(f"  [FreeCaptcha] ⚠ Error en audio challenge: {e}")
 
         return "MANUAL"
 
