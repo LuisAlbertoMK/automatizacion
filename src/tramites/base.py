@@ -384,33 +384,27 @@ class BaseModule:
         """Limpia el caché de selectores exitosos."""
         self._selector_cache.clear()
 
-    async def resolve_image_captcha(self, page: Page, img_selectors: list, input_selectors: list,
-                                     numeric: bool = True, captcha_name: str = "captcha") -> bool:
-        """Detecta y resuelve CAPTCHA de imagen. Retorna True si lo resolvió."""
-        captcha_img = None
+    async def _find_captcha_img(self, page: Page, img_selectors: list):
+        """Busca el primer locator de imagen CAPTCHA. Returns locator.first o None."""
         for sel in img_selectors:
             self.debug(f"Buscando CAPTCHA en: {sel}")
             loc = page.locator(sel)
             if await loc.count() > 0:
-                captcha_img = loc.first
-                break
+                return loc.first
+        return None
 
-        if not captcha_img:
-            self.log("Sin CAPTCHA de imagen detectado")
-            return False
-
-        self.log("CAPTCHA de imagen detectado, descargando...")
-
-        # Obtener src de la imagen
-        src = await captcha_img.get_attribute("src")
+    @staticmethod
+    def _resolve_captcha_src(src: str | None, page_url: str) -> str | None:
+        """Resuelve src relativo a URL completa. None si no hay src."""
         if not src:
-            return False
-
+            return None
         if src.startswith("/"):
-            from urllib.parse import urlparse
-            parsed = urlparse(page.url)
-            src = f"{parsed.scheme}://{parsed.netloc}{src}"
+            parsed = urlparse(page_url)
+            return f"{parsed.scheme}://{parsed.netloc}{src}"
+        return src
 
+    async def _download_captcha_img(self, src: str):
+        """Descarga bytes de la imagen CAPTCHA. Returns None si falla."""
         try:
             loop = asyncio.get_running_loop()
             resp = await loop.run_in_executor(
@@ -419,11 +413,13 @@ class BaseModule:
                 })
             )
             resp.raise_for_status()
-            img_bytes = resp.content
+            return resp.content
         except Exception as e:
             self.warn(f"Error descargando CAPTCHA: {e}")
-            return False
+            return None
 
+    async def _resolve_captcha_solution(self, img_bytes: bytes, numeric: bool):
+        """Resuelve CAPTCHA: solver → DEBUG env var fallback. Returns None si no hay solución."""
         solution = None
         if self.solver:
             try:
@@ -446,6 +442,31 @@ class BaseModule:
 
         if not solution:
             self.warn("Sin solución de CAPTCHA")
+            return None
+        return solution
+
+    async def resolve_image_captcha(self, page: Page, img_selectors: list, input_selectors: list,
+                                    numeric: bool = True, captcha_name: str = "captcha") -> bool:
+        """Detecta y resuelve CAPTCHA de imagen. Retorna True si lo resolvió."""
+        captcha_img = await self._find_captcha_img(page, img_selectors)
+        if not captcha_img:
+            self.log("Sin CAPTCHA de imagen detectado")
+            return False
+
+        self.log("CAPTCHA de imagen detectado, descargando...")
+
+        src = self._resolve_captcha_src(
+            await captcha_img.get_attribute("src"), page.url,
+        )
+        if not src:
+            return False
+
+        img_bytes = await self._download_captcha_img(src)
+        if not img_bytes:
+            return False
+
+        solution = await self._resolve_captcha_solution(img_bytes, numeric)
+        if not solution:
             return False
 
         return await self.fill_field(page, input_selectors, solution)
