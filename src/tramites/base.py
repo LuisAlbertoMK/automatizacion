@@ -320,43 +320,57 @@ class BaseModule:
                 continue
         return False
 
+    @staticmethod
+    async def _is_locator_visible(loc) -> bool:
+        """True si el locator tiene al menos un elemento visible."""
+        return await loc.count() > 0 and await loc.first.is_visible()
+
+    @staticmethod
+    async def _do_click(page: Page, first, wait_nav: bool, timeout_nav: int):
+        """Clic en un elemento con opcional espera de navegación + sleep gracias."""
+        if wait_nav:
+            async with page.expect_navigation(timeout=timeout_nav):
+                await first.click()
+        else:
+            await first.click()
+        await asyncio.sleep(1)
+
+    def _cache_selector(self, cache_key: str, sel: str):
+        """Guarda selector exitoso en caché con eviction LRU (máx 512)."""
+        self._selector_cache[cache_key] = sel
+        self._selector_cache.move_to_end(cache_key)
+        if len(self._selector_cache) > 512:
+            self._selector_cache.popitem(last=False)
+
     async def click_first(self, page: Page, selectors: list, wait_nav: bool = False, timeout_nav: int = 30000) -> bool:
-        """Hace clic en el primer selector visible. Retorna True si encontró."""
+        """Hace clic en el primer selector visible. Retorna True si encontró.
+
+        Pipeline:
+          1. Intenta selector cacheado (rápido, evita re-scan)
+          2. Itera selectors hasta primer visible + click exitoso
+        """
         cache_key = str(tuple(selectors))
 
+        # Fase 1: selector cacheado
         if cache_key in self._selector_cache:
             cached_sel = self._selector_cache[cache_key]
             try:
                 loc = page.locator(cached_sel)
-                if await loc.count() > 0 and await loc.first.is_visible():
+                if await self._is_locator_visible(loc):
                     self.debug(f"Haciendo clic con selector cacheado: {cached_sel}")
-                    if wait_nav:
-                        async with page.expect_navigation(timeout=timeout_nav):
-                            await loc.first.click()
-                        await asyncio.sleep(1)
-                    else:
-                        await loc.first.click()
-                        await asyncio.sleep(1)
+                    await self._do_click(page, loc.first, wait_nav, timeout_nav)
                     return True
             except Exception:
                 self.debug("Cached click selector fallo")
 
+        # Fase 2: intentar cada selector
         for sel in selectors:
             try:
                 loc = page.locator(sel)
-                if await loc.count() > 0 and await loc.first.is_visible():
+                if await self._is_locator_visible(loc):
                     self.debug(f"Haciendo clic: {sel}")
-                    if wait_nav:
-                        async with page.expect_navigation(timeout=timeout_nav):
-                            await loc.first.click()
-                        await asyncio.sleep(1)
-                    else:
-                        await loc.first.click()
-                        await asyncio.sleep(1)
-                    self._selector_cache[cache_key] = sel
-                    self._selector_cache.move_to_end(cache_key)
-                    if len(self._selector_cache) > 512:
-                        self._selector_cache.popitem(last=False)
+                    await self._do_click(page, loc.first, wait_nav, timeout_nav)
+                    self._cache_selector(cache_key, sel)
                     return True
             except PwTimeout:
                 self.debug(f"Navigation timeout en {sel}, continuando...")
