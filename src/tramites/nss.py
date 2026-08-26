@@ -369,19 +369,16 @@ class NSSModule(BaseModule):
         else:
             raise NSSError("No se encontró el botón de envío. Verifica que el formulario esté completo.")
 
-    async def _obtener_nss(self, page, correo: str) -> str:
-        """
-        Intenta obtener el NSS de la respuesta de la página usando HTML y OCR.
-        Si no está en página, espera el correo del IMSS.
-        """
+    async def _leer_contenido_pagina(self, page) -> str:
+        """Lee el contenido HTML de la página con retry en caso de error."""
         await asyncio.sleep(2)
         try:
-            content = await page.content()
+            return await page.content()
         except Exception as e:
             self.error(f"Error al leer página post-submit: {e}")
             try:
                 await page.wait_for_load_state("networkidle", timeout=15000)
-                content = await page.content()
+                return await page.content()
             except Exception as e2:
                 self.error(f"Error recuperando página: {e2}")
                 raise NSSError(
@@ -389,30 +386,36 @@ class NSSModule(BaseModule):
                     "Posiblemente el portal rechazó el CAPTCHA o la sesión expiró."
                 ) from e2
 
-        # NSS = 11 dígitos consecutivos
+    def _extraer_nss_html(self, content: str) -> str | None:
+        """Estrategia 1: extrae NSS (11 dígitos con word boundary) del HTML."""
         nss_candidates = re.findall(r"\b(\d{11})\b", content)
         if nss_candidates:
             nss = nss_candidates[0]
             self.log(f"NSS encontrado en página: {nss}")
             return nss
+        return None
 
-        # Segundo: intentar con OCR
-        if self.use_ocr and self.ocr is not None:
-            self.log("Usando OCR para buscar NSS en la página...")
-            try:
-                screenshot_path = "resultado_nss_temp.png"
-                await page.screenshot(path=screenshot_path, full_page=True)
-                ocr_data = self.ocr.extract_from_screenshot(screenshot_path)
-                if ocr_data.get("nss"):
-                    nss = ocr_data["nss"]
-                    self.log(f"NSS encontrado con OCR: {nss}")
-                    Path(screenshot_path).unlink(missing_ok=True)
-                    return nss
+    async def _extraer_nss_ocr(self, page) -> str | None:
+        """Estrategia 2: usa OCR sobre screenshot de la página."""
+        if not (self.use_ocr and self.ocr is not None):
+            return None
+        self.log("Usando OCR para buscar NSS en la página...")
+        try:
+            screenshot_path = "resultado_nss_temp.png"
+            await page.screenshot(path=screenshot_path, full_page=True)
+            ocr_data = self.ocr.extract_from_screenshot(screenshot_path)
+            if ocr_data.get("nss"):
+                nss = ocr_data["nss"]
+                self.log(f"NSS encontrado con OCR: {nss}")
                 Path(screenshot_path).unlink(missing_ok=True)
-            except Exception as e:
-                self.warn(f"Error al usar OCR: {e}")
+                return nss
+            Path(screenshot_path).unlink(missing_ok=True)
+        except Exception as e:
+            self.warn(f"Error al usar OCR: {e}")
+        return None
 
-        # Tercero: verificar error de CAPTCHA
+    def _verificar_error_captcha(self, content: str):
+        """Estrategia 3: detecta error de CAPTCHA. Raises NSSError si match."""
         captcha_error_texts = [
             "captcha no válido", "captcha inválido", "captcha incorrecto",
             "código captcha", "código de verificación",
@@ -429,48 +432,81 @@ class NSSModule(BaseModule):
                 "Intentá de nuevo verificando bien los caracteres."
             )
 
-        # Cuarto: verificar mensaje de éxito
+    async def _verificar_exito_correo(self, content: str, correo: str, page) -> str | None:
+        """Estrategia 4: si el portal envió al correo, espera NSS por mail."""
         success_texts = [
             "se ha enviado", "revisa tu correo", "correo enviado",
             "número de seguridad social", "tu nss",
         ]
-        if any(t in content.lower() for t in success_texts):
-            self.log("Solicitud enviada. Esperando correo del IMSS...")
+        if not any(t in content.lower() for t in success_texts):
+            return None
 
-            if self.mail_reader:
-                loop = asyncio.get_running_loop()
-                mail_data = await loop.run_in_executor(
-                    None, self.mail_reader.wait_for_imss_email, 180
-                )
-                if mail_data.get("nss"):
-                    self.log(f"NSS extraído del correo: {mail_data['nss']}")
-                    return mail_data["nss"]
-                link = mail_data.get("verification_link", "")
-                if link:
-                    self.debug(f"Link de verificación recibido: {link}")
-                    await page.goto(link, timeout=TIMEOUT)
-                    await asyncio.sleep(3)
-                    try:
-                        content2 = await page.content()
-                        nss2 = re.findall(r"\b(\d{11})\b", content2)
-                        if nss2:
-                            self.log(f"NSS encontrado tras verificar correo: {nss2[0]}")
-                            return nss2[0]
-                    except Exception:
-                        self.debug("Error en reintento")
-            else:
-                self.warn(f"Revisá manualmente el correo {correo}")
-                return "ENVIADO_AL_CORREO"
+        self.log("Solicitud enviada. Esperando correo del IMSS...")
 
-        # Quinto: buscar número de 11 dígitos con formato NSS válido
+        if self.mail_reader:
+            loop = asyncio.get_running_loop()
+            mail_data = await loop.run_in_executor(
+                None, self.mail_reader.wait_for_imss_email, 180
+            )
+            if mail_data.get("nss"):
+                self.log(f"NSS extraído del correo: {mail_data['nss']}")
+                return mail_data["nss"]
+            link = mail_data.get("verification_link", "")
+            if link:
+                self.debug(f"Link de verificación recibido: {link}")
+                await page.goto(link, timeout=TIMEOUT)
+                await asyncio.sleep(3)
+                try:
+                    content2 = await page.content()
+                    nss2 = re.findall(r"\b(\d{11})\b", content2)
+                    if nss2:
+                        self.log(f"NSS encontrado tras verificar correo: {nss2[0]}")
+                        return nss2[0]
+                except Exception:
+                    self.debug("Error en reintento")
+        else:
+            self.warn(f"Revisá manualmente el correo {correo}")
+            return "ENVIADO_AL_CORREO"
+        return None
+
+    def _extraer_nss_formato(self, content: str) -> str | None:
+        """Estrategia 5: 11 dígitos con formato NSS válido (inicio 1-9, mes ≤32)."""
         all_nums = re.findall(r"\d{11}", content)
-        nss_candidates = []
         for m in all_nums:
             if m[0] in '123456789' and int(m[7:9]) <= 32:
-                nss_candidates.append(m)
-        if nss_candidates:
-            self.log(f"NSS encontrado (formato válido): {sanitize_nss(nss_candidates[0])}")
-            return nss_candidates[0]
+                self.log(f"NSS encontrado (formato válido): {sanitize_nss(m)}")
+                return m
+        return None
+
+    async def _obtener_nss(self, page, correo: str) -> str:
+        """
+        Intenta obtener el NSS de la respuesta de la página usando HTML y OCR.
+        Si no está en página, espera el correo del IMSS.
+        """
+        content = await self._leer_contenido_pagina(page)
+
+        # Estrategia 1: NSS directamente en HTML
+        nss = self._extraer_nss_html(content)
+        if nss:
+            return nss
+
+        # Estrategia 2: OCR
+        nss = await self._extraer_nss_ocr(page)
+        if nss:
+            return nss
+
+        # Estrategia 3: Error de CAPTCHA
+        self._verificar_error_captcha(content)
+
+        # Estrategia 4: Mensaje de éxito → esperar correo/IMSS
+        nss = await self._verificar_exito_correo(content, correo, page)
+        if nss:
+            return nss
+
+        # Estrategia 5: Formato NSS válido
+        nss = self._extraer_nss_formato(content)
+        if nss:
+            return nss
 
         raise NSSError(
             "No se pudo obtener el NSS. "
