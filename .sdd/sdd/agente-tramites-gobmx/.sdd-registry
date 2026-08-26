@@ -1,0 +1,18 @@
+SDD Registry for agente-tramites-gobmx
+======================================
+Initialized: 2026-08-26
+Mode: hybrid (Engram + OpenSpec)
+Bootstrap config: openspec/config.yaml
+Testing capabilities: persisted to Engram as sdd/agente-tramites-gobmx/testing-capabilities
+
+SDD Phases:
+  1. explore    — codebase investigation, symbol discovery
+  2. propose    — change proposal with intent, scope, approach
+  3. spec       — detailed delta specs with requirements + scenarios
+  4. design     — technical design and architecture approach
+  5. tasks      — break spec into implementation tasks
+  6. apply      — implement code changes from tasks
+  7. verify     — validate implementation against specs
+  8. archive    — sync delta specs, persist artifacts
+
+Active skills registry: .atl/skill-registry.md

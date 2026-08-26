@@ -1,0 +1,110 @@
+# =============================================================================
+# SDD (Spec-Driven Development) — Bootstrap Configuration
+# Project: agente-tramites-gobmx
+# Initialized: 2026-08-26
+# Mode: hybrid (Engram + OpenSpec)
+# =============================================================================
+
+project:
+  name: agente-tramites-gobmx
+  version: 1.0.0
+  description: "Agente automatizador de tramites gubernamentales mexicanos"
+  language: python
+  python_version: "3.10+"
+  repository: https://github.com/LuisAlbertoMK/automatizacion
+
+architecture:
+  style: layered
+  source_layout: src
+  layers:
+    - name: tramites
+      path: src/tramites/
+      description: >
+        Individual tramite implementations (acta_nacimiento, curp, nss, rfc,
+        pasaporte, predial_cdmx, etc.). Each is a self-contained browser
+        automation flow.
+    - name: utils
+      path: src/utils/
+      description: >
+        Shared utilities: browser_pool, cache, captcha, free_captcha,
+        interaction, logger, storage, claude.
+    - name: entry
+      path: src/main.py
+      description: CLI entry point.
+    - name: web
+      path: src/api.py
+      description: FastAPI web API layer (optional dependency group 'web').
+
+testing:
+  runner: pytest
+  runner_version: ">=9.0.3"
+  config: pyproject.toml [tool.pytest.ini_options]
+  testpaths:
+    - tests
+  asyncio_mode: auto
+  plugins:
+    - pytest-asyncio (>=0.26.0, auto mode)
+    - pytest-cov (>=7.0.0)
+    - pytest-watch (>=4.2.0)
+    - httpx (>=0.28.0)
+  coverage:
+    source: [src]
+    fail_under: 80
+    omit:
+      - "*/tests/*"
+      - "*/__pycache__/*"
+      - "*/coverage_html/*"
+    html_dir: coverage_html
+  strict_tdd: true
+  strict_tdd_reason: >
+    pytest configured with --cov-fail-under=80; test runner (pytest) is
+    active and testpaths=["tests"] is populated.
+
+linting:
+  primary: ruff (>=0.3.0)
+  line_length: 100
+  target_version: py310
+  rules:
+    select: [E, F, W, I, B]
+    ignore: [E501, W293]
+    per_file_ignores:
+      "tools/_benchmark.py": [E402]
+      "tools/_optimize.py": [E402]
+      "tools/_profile_timing.py": [E402]
+  type_check:
+    tool: mypy (>=1.0)
+    python_version: 3.10
+    ignore_missing_imports: true
+    exclude:
+      - build/
+      - captcha_solver_imss/
+      - tests/
+      - src/tramites/documentos/
+      - src/utils/free_captcha.py
+
+persistence:
+  mode: hybrid
+  engram: true
+  openspec: true
+  sdd_root: .sdd/sdd/agente-tramites-gobmx
+  openspec_root: openspec
+
+conventions:
+  git:
+    branch_naming:
+      feature: "feat/<short-description>"
+      fix: "fix/<short-description>"
+      refactor: "refactor/<short-description>"
+      docs: "docs/<short-description>"
+      experiment: "experimento/<short-description>"
+      improvement: "experimento/mejora-autonoma-<date>"
+    commit_style: conventional-commits
+    default_branch: master
+  documentation:
+    adr_dir: adr/
+    analysis_dir: docs/mejoras/
+    changelog: docs/mejoras/mejora-log.md
+  testing:
+    coverage_target: 90
+    async_tests: "use @pytest.mark.asyncio when needed, but asyncio_mode=auto"
+    mock_heavy: true
