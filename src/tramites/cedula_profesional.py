@@ -21,11 +21,13 @@ import asyncio
 import re
 import time
 
-import requests
 from playwright.async_api import Page
 
 from src.exceptions import CedulaProfesionalError
 from src.tramites.base import BaseModule
+from src.utils.http_client import get_http_session
+
+_session = get_http_session()
 
 PORTAL_URL = "https://www.cedulaprofesional.sep.gob.mx/"
 SOLR_URL = "https://search.sep.gob.mx/solr/cedulasCore/select"
@@ -110,7 +112,7 @@ class CedulaProfesionalModule(BaseModule):
 
             loop = asyncio.get_running_loop()
             resp = await loop.run_in_executor(
-                None, lambda: requests.get(
+                None, lambda: _session.get(
                     SOLR_URL,
                     params={"q": query, "wt": "json", "rows": "50"},
                     timeout=15,

@@ -11,6 +11,9 @@ import time
 
 from src.exceptions import ActaNacimientoError
 from src.tramites.base import OUTPUT_DIR, BaseModule
+from src.utils.http_client import get_http_session
+
+_session = get_http_session()
 
 PORTAL_URL = "https://www.gob.mx/actas"
 
@@ -116,9 +119,8 @@ class ActaNacimientoModule(BaseModule):
                     if href:
                         from urllib.parse import urljoin
 
-                        import requests
                         pdf_url = urljoin(page.url, href)
-                        resp = await asyncio.to_thread(requests.get, pdf_url, timeout=30)
+                        resp = await asyncio.to_thread(_session.get, pdf_url, timeout=30)
                         if resp.status_code == 200:
                             path = OUTPUT_DIR / f"ActaNacimiento_{curp[:8]}.pdf"
                             path.write_bytes(resp.content)

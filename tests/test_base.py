@@ -351,7 +351,7 @@ class TestResolveImageCaptcha:
     async def test_download_fails(self, module, mock_page):
         """Line 177-179: error descargando CAPTCHA → False."""
         mock_page.locator.side_effect = lambda sel: self._make_loc()
-        with patch("requests.get") as mock_get:
+        with patch("src.tramites.base._session.get") as mock_get:
             mock_get.side_effect = Exception("Connection error")
             result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
         assert result is False
@@ -363,7 +363,7 @@ class TestResolveImageCaptcha:
         solver = MagicMock()
         solver.solve_image.return_value = "ABC123"
         module.solver = solver
-        with patch("requests.get") as mock_get:
+        with patch("src.tramites.base._session.get") as mock_get:
             mock_get.return_value = MagicMock(content=b"img_data")
             with patch.object(module, "fill_field", AsyncMock(return_value=True)) as mock_fill:
                 result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
@@ -377,7 +377,7 @@ class TestResolveImageCaptcha:
         solver = MagicMock()
         solver.solve_image.side_effect = Exception("Solver fail")
         module.solver = solver
-        with patch("requests.get") as mock_get:
+        with patch("src.tramites.base._session.get") as mock_get:
             mock_get.return_value = MagicMock(content=b"img_data")
             with patch("src.tramites.base.os.getenv") as mock_env:
                 mock_env.side_effect = lambda k, d="": {"DEBUG": "true", "CAPTCHA_VALUE": "ENV_VAL"}.get(k, d)
@@ -391,7 +391,7 @@ class TestResolveImageCaptcha:
         """Lines 194-196: sin solución → False."""
         mock_page.locator.side_effect = lambda sel: self._make_loc()
         module.solver = None
-        with patch("requests.get") as mock_get:
+        with patch("src.tramites.base._session.get") as mock_get:
             mock_get.return_value = MagicMock(content=b"img_data")
             with patch("src.tramites.base.os.getenv", return_value=""):
                 result = await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])
@@ -402,7 +402,7 @@ class TestResolveImageCaptcha:
         """Lines 166-169: src relativa → construye URL completa."""
         mock_page.locator.side_effect = lambda sel: self._make_loc(src="/captcha/img.png")
         mock_page.url = "https://gob.mx/tramite"
-        with patch("requests.get") as mock_get:
+        with patch("src.tramites.base._session.get") as mock_get:
             mock_get.return_value = MagicMock(content=b"img_data")
             with patch.object(module, "fill_field", AsyncMock(return_value=False)):
                 await module.resolve_image_captcha(mock_page, ["#captcha-img"], ["#captcha-input"])

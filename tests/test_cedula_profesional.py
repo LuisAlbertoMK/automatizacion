@@ -123,7 +123,7 @@ class TestConsultar:
     async def test_consulta_solr_por_nombre_query(self):
         """Sin CURP → query AND sobre apellido paterno/materno/nombre."""
         mod = CedulaProfesionalModule()
-        with patch("src.tramites.cedula_profesional.requests.get") as mock_get:
+        with patch("src.tramites.cedula_profesional._session.get") as mock_get:
             mock_get.return_value.raise_for_status = lambda: None
             mock_get.return_value.json.return_value = {"response": {"docs": []}}
             docs = await mod._consulta_solr(nombre="JUAN", apellido_paterno="PEREZ")
@@ -134,7 +134,7 @@ class TestConsultar:
     async def test_consulta_solr_json_no_dict_devuelve_none(self):
         """resp.json() que no es dict → None (fallback a navegador)."""
         mod = CedulaProfesionalModule()
-        with patch("src.tramites.cedula_profesional.requests.get") as mock_get:
+        with patch("src.tramites.cedula_profesional._session.get") as mock_get:
             mock_get.return_value.raise_for_status = lambda: None
             mock_get.return_value.json.return_value = [1, 2, 3]
             docs = await mod._consulta_solr(curp=CURP_OK)
@@ -169,14 +169,14 @@ class TestRunNavegador:
         mock_base['click_first'].assert_awaited_once()
         """Error HTTP en Solr → None (gatilla fallback a navegador)."""
         mod = CedulaProfesionalModule()
-        with patch("src.tramites.cedula_profesional.requests.get") as mock_get:
+        with patch("src.tramites.cedula_profesional._session.get") as mock_get:
             mock_get.return_value.raise_for_status.side_effect = Exception("reset")
             docs = await mod._consulta_solr(curp=CURP_OK)
         assert docs is None
 
     async def test_ok_devuelve_docs(self):
         mod = CedulaProfesionalModule()
-        with patch("src.tramites.cedula_profesional.requests.get") as mock_get:
+        with patch("src.tramites.cedula_profesional._session.get") as mock_get:
             mock_get.return_value.raise_for_status = lambda: None
             mock_get.return_value.json.return_value = {
                 "response": {"docs": [{"cedula": ["9999999"]}]}}

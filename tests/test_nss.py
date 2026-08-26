@@ -274,7 +274,7 @@ class TestResolverCaptchaImagen:
         result = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
         assert result is not None
 
-    @patch("src.tramites.nss.requests.get")
+    @patch("src.tramites.nss._session.get")
     async def test_ims_solver_ok(self, mock_get, mock_base):
         """IMSCaptchaSolver resuelve con score ≥ 0.5."""
         _setup_happy_nss(mock_base, prefill_content=False)
@@ -300,7 +300,7 @@ class TestResolverCaptchaImagen:
             result = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
             assert result is not None
 
-    @patch("src.tramites.nss.requests.get")
+    @patch("src.tramites.nss._session.get")
     async def test_ims_solver_bajo_score(self, mock_get, mock_base):
         """IMSCaptchaSolver score < 0.5 → warn + fallback."""
         _setup_happy_nss(mock_base, prefill_content=False)
@@ -326,7 +326,7 @@ class TestResolverCaptchaImagen:
             result = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
             assert result is not None
 
-    @patch("src.tramites.nss.requests.get")
+    @patch("src.tramites.nss._session.get")
     async def test_free_captcha_fallback(self, mock_get, mock_base):
         """IMSCaptchaSolver falla → FreeCaptchaSolver.solve_image intenta."""
         _setup_happy_nss(mock_base, prefill_content=False)
@@ -347,7 +347,7 @@ class TestResolverCaptchaImagen:
             result = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
             assert result is not None
 
-    @patch("src.tramites.nss.requests.get")
+    @patch("src.tramites.nss._session.get")
     async def test_debug_env_captcha(self, mock_get, mock_base, monkeypatch):
         """DEBUG=true + CAPTCHA_VALUE → usa valor de entorno."""
         _setup_happy_nss(mock_base, prefill_content=False)
@@ -370,7 +370,7 @@ class TestResolverCaptchaImagen:
             result = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
             assert result is not None
 
-    @patch("src.tramites.nss.requests.get")
+    @patch("src.tramites.nss._session.get")
     async def test_download_exception(self, mock_get, mock_base):
         """requests.get falla → warn + return."""
         _setup_happy_nss(mock_base, prefill_content=False)
@@ -386,7 +386,7 @@ class TestResolverCaptchaImagen:
         result = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
         assert result is not None
 
-    @patch("src.tramites.nss.requests.get")
+    @patch("src.tramites.nss._session.get")
     async def test_ims_solver_exception(self, mock_get, mock_base):
         """IMSCaptchaSolver.solve lanza excepción → warn + fallback."""
         _setup_happy_nss(mock_base, prefill_content=False)
@@ -408,7 +408,7 @@ class TestResolverCaptchaImagen:
             result = await mod.consultar(curp="GALJ800101HDFXXXX0", correo="a@b.com")
             assert result is not None
 
-    @patch("src.tramites.nss.requests.get")
+    @patch("src.tramites.nss._session.get")
     async def test_sin_captcha_valor(self, mock_get, mock_base):
         """Ningún solver produce valor → warn + continuar."""
         _setup_happy_nss(mock_base, prefill_content=False)
@@ -438,7 +438,7 @@ class TestResolverCaptchaImagen:
         mock_base['page'].query_selector = AsyncMock(side_effect=[img, inp])
         mock_base['page'].content.return_value = "<html>NSS 12345678901</html>"
 
-        with patch("src.tramites.nss.requests.get") as mock_get:
+        with patch("src.tramites.nss._session.get") as mock_get:
             mock_get.return_value.status_code = 200
             mock_get.return_value.content = b""
             mod = NSSModule()

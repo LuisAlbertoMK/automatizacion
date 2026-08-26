@@ -20,12 +20,14 @@ import re
 import time
 from pathlib import Path
 
-import requests
 from playwright.async_api import TimeoutError as PwTimeout
 
 from src.exceptions import NSSError
 from src.tramites.base import TIMEOUT, BaseModule
+from src.utils.http_client import get_http_session
 from src.utils.pii import sanitize_nss
+
+_session = get_http_session()
 
 PORTAL_URL = (
     "https://serviciosdigitales.imss.gob.mx/"
@@ -238,7 +240,7 @@ class NSSModule(BaseModule):
         try:
             loop = asyncio.get_running_loop()
             resp = await loop.run_in_executor(
-                None, lambda: requests.get(src, timeout=15, headers={
+                None, lambda: _session.get(src, timeout=15, headers={
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 })
             )

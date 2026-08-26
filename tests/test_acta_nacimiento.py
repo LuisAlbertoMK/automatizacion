@@ -29,7 +29,7 @@ class TestConsultar:
         link.get_attribute = AsyncMock(return_value="/actas/abc.pdf")
         mock_base['page'].query_selector = AsyncMock(return_value=link)
 
-        with patch("requests.get") as mock_get:
+        with patch("src.tramites.acta_nacimiento._session.get") as mock_get:
             mock_get.return_value.status_code = 200
             mock_get.return_value.content = b"%PDF-1.4..."
 
@@ -66,7 +66,7 @@ class TestConsultar:
         link.get_attribute = AsyncMock(return_value="/actas/abc.pdf")
         mock_base['page'].query_selector = AsyncMock(return_value=link)
 
-        with patch("requests.get") as mock_get:
+        with patch("src.tramites.acta_nacimiento._session.get") as mock_get:
             mock_get.return_value.status_code = 500
             mod = ActaNacimientoModule()
             r = await mod.consultar(curp="ABCD123456HDFRRN08")

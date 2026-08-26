@@ -16,8 +16,12 @@ import time
 import requests
 
 from src.exceptions import CaptchaError
+from src.utils.http_client import get_http_session
 
 BASE_URL = "https://2captcha.com"
+
+# Shared HTTP session — connection pooling + retries
+_session = get_http_session()
 
 
 class CaptchaSolver:
@@ -46,7 +50,7 @@ class CaptchaSolver:
         if now - self._balance_ts < self._balance_ttl and self._balance_cache is not None:
             return
         try:
-            r = requests.get(
+            r = _session.get(
                 f"{BASE_URL}/res.php",
                 params={"key": self.api_key, "action": "getbalance"},
                 timeout=10,
@@ -83,7 +87,7 @@ class CaptchaSolver:
         if numeric:
             params["numeric"] = 1
 
-        r = requests.post(f"{BASE_URL}/in.php", data=params, timeout=30)
+        r = _session.post(f"{BASE_URL}/in.php", data=params, timeout=30)
         data = r.json()
 
         if data.get("status") != 1:
@@ -123,7 +127,7 @@ class CaptchaSolver:
             "pageurl": page_url,
             "json": 1,
         }
-        r = requests.post(f"{BASE_URL}/in.php", data=params, timeout=30)
+        r = _session.post(f"{BASE_URL}/in.php", data=params, timeout=30)
         data = r.json()
 
         if data.get("status") != 1:
@@ -170,7 +174,7 @@ class CaptchaSolver:
             "min_score": min_score,
             "json": 1,
         }
-        r = requests.post(f"{BASE_URL}/in.php", data=params, timeout=30)
+        r = _session.post(f"{BASE_URL}/in.php", data=params, timeout=30)
         data = r.json()
 
         if data.get("status") != 1:
@@ -192,7 +196,7 @@ class CaptchaSolver:
             params["numeric"] = 1
 
         r = await asyncio.to_thread(
-            requests.post, f"{BASE_URL}/in.php", data=params, timeout=30
+            _session.post, f"{BASE_URL}/in.php", data=params, timeout=30
         )
         data = r.json()
         if data.get("status") != 1:
@@ -209,7 +213,7 @@ class CaptchaSolver:
             "key": self.api_key, "method": "userrecaptcha",
             "googlekey": site_key, "pageurl": page_url, "json": 1,
         }
-        r = await asyncio.to_thread(requests.post, f"{BASE_URL}/in.php", data=params, timeout=30)
+        r = await asyncio.to_thread(_session.post, f"{BASE_URL}/in.php", data=params, timeout=30)
         data = r.json()
         if data.get("status") != 1:
             raise CaptchaError(f"Error enviando reCAPTCHA v2: {data.get('request')}")
@@ -230,7 +234,7 @@ class CaptchaSolver:
             "googlekey": site_key, "pageurl": page_url, "action": action,
             "min_score": min_score, "json": 1,
         }
-        r = await asyncio.to_thread(requests.post, f"{BASE_URL}/in.php", data=params, timeout=30)
+        r = await asyncio.to_thread(_session.post, f"{BASE_URL}/in.php", data=params, timeout=30)
         data = r.json()
         if data.get("status") != 1:
             raise CaptchaError(f"Error enviando reCAPTCHA v3: {data.get('request')}")
@@ -260,7 +264,7 @@ class CaptchaSolver:
 
             try:
                 r = await asyncio.to_thread(
-                    requests.get, f"{BASE_URL}/res.php",
+                    _session.get, f"{BASE_URL}/res.php",
                     params={"key": self.api_key, "action": "get", "id": task_id, "json": 1},
                     timeout=15,
                 )
@@ -300,7 +304,7 @@ class CaptchaSolver:
             elapsed += interval
 
             try:
-                r = requests.get(
+                r = _session.get(
                     f"{BASE_URL}/res.php",
                     params={"key": self.api_key, "action": "get", "id": task_id, "json": 1},
                     timeout=15,

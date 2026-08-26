@@ -17,14 +17,15 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
-import requests
 from playwright.async_api import Browser, BrowserContext, Page, Playwright, async_playwright
 from playwright.async_api import TimeoutError as PwTimeout
 
 from src.exceptions import ModuleError
 from src.utils.browser_pool import BrowserPool
+from src.utils.http_client import get_http_session
 from src.utils.rate_limiter import RateLimiter
 
+_session = get_http_session()
 _domain_limiter = RateLimiter()
 
 # Telemetría Playwright desactivada por defecto
@@ -399,7 +400,7 @@ class BaseModule:
         try:
             loop = asyncio.get_running_loop()
             resp = await loop.run_in_executor(
-                None, lambda: requests.get(src, timeout=15, headers={
+                None, lambda: _session.get(src, timeout=15, headers={
                     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
                 })
             )
