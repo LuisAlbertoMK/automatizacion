@@ -232,13 +232,33 @@ class BaseModule:
 
     RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
 
+    @staticmethod
+    def _eval_http_status(status, url: str):
+        """Evalúa status HTTP. Returns (is_error, retryable, error_or_none)."""
+        if not isinstance(status, int) or status < 400:
+            return False, False, None
+        error = ModuleError(f"HTTP {status} al navegar a {url}")
+        if status in BaseModule.RETRYABLE_STATUS:
+            return True, True, error
+        return True, False, error
+
+    async def _goto_fallback(self, page: Page, fallback_url: str) -> bool:
+        """Navegación con URL fallback. Returns True on success."""
+        try:
+            self.debug(f"Fallback: navegando a {fallback_url}")
+            await page.goto(fallback_url, wait_until="domcontentloaded", timeout=TIMEOUT)
+            await self._wait_page_ready(page)
+            return True
+        except Exception as e:
+            self.debug(f"Fallback falló: {e}")
+            return False
+
     async def goto(self, page: Page, url: str, fallback_url: str = None, retries: int = 2):
-        """Navega a URL con fallback, rate limiting y reintentos ante 5xx/conn-reset.
+        """Navega a URL con fallback, rate limiting y reintentos ante 5xx/408/429, timeout o conn-reset.
 
         Estrategia de carga:
-        1. domcontentloaded (rápido, no espera assets)
-        2. networkidle con timeout 5s (espera si la página termina pronto)
-        3. 500ms de gracia post-carga (mínimo seguro)
+          1. domcontentloaded (rápido, no espera assets)
+          2. _wait_page_ready (networkidle 5s + 100ms gracia)
         Reintenta hasta `retries` veces ante status 5xx/408/429, timeout o conn-reset.
         """
         domain = urlparse(url).netloc
@@ -249,10 +269,12 @@ class BaseModule:
                 self.debug(f"Navegando a {url} (intento {attempt + 1}/{retries + 1})")
                 response = await page.goto(url, wait_until="domcontentloaded", timeout=TIMEOUT)
                 await self._wait_page_ready(page)
-                status = getattr(response, "status", None)
-                if isinstance(status, int) and status >= 400:
-                    last_error = ModuleError(f"HTTP {status} al navegar a {url}")
-                    if status in self.RETRYABLE_STATUS and attempt < retries:
+                is_error, retryable, error = self._eval_http_status(
+                    getattr(response, "status", None), url,
+                )
+                if is_error:
+                    last_error = error
+                    if retryable and attempt < retries:
                         await asyncio.sleep(self.RETRY_BACKOFF * (2 ** attempt))
                         continue
                     break
@@ -267,13 +289,8 @@ class BaseModule:
                 last_error = e
                 break
         if fallback_url:
-            try:
-                self.debug(f"Fallback: navegando a {fallback_url}")
-                await page.goto(fallback_url, wait_until="domcontentloaded", timeout=TIMEOUT)
-                await self._wait_page_ready(page)
+            if await self._goto_fallback(page, fallback_url):
                 return
-            except Exception as e2:
-                last_error = e2
         raise ModuleError(
             f"No se pudo navegar a {url} (fallback: {fallback_url}): {last_error}"
         ) from last_error
