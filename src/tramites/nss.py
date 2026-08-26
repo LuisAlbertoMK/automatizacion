@@ -208,15 +208,12 @@ class NSSModule(BaseModule):
         else:
             self.debug("Sin campo de confirmación de correo, continuando...")
 
-    async def _resolver_captcha_imagen(self, page):
-        """
-        Detecta y resuelve el CAPTCHA de imagen del IMSS.
+    async def _descargar_captcha(self, page):
+        """Detecta y descarga la imagen del CAPTCHA de imagen.
 
-        Pipeline:
-          1. Descarga la imagen del CaptchaServlet
-          2. Resuelve con IMSCaptchaSolver (CNN + EasyOCR + Tesseract ensemble)
-          3. Fallback a FreeCaptchaSolver
-          4. Fallback a CAPTCHA_VALUE (manual)
+        Returns:
+            (img_bytes, captcha_input_element) on success,
+            (None, None) if no CAPTCHA detected or download fails.
         """
         captcha_img = await page.query_selector(
             "img[src*='Captcha'], img[src*='captcha'], "
@@ -226,12 +223,12 @@ class NSSModule(BaseModule):
 
         if not captcha_img or not captcha_input:
             self.debug("Sin CAPTCHA de imagen detectado, continuando...")
-            return
+            return None, None
 
         src = await captcha_img.get_attribute("src") or ""
         if not src:
             self.debug("CAPTCHA de imagen sin src, continuando...")
-            return
+            return None, None
 
         if src.startswith("/"):
             src = f"https://serviciosdigitales.imss.gob.mx{src}"
@@ -247,12 +244,13 @@ class NSSModule(BaseModule):
             resp.raise_for_status()
             img_bytes = resp.content
             self.debug(f"Imagen descargada: {len(img_bytes)} bytes")
+            return img_bytes, captcha_input
         except Exception as e:
             self.warn(f"Error descargando CAPTCHA: {e}")
-            return
+            return None, None
 
-        # ── 1. Pipeline IMSCaptchaSolver ──
-        valor = ""
+    async def _resolver_con_ims(self, img_bytes) -> str:
+        """Estrategia 1: IMSCaptchaSolver ensemble (CNN + EasyOCR + Tesseract)."""
         try:
             from captcha_solver_imss import IMSCaptchaSolver
             ims_solver = IMSCaptchaSolver(verbose=False)
@@ -272,25 +270,57 @@ class NSSModule(BaseModule):
             self.log(f"CAPTCHA resuelto por ensemble "
                      f"(engine: {ims_result['engine']}, "
                      f"score: {ims_result['score']:.2f}): '{valor}'")
-        else:
-            self.warn(f"Ensemble no confiable "
-                      f"(score: {ims_result.get('score', 0):.2f})")
+            return valor
+        self.warn(f"Ensemble no confiable "
+                  f"(score: {ims_result.get('score', 0):.2f})")
+        return ""
 
-        # ── 2. Fallback: FreeCaptchaSolver ──
-        if not valor and self.solver and hasattr(self.solver, "solve_image"):
-            try:
-                ocr_hint = self.solver.solve_image(img_bytes, numeric=False)
-                if ocr_hint:
-                    valor = ocr_hint
-                    self.debug(f"FreeCaptcha sugiere: '{valor}'")
-            except Exception:
-                self.debug("Error en step NSS")
+    async def _resolver_con_freecaptcha(self, img_bytes) -> str:
+        """Estrategia 2: FreeCaptchaSolver fallback."""
+        if not (self.solver and hasattr(self.solver, "solve_image")):
+            return ""
+        try:
+            ocr_hint = self.solver.solve_image(img_bytes, numeric=False)
+            if ocr_hint:
+                self.debug(f"FreeCaptcha sugiere: '{ocr_hint}'")
+                return ocr_hint
+        except Exception:
+            self.debug("Error en step NSS")
+        return ""
 
-        # ── 3. Fallback: variable de entorno (solo DEBUG) ──
-        if not valor and os.getenv("DEBUG", "false").lower() == "true":
+    def _resolver_con_env(self) -> str:
+        """Estrategia 3: Environment variable fallback (DEBUG only)."""
+        if os.getenv("DEBUG", "false").lower() == "true":
             valor = os.getenv("CAPTCHA_VALUE", "").strip()
             if valor:
                 self.debug(f"CAPTCHA desde variable de entorno (DEBUG): '{valor}'")
+                return valor
+        return ""
+
+    async def _resolver_captcha_imagen(self, page):
+        """
+        Detecta y resuelve el CAPTCHA de imagen del IMSS.
+
+        Pipeline:
+          1. Descarga la imagen del CaptchaServlet
+          2. Resuelve con IMSCaptchaSolver (CNN + EasyOCR + Tesseract ensemble)
+          3. Fallback a FreeCaptchaSolver
+          4. Fallback a CAPTCHA_VALUE (manual)
+        """
+        img_bytes, captcha_input = await self._descargar_captcha(page)
+        if img_bytes is None:
+            return
+
+        # Estrategia 1: IMSCaptchaSolver ensemble
+        valor = await self._resolver_con_ims(img_bytes)
+
+        # Estrategia 2: FreeCaptchaSolver
+        if not valor:
+            valor = await self._resolver_con_freecaptcha(img_bytes)
+
+        # Estrategia 3: variable de entorno (solo DEBUG)
+        if not valor:
+            valor = self._resolver_con_env()
 
         if not valor:
             self.warn("Sin CAPTCHA, continuando...")
