@@ -116,8 +116,8 @@ class Agente:
         self.mail_reader = None
         self._init_services()
 
-    def _init_services(self):
-        """Inicializa servicios externos (captcha, mail)."""
+    def _init_captcha_solver(self):
+        """Inicializa solver de CAPTCHA: 2captcha (pago) → FreeCaptchaSolver (gratis) → manual."""
         api_key = os.getenv("CAPTCHA_API_KEY", "")
         if api_key and api_key != "tu_api_key_aqui":
             try:
@@ -137,18 +137,27 @@ class Agente:
         if not self.solver:
             print(f"{Fore.YELLOW}  [!] Sin solver de CAPTCHA — serán manuales{Style.RESET_ALL}")
 
-        if MAIL_AVAILABLE:
-            imap_email = os.getenv("IMAP_EMAIL", "")
-            imap_pass  = os.getenv("IMAP_PASSWORD", "")
-            # Placeholder emails conocidos — saltar MailReader
-            placeholders = ("tucorreo", "your-email", "placeholder", "@example.com")
-            is_placeholder = any(p in imap_email.lower() for p in placeholders)
-            if imap_email and "@" in imap_email and not is_placeholder and imap_pass:
-                try:
-                    self.mail_reader = MailReader()
-                    print(f"{Fore.GREEN}  [OK] IMAP configurado ({imap_email}){Style.RESET_ALL}")
-                except Exception as e:
-                    print(f"{Fore.YELLOW}  [!] IMAP: {e}{Style.RESET_ALL}")
+    def _init_mail_reader(self):
+        """Inicializa MailReader si hay credenciales IMAP válidas y no son placeholder."""
+        if not MAIL_AVAILABLE:
+            return
+
+        imap_email = os.getenv("IMAP_EMAIL", "")
+        imap_pass  = os.getenv("IMAP_PASSWORD", "")
+        # Placeholder emails conocidos — saltar MailReader
+        placeholders = ("tucorreo", "your-email", "placeholder", "@example.com")
+        is_placeholder = any(p in imap_email.lower() for p in placeholders)
+        if imap_email and "@" in imap_email and not is_placeholder and imap_pass:
+            try:
+                self.mail_reader = MailReader()
+                print(f"{Fore.GREEN}  [OK] IMAP configurado ({imap_email}){Style.RESET_ALL}")
+            except Exception as e:
+                print(f"{Fore.YELLOW}  [!] IMAP: {e}{Style.RESET_ALL}")
+
+    def _init_services(self):
+        """Inicializa servicios externos (captcha, mail)."""
+        self._init_captcha_solver()
+        self._init_mail_reader()
 
     # ── CURP ──────────────────────────────────────────────────────────────────
     async def tramite_curp(self, perfil: dict = None) -> dict:
