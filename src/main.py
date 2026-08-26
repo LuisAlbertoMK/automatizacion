@@ -498,8 +498,94 @@ class Agente:
         print(f"{Fore.GREEN}{'━'*50}{Style.RESET_ALL}\n")
 
 
+# ── Dispatch infrastructure para modo_interactivo ──────────────────────────────
+# Extraído del if/elif chain original (E(32)) para reducir complejidad ciclomática.
+
+_TRAMITE_COMANDOS = {
+    "curp": "tramite_curp",
+    "nss": "tramite_nss",
+    "rfc": "tramite_rfc",
+    "acta": "tramite_acta",
+    "pasaporte": "tramite_pasaporte",
+    "semanas": "tramite_semanas",
+    "control_confianza": "tramite_control_confianza",
+    "control": "tramite_control_confianza",
+    "confianza": "tramite_control_confianza",
+    "buro": "tramite_buro",
+    "buro_credito": "tramite_buro",
+    "circulo": "tramite_circulo",
+    "circulo_credito": "tramite_circulo",
+    "cita_ine": "tramite_cita_ine",
+    "ine": "tramite_cita_ine",
+    "cita_sat": "tramite_cita_sat",
+    "sat": "tramite_cita_sat",
+    "ambos": "tramite_ambos",
+    "todo": "tramite_ambos",
+    "nss+curp": "tramite_ambos",
+    "curp+nss": "tramite_ambos",
+}
+
+_SALIR_COMANDOS = {"salir", "exit", "q"}
+_AYUDA_COMANDOS = {"ayuda", "help", "?"}
+_DOCUMENTO_COMANDOS = {"cv", "curriculum", "escrito", "carta", "documento"}
+
+
+async def _generar_documento(cmd: str):
+    """Genera CV o escrito según comando interactivo."""
+    if cmd in ("cv", "curriculum"):
+        if DOCUMENTOS_AVAILABLE:
+            gen = CVGenerator()
+            gen.generar_interactivo()
+        else:
+            print("  python-docx no instalado. Ejecutá: pip install python-docx")
+    else:
+        if DOCUMENTOS_AVAILABLE:
+            gen = EscritoGenerator()
+            gen.generar_interactivo()
+        else:
+            print("  python-docx no instalado. Ejecutá: pip install python-docx")
+
+
+async def _procesar_nlp(cmd: str, agente, perfil):
+    """Interpretar lenguaje natural básico para resolver trámites."""
+    if "curp" in cmd and "nss" in cmd:
+        await agente.tramite_ambos(perfil=perfil)
+    elif "curp" in cmd:
+        await agente.tramite_curp(perfil=perfil)
+    elif "nss" in cmd or "seguro" in cmd or "imss" in cmd:
+        await agente.tramite_nss(perfil=perfil)
+    else:
+        print(f"  Comando '{cmd}' no reconocido. Escribe 'ayuda'.")
+
+
+async def _procesar_comando(cmd: str, agente, perfil) -> bool:
+    """Procesa un comando del usuario.
+
+    Returns:
+        False si el comando indica salida, True para continuar el loop.
+    """
+    if cmd in _SALIR_COMANDOS:
+        print("  Hasta luego.")
+        return False
+    if cmd in _AYUDA_COMANDOS:
+        print(AYUDA)
+        return True
+    metodo = _TRAMITE_COMANDOS.get(cmd)
+    if metodo:
+        handler = getattr(agente, metodo, None)
+        if handler:
+            await handler(perfil=perfil)
+        return True
+    if cmd in _DOCUMENTO_COMANDOS:
+        await _generar_documento(cmd)
+        return True
+    await _procesar_nlp(cmd, agente, perfil)
+    return True
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 async def modo_interactivo():
+    """Modo interactivo REPL — bucle de comandos."""
     agente = Agente()
     print(BANNER)
     print(AYUDA)
@@ -516,62 +602,16 @@ async def modo_interactivo():
 
             if not cmd:
                 continue
-            elif cmd in ("salir", "exit", "q"):
-                print("  Hasta luego.")
-                break
-            elif cmd in ("ayuda", "help", "?"):
-                print(AYUDA)
-            elif cmd == "curp":
-                await agente.tramite_curp(perfil=perfil_activo)
-            elif cmd == "nss":
-                await agente.tramite_nss(perfil=perfil_activo)
-            elif cmd == "rfc":
-                await agente.tramite_rfc(perfil=perfil_activo)
-            elif cmd == "acta":
-                await agente.tramite_acta(perfil=perfil_activo)
-            elif cmd == "pasaporte":
-                await agente.tramite_pasaporte(perfil=perfil_activo)
-            elif cmd == "semanas":
-                await agente.tramite_semanas(perfil=perfil_activo)
-            elif cmd in ("control_confianza", "control", "confianza"):
-                await agente.tramite_control_confianza(perfil=perfil_activo)
-            elif cmd in ("buro", "buro_credito"):
-                await agente.tramite_buro(perfil=perfil_activo)
-            elif cmd in ("circulo", "circulo_credito"):
-                await agente.tramite_circulo(perfil=perfil_activo)
-            elif cmd in ("cita_ine", "ine"):
-                await agente.tramite_cita_ine(perfil=perfil_activo)
-            elif cmd in ("cita_sat", "sat"):
-                await agente.tramite_cita_sat(perfil=perfil_activo)
-            elif cmd in ("ambos", "todo", "nss+curp", "curp+nss"):
-                await agente.tramite_ambos(perfil=perfil_activo)
-            elif cmd in ("cv", "curriculum"):
-                if DOCUMENTOS_AVAILABLE:
-                    gen = CVGenerator()
-                    gen.generar_interactivo()
-                else:
-                    print("  python-docx no instalado. Ejecutá: pip install python-docx")
-            elif cmd in ("escrito", "carta", "documento"):
-                if DOCUMENTOS_AVAILABLE:
-                    gen = EscritoGenerator()
-                    gen.generar_interactivo()
-                else:
-                    print("  python-docx no instalado. Ejecutá: pip install python-docx")
-            elif cmd == "perfil":
+
+            if cmd == "perfil":
                 p = agente.gestionar_perfil()
                 if p:
                     perfil_activo = p
                     print(f"  {Fore.GREEN}Perfil cargado [OK]{Style.RESET_ALL}")
-            else:
-                # Interpretar lenguaje natural básico
-                if "curp" in cmd and "nss" in cmd:
-                    await agente.tramite_ambos(perfil=perfil_activo)
-                elif "curp" in cmd:
-                    await agente.tramite_curp(perfil=perfil_activo)
-                elif "nss" in cmd or "seguro" in cmd or "imss" in cmd:
-                    await agente.tramite_nss(perfil=perfil_activo)
-                else:
-                    print(f"  Comando '{cmd}' no reconocido. Escribe 'ayuda'.")
+                continue
+
+            if not await _procesar_comando(cmd, agente, perfil_activo):
+                break
 
         except KeyboardInterrupt:
             print("\n  Interrumpido. Escribe 'salir' para salir.")
