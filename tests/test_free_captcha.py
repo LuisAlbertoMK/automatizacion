@@ -3,7 +3,7 @@
 NOTA: PIL.Image, requests y whisper se importan LAZY dentro de las funciones
 (vía import local). El modelo Whisper se obtiene vía _get_whisper_model()
 (singleton), por eso los patches van a los módulos globales
-(PIL.Image.open, requests.get, src.utils.free_captcha._get_whisper_model)
+(PIL.Image.open, src.utils.free_captcha.get_http_session, src.utils.free_captcha._get_whisper_model)
 y NO al namespace de la instancia.
 """
 
@@ -318,8 +318,8 @@ class TestRecaptchaAudio:
         page, _ = _MockPageBuilder.build(evaluate_return="")
         with patch("src.utils.free_captcha.tempfile.NamedTemporaryFile") as mock_temp:
             mock_temp.return_value.__enter__.return_value.name = "/tmp/fake.mp3"
-            with patch("requests.get") as mock_req:
-                mock_req.return_value.content = b"fake_audio_bytes"
+            with patch("src.utils.free_captcha.get_http_session") as mock_get_session:
+                mock_get_session.return_value.get.return_value.content = b"fake_audio_bytes"
                 with patch("src.utils.free_captcha._get_whisper_model") as mock_get:
                     model = MagicMock()
                     model.transcribe.return_value = {"text": "1 2 3"}
@@ -346,8 +346,8 @@ class TestRecaptchaAudio:
         mock_temp.return_value.__enter__.return_value.name = "/tmp/fake.mp3"
         page, locator = _MockPageBuilder.build(evaluate_return="g-recaptcha-response-valid-token-12345")
 
-        with patch("requests.get") as mock_req:
-            mock_req.return_value.content = b"fake_audio_bytes"
+        with patch("src.utils.free_captcha.get_http_session") as mock_get_session:
+            mock_get_session.return_value.get.return_value.content = b"fake_audio_bytes"
             with patch("src.utils.free_captcha._get_whisper_model") as mock_get:
                 model = MagicMock()
                 model.transcribe.return_value = {"text": "1 2 3 4"}
@@ -356,7 +356,7 @@ class TestRecaptchaAudio:
                     result = await solver.solve_recaptcha_v2_audio(page, "sk", "https://ex.com")
 
         assert result == "g-recaptcha-response-valid-token-12345"
-        mock_req.assert_called_once_with("https://www.google.com/recaptcha/audio.mp3", timeout=30)
+        mock_get_session.return_value.get.assert_called_once_with("https://www.google.com/recaptcha/audio.mp3", timeout=30)
 
     @pytest.mark.asyncio
     @patch("src.utils.free_captcha.asyncio.sleep")
@@ -367,8 +367,8 @@ class TestRecaptchaAudio:
         )
         with patch("src.utils.free_captcha.tempfile.NamedTemporaryFile") as mock_temp:
             mock_temp.return_value.__enter__.return_value.name = "/tmp/fake.mp3"
-            with patch("requests.get") as mock_req:
-                mock_req.return_value.content = b"fake_audio_bytes"
+            with patch("src.utils.free_captcha.get_http_session") as mock_get_session:
+                mock_get_session.return_value.get.return_value.content = b"fake_audio_bytes"
                 with patch("src.utils.free_captcha._get_whisper_model") as mock_get:
                     model = MagicMock()
                     model.transcribe.return_value = {"text": "5 6 7 8"}
@@ -385,8 +385,8 @@ class TestRecaptchaAudio:
         page, _ = _MockPageBuilder.build()
         with patch("src.utils.free_captcha.tempfile.NamedTemporaryFile") as mock_temp:
             mock_temp.return_value.__enter__.return_value.name = "/tmp/fake.mp3"
-            with patch("requests.get") as mock_req:
-                mock_req.return_value.content = b"fake_audio_bytes"
+            with patch("src.utils.free_captcha.get_http_session") as mock_get_session:
+                mock_get_session.return_value.get.return_value.content = b"fake_audio_bytes"
                 with patch("src.utils.free_captcha._get_whisper_model") as mock_get:
                     model = MagicMock()
                     model.transcribe.return_value = {"text": "hello world"}
@@ -400,7 +400,8 @@ class TestRecaptchaAudio:
     @patch("src.utils.free_captcha.asyncio.sleep")
     async def test_audio_download_failure_returns_manual(self, mock_sleep, solver):
         page, _ = _MockPageBuilder.build()
-        with patch("requests.get", side_effect=Exception("Network error")):
+        with patch("src.utils.free_captcha.get_http_session") as mock_get_session:
+            mock_get_session.return_value.get.side_effect = Exception("Network error")
             result = await solver.solve_recaptcha_v2_audio(page, "sk", "https://ex.com")
 
         assert result == "MANUAL"

@@ -77,6 +77,7 @@ def _get_whisper_model():
 
 
 from src.exceptions import FreeCaptchaError  # noqa: E402
+from src.utils.http_client import get_http_session  # noqa: E402
 
 # ── M4 SSRF allowlist para audio challenge ───────────────────────────
 _ALLOWED_AUDIO_HOSTS = {"www.google.com", "www.gstatic.com"}
@@ -342,8 +343,6 @@ class FreeCaptchaSolver:
             print("  [FreeCaptcha] Whisper no disponible — modo manual")
             return "MANUAL"
 
-        import requests as reqs
-
         try:
             frame = page.frame_locator("iframe[src*='recaptcha']")
 
@@ -373,7 +372,7 @@ class FreeCaptchaSolver:
             if not _is_allowed_audio_url(audio_link):
                 print(" [FreeCaptcha] URL de audio no confiable — abortando")
                 return "MANUAL"
-            resp = reqs.get(audio_link, timeout=30)
+            resp = get_http_session().get(audio_link, timeout=30)
             audio_bytes = resp.content
 
             # Guardar temporalmente
