@@ -1,6 +1,7 @@
 """Tests para utils/mail_reader.py — lector IMAP para correo IMSS."""
 
 import os
+import ssl
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -216,3 +217,54 @@ class TestMailReaderNonImssSender:
         )
         result = MailReader._parse_message(None, msg)
         assert result["verification_link"] == "https://imss.gob.mx"
+
+
+class TestMailReaderTLSVerification:
+    """M1 HIGH: IMAP debe forzar verificación TLS para evitar MITM."""
+
+    @pytest.fixture
+    def mail_reader(self):
+        with patch.dict(os.environ, {
+            "IMAP_EMAIL": "test@test.com",
+            "IMAP_PASSWORD": "supersecret123",
+        }, clear=True):
+            return MailReader()
+
+    def test_imapclient_called_with_verifying_ssl_context(self, mail_reader):
+        """IMAPClient recibe ssl_context con check_hostname y CERT_REQUIRED (mock)."""
+        mock_client = MagicMock()
+        mock_client.__enter__.return_value = mock_client
+        mock_client.search.side_effect = [[5], [6]]
+        mock_client.fetch.return_value = {6: {b"RFC822": (
+            b"From: noreply@imss.gob.mx\r\n"
+            b"Subject: Tu NSS\r\n"
+            b"\r\n"
+            b"Tu NSS es 12345678901 visita https://example.com/verify"
+        )}}
+
+        with patch("src.utils.mail_reader.IMAPClient", return_value=mock_client) as mock_imap:
+            with patch("time.sleep"):
+                mail_reader.wait_for_imss_email(max_wait_sec=10, interval=1)
+
+        assert mock_imap.call_count == 1
+        kwargs = mock_imap.call_args.kwargs
+        assert kwargs.get("ssl") is True
+        ctx = kwargs.get("ssl_context")
+        assert ctx is not None
+        assert ctx.check_hostname is True
+        assert ctx.verify_mode == ssl.CERT_REQUIRED
+
+    def test_cert_failure_raises_clear_error_without_credentials(self, mail_reader):
+        """Fallo de cert → MailReaderError claro, sin exponer password."""
+        from src.exceptions import MailReaderError
+
+        with patch(
+            "src.utils.mail_reader.IMAPClient",
+            side_effect=ssl.SSLCertVerificationError("certificate verify failed"),
+        ):
+            with pytest.raises(MailReaderError, match="verificación TLS|certificado|MITM") as exc_info:
+                mail_reader.wait_for_imss_email(max_wait_sec=1, interval=1)
+
+        msg = str(exc_info.value)
+        assert "supersecret123" not in msg
+        assert "test@test.com" not in msg

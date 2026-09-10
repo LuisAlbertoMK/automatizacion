@@ -16,6 +16,7 @@ CONFIGURACIÓN GMAIL:
 import email
 import os
 import re
+import ssl
 import time
 
 from imapclient import IMAPClient
@@ -52,29 +53,49 @@ class MailReader:
         print(f"  [mail] Esperando correo IMSS (máx {max_wait_sec}s)...")
         elapsed = 0
 
-        with IMAPClient(self.server, port=self.port, ssl=True) as client:
-            client.login(self.email, self.password)
-            client.select_folder("INBOX")
+        # M1 HIGH: forzar verificación TLS para evitar MITM que robe IMAP_PASSWORD.
+        # ssl.create_default_context() verifica cert + hostname por defecto
+        # (check_hostname=True, verify_mode=CERT_REQUIRED). No desactivar.
+        ssl_context = ssl.create_default_context()
 
-            start_uid = self._get_latest_uid(client)
+        try:
+            with IMAPClient(
+                self.server, port=self.port, ssl=True, ssl_context=ssl_context
+            ) as client:
+                client.login(self.email, self.password)
+                client.select_folder("INBOX")
 
-            while elapsed < max_wait_sec:
-                time.sleep(interval)
-                elapsed += interval
+                start_uid = self._get_latest_uid(client)
 
-                messages = client.search(["UNSEEN", "FROM", "imss.gob.mx"])
-                new_msgs  = [uid for uid in messages if uid > start_uid]
+                while elapsed < max_wait_sec:
+                    time.sleep(interval)
+                    elapsed += interval
 
-                if new_msgs:
-                    uid = max(new_msgs)
-                    raw = client.fetch([uid], ["RFC822"])[uid][b"RFC822"]
-                    msg = email.message_from_bytes(raw)
-                    result = self._parse_message(msg)
-                    print(f"  [mail] Correo recibido en {elapsed}s [OK]")
-                    client.set_flags([uid], [b"\\Seen"])
-                    return result
+                    messages = client.search(["UNSEEN", "FROM", "imss.gob.mx"])
+                    new_msgs = [uid for uid in messages if uid > start_uid]
 
-                print(f"  [mail] Sin correo aún... ({elapsed}s)")
+                    if new_msgs:
+                        uid = max(new_msgs)
+                        raw = client.fetch([uid], ["RFC822"])[uid][b"RFC822"]
+                        msg = email.message_from_bytes(raw)
+                        result = self._parse_message(msg)
+                        print(f"  [mail] Correo recibido en {elapsed}s [OK]")
+                        client.set_flags([uid], [b"\\Seen"])
+                        return result
+
+                    print(f"  [mail] Sin correo aún... ({elapsed}s)")
+        except ssl.SSLCertVerificationError:
+            raise MailReaderError(
+                "Fallo verificación TLS del servidor IMAP "
+                f"({self.server}:{self.port}): certificado inválido. "
+                "Posible MITM — conexión abortada sin enviar credenciales."
+            ) from None
+        except ssl.SSLError as e:
+            raise MailReaderError(
+                "Error TLS con el servidor IMAP "
+                f"({self.server}:{self.port}): {e}. "
+                "Conexión abortada sin enviar credenciales."
+            ) from None
 
         raise MailReaderError(
             f"No llegó correo del IMSS en {max_wait_sec}s. "
