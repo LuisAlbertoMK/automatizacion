@@ -18,8 +18,8 @@ from src.exceptions import ClaudeError
 
 # Anthropic API key format: sk-ant-api-<alphanumeric segments>
 # Real keys are 100+ chars; we validate prefix + min length + segment chars.
-_ANTHROPIC_KEY_PATTERN = re.compile(r"^sk-ant-api-[A-Za-z0-9_-]{10,}$")
-_ANTHROPIC_KEY_MIN_LENGTH = 50
+_ANTHROPIC_KEY_PATTERN = re.compile(r"^sk-ant-api-[A-Za-z0-9_-]{95,}$")
+_ANTHROPIC_KEY_MIN_LENGTH = 100
 
 ANTHROPIC_VERSION = "2023-06-01"
 DEFAULT_MODEL = "claude-sonnet-4-20250514"
@@ -54,7 +54,8 @@ def _validate_api_key(api_key: str) -> None:
     ).format(_ANTHROPIC_KEY_MIN_LENGTH)
     _FORMAT_MSG = (
         "ANTHROPIC_API_KEY inválida — el formato es incorrecto.\n"
-        "  La clave debe comenzar con 'sk-ant-api-' y contener al menos 10 caracteres alfanuméricos.\n"
+        "  La clave debe comenzar con 'sk-ant-api-' y contener al menos 95 caracteres alfanuméricos\n"
+        "  (100+ caracteres en total, como las keys reales de Anthropic).\n"
         "  1. Obtené tu API key en https://console.anthropic.com"
     )
 

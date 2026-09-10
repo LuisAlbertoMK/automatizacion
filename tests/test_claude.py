@@ -12,7 +12,10 @@ from src.utils.claude import ClaudeError, _validate_api_key, call_claude
 @pytest.fixture(autouse=True)
 def setup_key():
     """Asegura ANTHROPIC_API_KEY para tests que lo necesitan."""
-    os.environ["ANTHROPIC_API_KEY"] = "sk-ant-api-0P1xYz-test-abc123-456def78901234567890"
+    os.environ["ANTHROPIC_API_KEY"] = (
+        "sk-ant-api-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-"
+        "Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Q"
+    )
     yield
     os.environ.pop("ANTHROPIC_API_KEY", None)
 
@@ -60,7 +63,10 @@ class TestCallClaude:
         assert args[0] == "https://api.anthropic.com/v1/messages"
         assert kwargs["json"]["model"] == "claude-sonnet-4"
         assert kwargs["json"]["max_tokens"] == 500
-        assert kwargs["headers"]["x-api-key"] == "sk-ant-api-0P1xYz-test-abc123-456def78901234567890"
+        assert kwargs["headers"]["x-api-key"] == (
+            "sk-ant-api-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-"
+            "Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Q"
+        )
         assert kwargs["headers"]["anthropic-version"] == "2023-06-01"
 
     def test_strips_markdown_backticks(self, mock_client):
@@ -79,14 +85,17 @@ class TestCallClaude:
             call_claude([])
 
     def test_raises_on_key_too_short(self):
-        """Key con prefijo correcto pero <50 chars → ClaudeError."""
+        """Key con prefijo correcto pero <100 chars → ClaudeError."""
         os.environ["ANTHROPIC_API_KEY"] = "sk-ant-api-short"
         with pytest.raises(ClaudeError, match="demasiado corta"):
             call_claude([])
 
     def test_raises_on_wrong_prefix(self):
         """Key con sk-ant- pero no sk-ant-api- → ClaudeError."""
-        os.environ["ANTHROPIC_API_KEY"] = "sk-ant-old-key-format-with-sufficient-length-12345678901234567890123456"
+        os.environ["ANTHROPIC_API_KEY"] = (
+            "sk-ant-old-key-format-with-sufficient-length-"
+            "123456789012345678901234567890123456789012345678901234567890"
+        )
         with pytest.raises(ClaudeError, match="inválida"):
             call_claude([])
 
