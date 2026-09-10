@@ -13,7 +13,7 @@ import pytest
 from PIL import Image
 
 from src.exceptions import FreeCaptchaError
-from src.utils.free_captcha import FreeCaptchaSolver, _whisper_model
+from src.utils.free_captcha import FreeCaptchaSolver, _is_allowed_audio_url, _whisper_model
 
 # Imagen real mínima de 1x1 px para mockear Image.open global
 _TINY_IMG = Image.new("RGB", (1, 1))
@@ -247,7 +247,7 @@ class _MockPageBuilder:
     @staticmethod
     def build(
         count_side_effect=None,
-        audio_src="https://example.com/audio.mp3",
+        audio_src="https://www.google.com/recaptcha/audio.mp3",
         evaluate_return="",
         has_verify_btn=True,
     ):
@@ -356,7 +356,7 @@ class TestRecaptchaAudio:
                     result = await solver.solve_recaptcha_v2_audio(page, "sk", "https://ex.com")
 
         assert result == "g-recaptcha-response-valid-token-12345"
-        mock_req.assert_called_once_with("https://example.com/audio.mp3", timeout=30)
+        mock_req.assert_called_once_with("https://www.google.com/recaptcha/audio.mp3", timeout=30)
 
     @pytest.mark.asyncio
     @patch("src.utils.free_captcha.asyncio.sleep")
@@ -411,3 +411,41 @@ class TestRecaptchaAudio:
         page, _ = _MockPageBuilder.build(audio_src=None)
         result = await solver.solve_recaptcha_v2_audio(page, "sk", "https://ex.com")
         assert result == "MANUAL"
+
+
+# ── M4 SSRF: allowlist de URLs de audio ──────────────────────────────────
+
+
+class TestAudioUrlAllowlist:
+    """_is_allowed_audio_url — validación anti-SSRF del audio challenge."""
+
+    def test_google_com_https_valido(self):
+        assert _is_allowed_audio_url("https://www.google.com/recaptcha/audio.mp3") is True
+
+    def test_gstatic_valido(self):
+        assert _is_allowed_audio_url("https://www.gstatic.com/recaptcha/audio.mp3") is True
+
+    def test_http_bloqueado(self):
+        assert _is_allowed_audio_url("http://www.google.com/recaptcha/audio.mp3") is False
+
+    def test_imds_bloqueado(self):
+        assert _is_allowed_audio_url("https://169.254.169.254/latest/meta-data/") is False
+
+    def test_loopback_bloqueado(self):
+        assert _is_allowed_audio_url("https://127.0.0.1/audio.mp3") is False
+
+    def test_privada_10_bloqueada(self):
+        assert _is_allowed_audio_url("https://10.0.0.5/audio.mp3") is False
+
+    def test_file_scheme_bloqueado(self):
+        assert _is_allowed_audio_url("file:///etc/passwd") is False
+
+    def test_userinfo_arroba_bloqueado(self):
+        assert _is_allowed_audio_url("https://www.google.com@evil.com/audio.mp3") is False
+
+    def test_vacia_y_none_bloqueadas(self):
+        assert _is_allowed_audio_url("") is False
+        assert _is_allowed_audio_url(None) is False
+
+    def test_evil_google_bloqueado(self):
+        assert _is_allowed_audio_url("https://evil-google.com/audio.mp3") is False

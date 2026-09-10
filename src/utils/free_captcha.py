@@ -16,11 +16,13 @@ from __future__ import annotations
 
 import asyncio
 import io
+import ipaddress
 import logging
 import os
 import re
 import tempfile
 from pathlib import Path
+from urllib.parse import urlparse
 
 from PIL import Image
 
@@ -74,6 +76,48 @@ def _get_whisper_model():
 
 
 from src.exceptions import FreeCaptchaError  # noqa: E402
+
+# ── M4 SSRF allowlist para audio challenge ───────────────────────────
+_ALLOWED_AUDIO_HOSTS = {"www.google.com", "www.gstatic.com"}
+
+
+def _is_allowed_audio_url(url: str) -> bool:
+    """Valida que la URL de audio sea confiable (anti-SSRF).
+
+    Exige scheme https, host en allowlist o subdominio
+    .google.com/.gstatic.com, sin userinfo, sin IP literal,
+    y puerto 443 o implícito. Retorna False ante cualquier
+    excepción o URL vacía.
+    """
+    if not url or not isinstance(url, str):
+        return False
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            return False
+        # Rechaza userinfo (user:pass@host)
+        if "@" in parsed.netloc:
+            return False
+        host = parsed.hostname
+        if not host:
+            return False
+        host = host.lower()
+        # Rechaza IPs literales v4/v6 (incluye IMDS, privadas, loopback)
+        try:
+            ipaddress.ip_address(host)
+            return False
+        except ValueError:
+            pass
+        if host not in _ALLOWED_AUDIO_HOSTS and not (
+            host.endswith(".google.com") or host.endswith(".gstatic.com")
+        ):
+            return False
+        # Solo puerto implícito o 443
+        if parsed.port is not None and parsed.port != 443:
+            return False
+        return True
+    except Exception:
+        return False
 
 
 class FreeCaptchaSolver:
@@ -289,6 +333,9 @@ class FreeCaptchaSolver:
                 return "MANUAL"
 
             print("  [FreeCaptcha] Descargando audio...")
+            if not _is_allowed_audio_url(audio_link):
+                print(" [FreeCaptcha] URL de audio no confiable — abortando")
+                return "MANUAL"
             resp = reqs.get(audio_link, timeout=30)
             audio_bytes = resp.content
 
