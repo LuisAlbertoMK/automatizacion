@@ -6,9 +6,7 @@ Centraliza: selectors, captcha, PDF, logging, browser lifecycle.
 import asyncio
 import json
 import os
-import platform
 import re
-import subprocess
 import time
 from collections import OrderedDict
 from contextlib import asynccontextmanager
@@ -21,12 +19,19 @@ from playwright.async_api import Browser, BrowserContext, Page, Playwright, asyn
 from playwright.async_api import TimeoutError as PwTimeout
 
 from src.exceptions import ModuleError
+from src.tramites.debug_utils import (
+    find_visible_inputs as _find_visible_inputs,
+)
+from src.tramites.debug_utils import (
+    take_debug_screenshot as _take_debug_screenshot,
+)
 from src.tramites.html_parsers import (
     extract_curp_from_html as _parse_curp_from_html,
 )
 from src.tramites.html_parsers import (
     extract_nss_from_html as _parse_nss_from_html,
 )
+from src.tramites.pdf_utils import open_pdf as _open_pdf
 from src.utils.browser_pool import BrowserPool
 from src.utils.http_client import get_http_session
 from src.utils.rate_limiter import RateLimiter
@@ -640,43 +645,27 @@ class BaseModule:
 
     def open_pdf(self, pdf_path: Path):
         """Abre PDF con visor predeterminado (solo si no es headless)."""
-        if HEADLESS:
-            self.debug(f"Headless mode — omitiendo open_pdf: {pdf_path}")
-            return
-        try:
-            sistema = platform.system()
-            if sistema == "Windows":
-                os.startfile(str(pdf_path))
-            elif sistema == "Darwin":
-                subprocess.run(["open", str(pdf_path)])
-            else:
-                subprocess.run(["xdg-open", str(pdf_path)])
-            self.log("PDF abierto automáticamente")
-        except Exception as e:
-            self.warn(f"No se pudo abrir PDF: {e}")
-            self.log(f"Abrí manualmente: {pdf_path}")
+        return _open_pdf(
+            pdf_path,
+            headless=HEADLESS,
+            on_debug=self.debug,
+            on_log=self.log,
+            on_warn=self.warn,
+        )
 
     async def find_visible_inputs(self, page: Page, keyword: str = "") -> list:
         """Lista inputs visibles para debug. Si keyword, busca coincidencia."""
-        inputs = await page.query_selector_all("input[type='text'], input:not([type])")
-        found = []
-        for inp in inputs:
-            if await inp.is_visible():
-                name = await inp.get_attribute("name") or ""
-                id_attr = await inp.get_attribute("id") or ""
-                placeholder = await inp.get_attribute("placeholder") or ""
-                if not keyword or keyword.lower() in (name + id_attr + placeholder).lower():
-                    found.append({"element": inp, "name": name, "id": id_attr, "placeholder": placeholder})
-        return found
+        return await _find_visible_inputs(page, keyword)
 
     async def debug_screenshot(self, page: Page, path: str = "debug.png"):
         """Toma screenshot para debug (solo si HEADLESS=false o VERBOSE)."""
-        if not HEADLESS or os.getenv("VERBOSE", "false").lower() == "true":
-            try:
-                await page.screenshot(path=path)
-                self.debug(f"Screenshot: {path}")
-            except Exception:
-                self.debug("Error tomando screenshot de debug")
+        return await _take_debug_screenshot(
+            page,
+            path,
+            headless=HEADLESS,
+            verbose=os.getenv("VERBOSE", "false").lower() == "true",
+            on_debug=self.debug,
+        )
 
     # ── Logging estructurado ─────────────────────────────────────
     def log(self, msg: str):
