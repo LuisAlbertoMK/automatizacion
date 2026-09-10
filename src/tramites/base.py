@@ -21,6 +21,12 @@ from playwright.async_api import Browser, BrowserContext, Page, Playwright, asyn
 from playwright.async_api import TimeoutError as PwTimeout
 
 from src.exceptions import ModuleError
+from src.tramites.html_parsers import (
+    extract_curp_from_html as _parse_curp_from_html,
+)
+from src.tramites.html_parsers import (
+    extract_nss_from_html as _parse_nss_from_html,
+)
 from src.utils.browser_pool import BrowserPool
 from src.utils.http_client import get_http_session
 from src.utils.rate_limiter import RateLimiter
@@ -703,9 +709,7 @@ class BaseModule:
 
     # ── HTML parsing helpers ─────────────────────────────────────
     def extract_curp_from_html(self, html: str) -> str | None:
-        match = re.search(r"\b([A-Z]{4}\d{6}[HM][A-Z]{5}[A-Z0-9]\d)\b", html)
-        return match.group(1) if match else None
+        return _parse_curp_from_html(html)
 
     def extract_nss_from_html(self, html: str) -> str | None:
-        match = re.search(r"\b(\d{11})\b", html)
-        return match.group(1) if match else None
+        return _parse_nss_from_html(html)
