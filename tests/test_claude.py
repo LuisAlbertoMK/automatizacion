@@ -169,12 +169,21 @@ class TestValidateApiKey:
 
     def test_wrong_prefix_raises(self):
         with pytest.raises(ClaudeError, match="inválida"):
-            _validate_api_key("sk-ant-old-format-key-very-long-string-12345678901234567890123456")
+            _validate_api_key(
+                "sk-ant-old-format-key-very-long-string-"
+                "1234567890123456789012345678901234567890123456789012345678901234567890"
+            )
 
     def test_valid_key_passes(self):
-        _validate_api_key("sk-ant-api-0P1xYz-test-abc123-456def78901234567890")
+        _validate_api_key(
+            "sk-ant-api-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-"
+            "Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Abc123XyZ_-Valid"
+        )
         # No exception = pass
 
     def test_key_with_underscores_valid(self):
-        _validate_api_key("sk-ant-api-0123456789_ABCD-efgh-ijkl-mnop-qrstuvwxYz")
+        _validate_api_key(
+            "sk-ant-api-0123456789_ABCD-efgh-ijkl-mnop-qrstuvwxYz-"
+            "0123456789_ABCD-efgh-ijkl-mnop-qrstuvwxYz-0123456789_ABCD"
+        )
         # No exception = pass

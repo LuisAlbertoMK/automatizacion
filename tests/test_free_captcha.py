@@ -487,9 +487,9 @@ class TestWhisperWarmup:
                 with patch("builtins.print"):
                     s = FreeCaptchaSolver()
                 result = s.warmup()
-        assert result is model
-        mock_whisper.load_model.assert_called_once_with("base")
-        assert fc._whisper_model is model
+                assert result is model
+                mock_whisper.load_model.assert_called_once_with("base")
+                assert fc._whisper_model is model
 
     def test_warmup_con_use_whisper_false_no_carga_nada(self, _reset_whisper_singleton):
         import sys
