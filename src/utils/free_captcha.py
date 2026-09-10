@@ -21,6 +21,7 @@ import logging
 import os
 import re
 import tempfile
+import threading
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -136,6 +137,42 @@ class FreeCaptchaSolver:
         self.use_ocr = use_ocr and TESSERACT_AVAILABLE
         self.use_whisper = use_whisper and WHISPER_AVAILABLE
         self._init_verify()
+        self._maybe_preload_whisper()
+
+    def warmup(self):
+        """Precarga explícita del modelo Whisper (opt-in, testeable).
+
+        Llama a `_get_whisper_model()` solo si `self.use_whisper` es True.
+        Si Whisper no está disponible o la carga falla, no-op silencioso
+        (log debug, sin excepción). El singleton `_whisper_model` garantiza
+        una sola carga por proceso.
+        """
+        if not self.use_whisper:
+            logger.debug("Whisper warmup omitido: use_whisper=False")
+            return None
+        try:
+            return _get_whisper_model()
+        except Exception:
+            logger.debug("Whisper warmup falló (no-op)", exc_info=True)
+            return None
+
+    def _maybe_preload_whisper(self):
+        """Dispara precarga en background si WHISPER_PRELOAD=true (no bloqueante)."""
+        try:
+            if not self.use_whisper:
+                return
+            if os.getenv("WHISPER_PRELOAD", "").lower() != "true":
+                return
+
+            def _bg():
+                try:
+                    self.warmup()
+                except Exception:
+                    logger.debug("Whisper preload en background falló", exc_info=True)
+
+            threading.Thread(target=_bg, daemon=True).start()
+        except Exception:
+            logger.debug("No se pudo lanzar preload de Whisper", exc_info=True)
 
     def _init_verify(self):
         if not TESSERACT_AVAILABLE:

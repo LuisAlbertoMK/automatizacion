@@ -449,3 +449,109 @@ class TestAudioUrlAllowlist:
 
     def test_evil_google_bloqueado(self):
         assert _is_allowed_audio_url("https://evil-google.com/audio.mp3") is False
+
+
+# ── P5 Whisper warmup opt-in ─────────────────────────────────────────────
+
+
+@pytest.fixture
+def _reset_whisper_singleton():
+    """Resetea el singleton global _whisper_model antes/después de cada test."""
+    import src.utils.free_captcha as fc
+
+    orig = fc._whisper_model
+    fc._whisper_model = None
+    try:
+        yield fc
+    finally:
+        fc._whisper_model = orig
+
+
+class TestWhisperWarmup:
+    """FreeCaptchaSolver.warmup + opt-in WHISPER_PRELOAD=true."""
+
+    def test_warmup_carga_modelo_una_vez(self, _reset_whisper_singleton):
+        import sys
+
+        import src.utils.free_captcha as fc
+
+        model = MagicMock()
+        mock_whisper = MagicMock()
+        mock_whisper.load_model.return_value = model
+        with patch.dict(
+            "src.utils.free_captcha.__dict__",
+            {"TESSERACT_AVAILABLE": True, "WHISPER_AVAILABLE": True},
+        ):
+            with patch.dict(sys.modules, {"whisper": mock_whisper}):
+                with patch("builtins.print"):
+                    s = FreeCaptchaSolver()
+                result = s.warmup()
+        assert result is model
+        mock_whisper.load_model.assert_called_once_with("base")
+        assert fc._whisper_model is model
+
+    def test_warmup_con_use_whisper_false_no_carga_nada(self, _reset_whisper_singleton):
+        import sys
+
+        mock_whisper = MagicMock()
+        with patch.dict(
+            "src.utils.free_captcha.__dict__",
+            {"TESSERACT_AVAILABLE": True, "WHISPER_AVAILABLE": True},
+        ):
+            with patch.dict(sys.modules, {"whisper": mock_whisper}):
+                with patch("builtins.print"):
+                    s = FreeCaptchaSolver(use_whisper=False)
+                result = s.warmup()
+        assert result is None
+        mock_whisper.load_model.assert_not_called()
+
+    def test_doble_warmup_usa_singleton(self, _reset_whisper_singleton):
+        import sys
+
+        model = MagicMock()
+        mock_whisper = MagicMock()
+        mock_whisper.load_model.return_value = model
+        with patch.dict(
+            "src.utils.free_captcha.__dict__",
+            {"TESSERACT_AVAILABLE": True, "WHISPER_AVAILABLE": True},
+        ):
+            with patch.dict(sys.modules, {"whisper": mock_whisper}):
+                with patch("builtins.print"):
+                    s = FreeCaptchaSolver()
+                first = s.warmup()
+                second = s.warmup()
+        assert first is model
+        assert second is model
+        mock_whisper.load_model.assert_called_once_with("base")
+
+    def test_preload_env_dispara_sin_bloquear_init(self, _reset_whisper_singleton):
+        with patch.dict(
+            "src.utils.free_captcha.__dict__",
+            {"TESSERACT_AVAILABLE": True, "WHISPER_AVAILABLE": True},
+        ):
+            with patch.dict("os.environ", {"WHISPER_PRELOAD": "true"}):
+                with patch(
+                    "src.utils.free_captcha.threading.Thread"
+                ) as mock_thread:
+                    with patch("builtins.print"):
+                        s = FreeCaptchaSolver()
+        mock_thread.assert_called_once()
+        _, kwargs = mock_thread.call_args
+        assert kwargs.get("daemon") is True
+        mock_thread.return_value.start.assert_called_once_with()
+        assert s.use_whisper is True
+
+    def test_warmup_traga_fallos_sin_excepcion(self, _reset_whisper_singleton):
+        import sys
+
+        mock_whisper = MagicMock()
+        mock_whisper.load_model.side_effect = RuntimeError("sin GPU")
+        with patch.dict(
+            "src.utils.free_captcha.__dict__",
+            {"TESSERACT_AVAILABLE": True, "WHISPER_AVAILABLE": True},
+        ):
+            with patch.dict(sys.modules, {"whisper": mock_whisper}):
+                with patch("builtins.print"):
+                    s = FreeCaptchaSolver()
+                result = s.warmup()  # no debe lanzar
+        assert result is None

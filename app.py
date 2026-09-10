@@ -15,6 +15,7 @@ Autenticación:
 import asyncio
 import concurrent.futures
 import hmac
+import logging
 import os
 import secrets
 from datetime import datetime
@@ -39,6 +40,8 @@ from src.utils.storage import (  # noqa: E402
     save_profile,
 )
 from src.validators import validar_curp, validar_email  # noqa: E402
+
+logger = logging.getLogger("tramites.ui")
 
 # ── Config ──────────────────────────────────────────────────
 st.set_page_config(
@@ -118,6 +121,7 @@ if not _check_auth():
 API_KEY = os.getenv("CAPTCHA_API_KEY", "")
 
 
+@st.cache_resource
 def _get_solver():
     if API_KEY and API_KEY != "tu_api_key_aqui":
         try:
@@ -151,6 +155,11 @@ def run_async(coro):
         loop.close()
 
 
+@st.cache_data(ttl=3600)
+def _get_tramites_cached():
+    return listar_tramites()
+
+
 # ── Sidebar ─────────────────────────────────────────────────
 st.sidebar.title("🤖 Trámites GOB.MX")
 st.sidebar.caption(f"v1.0 · {datetime.now().strftime('%b %Y')}")
@@ -171,7 +180,7 @@ if menu == "📊 Dashboard":
     st.title("📊 Dashboard")
     st.markdown("---")
 
-    tramites = listar_tramites()
+    tramites = _get_tramites_cached()
 
     col1, col2, col3 = st.columns(3)
     activos = sum(1 for t in tramites.values() if "Producción" in t["estado"])
@@ -243,6 +252,7 @@ elif menu == "📋 CURP":
                     st.error(f"Error en consulta CURP: {e}")
                 except Exception as e:
                     status.update(label="❌ Error inesperado", state="error")
+                    logger.exception("Error inesperado en consulta %s", "CURP")
                     st.error(f"Error inesperado: {type(e).__name__}")
 
 
@@ -294,6 +304,7 @@ elif menu == "🔢 NSS IMSS":
                         st.error(f"Error en consulta NSS: {e}")
                     except Exception as e:
                         status.update(label="❌ Error inesperado", state="error")
+                        logger.exception("Error inesperado en consulta %s", "NSS")
                         st.error(f"Error inesperado: {type(e).__name__}")
 
 
