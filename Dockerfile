@@ -9,8 +9,8 @@ RUN pip install --no-cache-dir -r requirements.lock
 # ── App install (no-deps since requirements.lock has it all) ──
 COPY pyproject.toml ./
 COPY src/ src/
-COPY app.py main.py health_check.py benchmark_browser_pool.py ./
-RUN pip install -e . --no-deps
+COPY app.py health_check.py benchmark_browser_pool.py ./
+RUN pip install . --no-deps
 
 
 # ── Runtime stage ───────────────────────────────────────────
