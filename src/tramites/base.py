@@ -31,6 +31,18 @@ from src.tramites.html_parsers import (
 from src.tramites.html_parsers import (
     extract_nss_from_html as _parse_nss_from_html,
 )
+from src.tramites.module_logger import (
+    emit_debug as _emit_debug,
+)
+from src.tramites.module_logger import (
+    emit_error as _emit_error,
+)
+from src.tramites.module_logger import (
+    emit_log as _emit_log,
+)
+from src.tramites.module_logger import (
+    emit_warn as _emit_warn,
+)
 from src.tramites.pdf_utils import open_pdf as _open_pdf
 from src.utils.browser_pool import BrowserPool
 from src.utils.http_client import get_http_session
@@ -670,31 +682,24 @@ class BaseModule:
     # ── Logging estructurado ─────────────────────────────────────
     def log(self, msg: str):
         """Info genérica."""
-        if hasattr(self, '_logger') and self._logger:
-            self._logger.info(msg)
-        else:
-            print(f"  [{self.name}] {msg}")
+        _emit_log(getattr(self, '_logger', None), self.name, msg)
 
     def debug(self, msg: str):
         """Debug (solo si VERBOSE)."""
-        if hasattr(self, '_logger') and self._logger:
-            self._logger.debug(msg)
-        elif os.getenv("VERBOSE", "false").lower() == "true":
-            print(f"  [DEBUG][{self.name}] {msg}")
+        _emit_debug(
+            getattr(self, '_logger', None),
+            self.name,
+            msg,
+            verbose=os.getenv("VERBOSE", "false").lower() == "true",
+        )
 
     def warn(self, msg: str):
         """Advertencia."""
-        if hasattr(self, '_logger') and self._logger:
-            self._logger.warn(msg)
-        else:
-            print(f"  [{self.name}] \u26a0 {msg}")
+        _emit_warn(getattr(self, '_logger', None), self.name, msg)
 
     def error(self, msg: str):
         """Error."""
-        if hasattr(self, '_logger') and self._logger:
-            self._logger.error(msg)
-        else:
-            print(f"  [{self.name}] \u274c {msg}")
+        _emit_error(getattr(self, '_logger', None), self.name, msg)
 
     # ── HTML parsing helpers ─────────────────────────────────────
     def extract_curp_from_html(self, html: str) -> str | None:
