@@ -44,6 +44,9 @@ from src.tramites.module_logger import (
     emit_warn as _emit_warn,
 )
 from src.tramites.pdf_utils import open_pdf as _open_pdf
+from src.tramites.selector_cache import clear_cache as _clear_selector_cache
+from src.tramites.selector_cache import make_cache_key as _make_selector_cache_key
+from src.tramites.selector_cache import store_selector as _store_selector
 from src.utils.browser_pool import BrowserPool
 from src.utils.http_client import get_http_session
 from src.utils.rate_limiter import RateLimiter
@@ -329,7 +332,7 @@ class BaseModule:
 
     async def fill_field(self, page: Page, selectors: list, value: str) -> bool:
         """Llena un campo probando múltiples selectores. Retorna True si encontró alguno."""
-        cache_key = str(tuple(selectors))
+        cache_key = _make_selector_cache_key(selectors)
 
         if cache_key in self._selector_cache:
             cached_sel = self._selector_cache[cache_key]
@@ -350,10 +353,7 @@ class BaseModule:
                     self.debug(f"Llenando campo con selector: {sel}")
                     await loc.first.fill(value)
                     await asyncio.sleep(0.3)
-                    self._selector_cache[cache_key] = sel
-                    self._selector_cache.move_to_end(cache_key)
-                    if len(self._selector_cache) > 512:
-                        self._selector_cache.popitem(last=False)
+                    _store_selector(self._selector_cache, cache_key, sel)
                     return True
             except Exception as e:
                 self.debug(f"fill_field: selector {sel} falló: {e}")
@@ -377,10 +377,7 @@ class BaseModule:
 
     def _cache_selector(self, cache_key: str, sel: str):
         """Guarda selector exitoso en caché con eviction LRU (máx 512)."""
-        self._selector_cache[cache_key] = sel
-        self._selector_cache.move_to_end(cache_key)
-        if len(self._selector_cache) > 512:
-            self._selector_cache.popitem(last=False)
+        _store_selector(self._selector_cache, cache_key, sel)
 
     async def click_first(self, page: Page, selectors: list, wait_nav: bool = False, timeout_nav: int = 30000) -> bool:
         """Hace clic en el primer selector visible. Retorna True si encontró.
@@ -389,7 +386,7 @@ class BaseModule:
           1. Intenta selector cacheado (rápido, evita re-scan)
           2. Itera selectors hasta primer visible + click exitoso
         """
-        cache_key = str(tuple(selectors))
+        cache_key = _make_selector_cache_key(selectors)
 
         # Fase 1: selector cacheado
         if cache_key in self._selector_cache:
@@ -422,7 +419,7 @@ class BaseModule:
 
     def clear_selector_cache(self):
         """Limpia el caché de selectores exitosos."""
-        self._selector_cache.clear()
+        _clear_selector_cache(self._selector_cache)
 
     async def _find_captcha_img(self, page: Page, img_selectors: list):
         """Busca el primer locator de imagen CAPTCHA. Returns locator.first o None."""
